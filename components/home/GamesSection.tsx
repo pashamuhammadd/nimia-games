@@ -33,7 +33,7 @@ export default function GamesSection({ variant = "full" }: GamesSectionProps) {
                 href="/games"
                 className="nimia-button-secondary inline-flex w-fit rounded-full px-4 py-2.5 text-xs font-bold"
               >
-                Lihat Semua Game →
+                See All Games →
               </FlowLink>
             )}
           </div>
