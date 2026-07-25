@@ -17,22 +17,25 @@ export default function Navbar() {
         <FlowLink href="/" className="flex items-center gap-2.5">
           <Image
             src="/logo.png"
-            alt="Nimia Games"
+            alt=""
             width={36}
             height={36}
             priority
             className="h-8 w-8 object-contain transition duration-300 hover:scale-105 hover:rotate-3 md:h-9 md:w-9"
           />
 
-          <div className="leading-none">
-            <p className="font-display text-sm font-bold tracking-wide text-white">
-              NIMIA
-            </p>
-
-            <p className="nimia-accent-text mt-[2px] text-[0.55rem] font-extrabold tracking-[0.25em]">
-              GAMES
-            </p>
-          </div>
+          {/* Wordmark: baked from the Quadrillion typeface as static vector
+              paths (not a live @font-face), since that font's license only
+              permits static/logo use, not web embedding. */}
+          <Image
+            src="/nimia-games-wordmark.svg"
+            alt="Nimia Games"
+            width={171}
+            height={16}
+            unoptimized
+            priority
+            className="h-4 w-auto md:h-[18px]"
+          />
         </FlowLink>
 
         {/* Menu (desktop) */}

@@ -8,7 +8,7 @@ import Footer from "@/components/layout/Footer";
 export const metadata: Metadata = {
   title: "Contact",
   description:
-    "Hubungi Nimia Games untuk kolaborasi game development, animasi, dan digital asset lewat Nimia Studio.",
+    "Get in touch with Nimia Games for game development, animation, and digital asset collaborations through Nimia Studio.",
 };
 
 export default function ContactPage() {
@@ -22,48 +22,48 @@ export default function ContactPage() {
             </p>
 
             <h1 className="max-w-2xl text-2xl font-black leading-tight text-white md:text-4xl">
-              Mari <span className="nimia-accent-text">berkolaborasi</span>{" "}
-              dengan Nimia Games.
+              Let&rsquo;s <span className="nimia-accent-text">collaborate</span>{" "}
+              with Nimia Games.
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-white/60 md:text-base">
-              Butuh jasa pembuatan game, animasi, atau digital asset? Tim
-              produksi Nimia siap membantu lewat Nimia Studio.
+              Need game development, animation, or digital asset production?
+              The Nimia production team is ready to help through Nimia
+              Studio.
             </p>
           </Reveal>
 
           <Reveal delay={80} className="mt-9">
             <CTASection
               compact
-              eyebrow="Punya proyek yang ingin dibangun?"
+              eyebrow="Have a project you want to build?"
               title={
                 <>
-                  Mulai proyekmu bersama{" "}
+                  Start your project with{" "}
                   <span className="nimia-accent-text">Nimia Studio</span>.
                 </>
               }
-              description="Dari game development, animasi, hingga digital asset custom. Hubungi tim Nimia Studio untuk mulai diskusi proyekmu."
+              description="From game development and animation to custom digital assets. Reach out to the Nimia Studio team to start the conversation."
             />
           </Reveal>
 
           <Reveal delay={160} className="mt-8 grid gap-4 sm:grid-cols-2">
             <FlowLink href="/about" className="nimia-card block rounded-2xl p-5">
               <h3 className="text-sm font-black text-white">
-                Kenalan dengan Founder
+                Meet the Founder
               </h3>
               <p className="mt-2 text-xs leading-6 text-white/55">
-                Pelajari lebih lanjut tentang Nimia Games dan sosok di
-                baliknya.
+                Learn more about Nimia Games and the person behind it.
               </p>
             </FlowLink>
 
             <FlowLink href="/games" className="nimia-card block rounded-2xl p-5">
               <h3 className="text-sm font-black text-white">
-                Jelajahi Game Kami
+                Explore Our Games
               </h3>
               <p className="mt-2 text-xs leading-6 text-white/55">
-                Lihat Lifetopia World dan game lain yang sedang kami
-                kembangkan.
+                Check out Lifetopia World and other games we&rsquo;re
+                developing.
               </p>
             </FlowLink>
           </Reveal>

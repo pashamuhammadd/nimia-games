@@ -53,8 +53,9 @@ export default function GalleryTicker({ variant = "full" }: GalleryTickerProps) 
 
               {!isPreview && (
                 <p className="mt-2 max-w-2xl text-sm text-white/60">
-                  Koleksi animasi, motion graphics, game trailer, dan visual
-                  showcase ekosistem Solana yang dibuat Nimia.
+                  A collection of animation, motion graphics, game trailers,
+                  and visual showcases from the Solana ecosystem made by
+                  Nimia.
                 </p>
               )}
             </div>
@@ -93,7 +94,7 @@ export default function GalleryTicker({ variant = "full" }: GalleryTickerProps) 
                   href="/gallery"
                   className="ml-2 text-[11px] font-bold uppercase tracking-widest text-white/50 transition hover:text-white"
                 >
-                  Lihat Semua →
+                  View All →
                 </FlowLink>
               )}
             </div>
@@ -102,8 +103,12 @@ export default function GalleryTicker({ variant = "full" }: GalleryTickerProps) 
       </Reveal>
 
       <div className="flex flex-col gap-3">
-        <TickerRow items={filtered} playing={isInView} reverse={false} />
-        {!isPreview && <TickerRow items={filtered} playing={isInView} reverse />}
+        <TickerRow
+          items={filtered}
+          playing={isInView}
+          reverse={false}
+          size={isPreview ? "sm" : "lg"}
+        />
       </div>
     </section>
   );
@@ -113,10 +118,12 @@ function TickerRow({
   items,
   playing,
   reverse,
+  size = "sm",
 }: {
   items: GalleryItem[];
   playing: boolean;
   reverse: boolean;
+  size?: "sm" | "lg";
 }) {
   const repeated = [...items, ...items];
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
@@ -144,7 +151,9 @@ function TickerRow({
         {repeated.map((item, index) => (
           <div
             key={`${item.src}-${index}`}
-            className="group relative aspect-square w-32 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] transition-all duration-300 hover:-translate-y-1 hover:border-[var(--nimia-pink)]/50 hover:shadow-[0_14px_30px_rgba(43,10,26,0.5)] md:w-44"
+            className={`group relative aspect-square shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] transition-all duration-300 hover:-translate-y-1 hover:border-[var(--nimia-pink)]/50 hover:shadow-[0_14px_30px_rgba(43,10,26,0.5)] ${
+              size === "lg" ? "w-36 md:w-52" : "w-32 md:w-44"
+            }`}
           >
             <video
               ref={(el) => {
