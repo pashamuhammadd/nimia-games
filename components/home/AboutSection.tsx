@@ -23,7 +23,7 @@ export default function AboutSection({ variant = "full" }: AboutSectionProps) {
               href="/about"
               className="text-xs font-semibold text-white/60 transition hover:text-white"
             >
-              Selengkapnya →
+              Learn More →
             </FlowLink>
           )}
         </div>

@@ -169,10 +169,6 @@ function TickerRow({
             />
 
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
-
-            <span className="absolute bottom-2 left-2 rounded-full border border-white/15 bg-black/50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-white/70 backdrop-blur">
-              {item.category}
-            </span>
           </div>
         ))}
       </div>

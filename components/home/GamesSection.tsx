@@ -33,7 +33,7 @@ export default function GamesSection({ variant = "full" }: GamesSectionProps) {
                 href="/games"
                 className="nimia-button-secondary inline-flex w-fit rounded-full px-4 py-2.5 text-xs font-bold"
               >
-                See All Games →
+                View All Games →
               </FlowLink>
             )}
           </div>
@@ -105,7 +105,7 @@ function GameCard({ game }: { game: Game }) {
               href={`/games/${game.slug}`}
               className="nimia-button-secondary inline-flex rounded-full px-4 py-2.5 text-xs font-bold"
             >
-              Detail Game →
+              Game Details →
             </FlowLink>
 
             {game.externalUrl && (

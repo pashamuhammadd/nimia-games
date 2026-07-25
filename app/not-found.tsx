@@ -8,19 +8,20 @@ export default function NotFound() {
       </p>
 
       <h1 className="mt-5 text-xl font-black text-white md:text-2xl">
-        Halaman ini tidak ditemukan.
+        This page couldn&rsquo;t be found.
       </h1>
 
       <p className="mt-3 max-w-md text-sm text-white/55">
-        Sepertinya dunia yang kamu cari belum dibuat, atau linknya sudah
-        berubah. Yuk balik ke beranda Nimia Games.
+        Looks like the world you&rsquo;re looking for hasn&rsquo;t been built
+        yet, or the link has changed. Let&rsquo;s head back to the Nimia
+        Games homepage.
       </p>
 
       <Link
         href="/"
         className="nimia-button-primary mt-6 inline-flex rounded-full px-5 py-2.5 text-xs font-black"
       >
-        Kembali ke Beranda
+        Back to Home
       </Link>
     </section>
   );

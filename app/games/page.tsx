@@ -5,7 +5,7 @@ import GamesSection from "@/components/home/GamesSection";
 export const metadata: Metadata = {
   title: "Games",
   description:
-    "Jelajahi semua game orisinal yang sedang dikembangkan Nimia Games, termasuk Lifetopia World, cozy life simulation di ekosistem Solana.",
+    "Explore all the original games Nimia Games is developing, including Lifetopia World, a cozy life simulation set in the Solana ecosystem.",
 };
 
 export default function GamesPage() {

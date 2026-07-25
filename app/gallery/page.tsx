@@ -5,7 +5,7 @@ import GalleryTicker from "@/components/gallery/GalleryTicker";
 export const metadata: Metadata = {
   title: "Gallery",
   description:
-    "Koleksi lengkap animasi, motion graphics, game trailer, dan visual showcase ekosistem Solana yang diproduksi Nimia Games.",
+    "The complete collection of animation, motion graphics, game trailers, and Solana ecosystem visual showcases produced by Nimia Games.",
 };
 
 export default function GalleryPage() {

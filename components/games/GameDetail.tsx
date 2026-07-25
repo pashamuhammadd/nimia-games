@@ -11,7 +11,7 @@ export default function GameDetail({ game }: { game: Game }) {
           href="/games"
           className="text-xs font-semibold text-white/50 transition hover:text-white"
         >
-          ← Semua Game
+          ← All Games
         </Link>
 
         <p className="mt-5 text-xs font-bold uppercase tracking-[0.2em] text-white/45">

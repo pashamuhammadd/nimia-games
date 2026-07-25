@@ -5,7 +5,7 @@ import AboutSection from "@/components/home/AboutSection";
 export const metadata: Metadata = {
   title: "About",
   description:
-    "Kenalan dengan Nimia Games, studio kreatif independen di balik Lifetopia World, dan sosok Pasha Muhammad selaku founder.",
+    "Get to know Nimia Games, the independent creative studio behind Lifetopia World, and meet founder Pasha Muhammad.",
 };
 
 export default function AboutPage() {
