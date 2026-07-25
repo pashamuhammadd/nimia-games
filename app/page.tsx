@@ -1,23 +1,21 @@
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
+import FlowShell from "@/components/flow/FlowShell";
 import HeroSection from "@/components/home/HeroSection";
-import AboutSection from "@/components/home/AboutSection";
-import GamesSection from "@/components/home/GamesSection";
-import GalleryTickerSection from "@/components/home/GalleryTickerSection";
-import WhyNimiaSection from "@/components/home/WhyNimiaSection";
-import CTASection from "@/components/home/CTASection";
+import MobileLanding from "@/components/home/MobileLanding";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[#060608] text-white">
-      <Navbar />
-      <HeroSection />
-      <AboutSection />
-      <GamesSection />
-      <GalleryTickerSection />
-      <WhyNimiaSection />
-      <CTASection />
-      <Footer />
-    </main>
+    <>
+      {/* Mobile: one continuous landing page, every section stacked. */}
+      <div className="md:hidden">
+        <MobileLanding />
+      </div>
+
+      {/* Desktop: hero-only entry point into the full-screen flow. */}
+      <div className="hidden md:block">
+        <FlowShell>
+          <HeroSection />
+        </FlowShell>
+      </div>
+    </>
   );
 }

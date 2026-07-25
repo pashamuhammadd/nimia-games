@@ -1,3 +1,5 @@
+import { games } from "@/data/games";
+
 export default function JsonLd() {
   const organizationSchema = {
     "@context": "https://schema.org",
@@ -11,11 +13,8 @@ export default function JsonLd() {
       url: "https://pashamuhammad.me",
     },
     description:
-      "Nimia Games is an independent creative studio building original games, animation, digital assets, and interactive experiences.",
-    sameAs: [
-      "https://studio.nimiagames.com",
-      "https://lifetopiaworld.io"
-    ],
+      "Nimia Games is an independent creative studio building original games, animation, digital assets, and interactive experiences for the Solana ecosystem.",
+    sameAs: ["https://studio.nimiagames.com", "https://lifetopiaworld.io"],
   };
 
   const websiteSchema = {
@@ -27,24 +26,23 @@ export default function JsonLd() {
       "Independent Game Development, Animation & Digital Assets Studio.",
   };
 
-  const videoGameSchema = {
+  const videoGameSchemas = games.map((game) => ({
     "@context": "https://schema.org",
     "@type": "VideoGame",
-    name: "Lifetopia World",
-    url: "https://lifetopiaworld.io",
+    name: game.name,
+    url: game.externalUrl ?? `https://nimiagames.com/games/${game.slug}`,
     applicationCategory: "Game",
-    operatingSystem: "Web, Android, iOS",
-    genre: ["Life Simulation", "Social Simulation", "Cozy Game"],
+    operatingSystem: game.platforms.join(", "),
+    genre: [game.genre],
     creator: {
       "@type": "Organization",
       name: "Nimia Games",
       url: "https://nimiagames.com",
     },
-    description:
-      "Lifetopia World is a cozy life simulation game where players can farm, fish, cook, craft, trade, and connect with others in a charming digital world.",
-  };
+    description: game.description,
+  }));
 
-  const schemas = [organizationSchema, websiteSchema, videoGameSchema];
+  const schemas = [organizationSchema, websiteSchema, ...videoGameSchemas];
 
   return (
     <>

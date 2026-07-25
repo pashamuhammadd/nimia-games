@@ -1,6 +1,23 @@
 import type { Metadata } from "next";
+import { Sora, Rajdhani } from "next/font/google";
 import "./globals.css";
 import JsonLd from "@/components/seo/JsonLd";
+import Navbar from "@/components/layout/Navbar";
+import AnimatedBackground from "@/components/flow/AnimatedBackground";
+
+const sora = Sora({
+  subsets: ["latin"],
+  variable: "--font-sora",
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+});
+
+const rajdhani = Rajdhani({
+  subsets: ["latin"],
+  variable: "--font-rajdhani",
+  weight: ["500", "600", "700"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://nimiagames.com"),
@@ -11,7 +28,7 @@ export const metadata: Metadata = {
   },
 
   description:
-    "Nimia Games is an independent creative studio building original games, animation, digital assets, and interactive experiences for players, communities, and innovative brands.",
+    "Nimia Games is an independent creative studio building original games, animation, digital assets, and interactive experiences for players, communities, and the Solana ecosystem.",
 
   keywords: [
     "Nimia Games",
@@ -21,6 +38,7 @@ export const metadata: Metadata = {
     "digital assets",
     "creative studio",
     "Lifetopia World",
+    "Solana games",
     "Web3 games",
     "Indonesia game studio",
   ],
@@ -42,9 +60,9 @@ export const metadata: Metadata = {
   },
 
   openGraph: {
-    title: "Nimia Games — Game Development, Animation & Digital Assets Studio",
+    title: "Nimia Games: Game Development, Animation & Digital Assets Studio",
     description:
-      "Independent creative studio building original games, animation, digital assets, and interactive experiences.",
+      "Independent creative studio building original games, animation, digital assets, and interactive experiences for the Solana ecosystem and beyond.",
     url: "https://nimiagames.com",
     siteName: "Nimia Games",
     images: [
@@ -52,7 +70,7 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Nimia Games — Game Development, Animation & Digital Assets Studio",
+        alt: "Nimia Games: Game Development, Animation & Digital Assets Studio",
       },
     ],
     locale: "en_US",
@@ -61,9 +79,9 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "Nimia Games — Game Development, Animation & Digital Assets Studio",
+    title: "Nimia Games: Game Development, Animation & Digital Assets Studio",
     description:
-      "Independent creative studio building original games, animation, digital assets, and interactive experiences.",
+      "Independent creative studio building original games, animation, digital assets, and interactive experiences for the Solana ecosystem and beyond.",
     images: ["/og-image.png"],
   },
 
@@ -82,17 +100,18 @@ export const metadata: Metadata = {
   category: "technology",
 };
 
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${sora.variable} ${rajdhani.variable}`}>
       <body>
         <JsonLd />
-        {children}
+        <AnimatedBackground />
+        <Navbar />
+        <main>{children}</main>
       </body>
     </html>
   );

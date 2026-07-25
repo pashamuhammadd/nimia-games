@@ -1,23 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  --background: #07070a;
+  --background: #0a0407;
   --foreground: #ffffff;
 
-  --nimia-indigo: #365cff;
-  --nimia-violet: #6a42e8;
-  --nimia-rose: #c97a8f;
-  --nimia-gold: #e5c46b;
+  /* Nimia Games brand palette (final) */
+  --nimia-maroon: #2b0a1a;
+  --nimia-crimson: #c1124d;
+  --nimia-pink: #ff4d8d;
 
   --nimia-border: rgba(255, 255, 255, 0.09);
-  --nimia-border-hover: rgba(106, 66, 232, 0.45);
-  --nimia-surface: rgba(255, 255, 255, 0.035);
-  --nimia-surface-hover: rgba(255, 255, 255, 0.06);
+  --nimia-border-hover: rgba(193, 18, 77, 0.5);
+  --nimia-surface: rgba(0, 0, 0, 0.35);
+  --nimia-surface-hover: rgba(0, 0, 0, 0.45);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --font-sans: var(--font-sora);
+  --font-display: var(--font-rajdhani);
 }
 
 * {
@@ -30,41 +32,31 @@ html {
 
 body {
   margin: 0;
-  background:
-    radial-gradient(circle at 18% 8%, rgba(54, 92, 255, 0.16), transparent 28%),
-    radial-gradient(circle at 80% 14%, rgba(106, 66, 232, 0.14), transparent 30%),
-    radial-gradient(circle at 85% 72%, rgba(201, 122, 143, 0.11), transparent 30%),
-    radial-gradient(circle at 30% 85%, rgba(229, 196, 107, 0.08), transparent 28%),
-    #07070a;
-  color: #ffffff;
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sora), Arial, Helvetica, sans-serif;
 }
 
 ::selection {
-  background: rgba(106, 66, 232, 0.35);
+  background: rgba(193, 18, 77, 0.4);
   color: #ffffff;
 }
 
-.nimia-gradient-text {
-  background: linear-gradient(
-    135deg,
-    var(--nimia-indigo),
-    var(--nimia-violet),
-    var(--nimia-rose),
-    var(--nimia-gold)
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+.font-display {
+  font-family: var(--font-rajdhani), var(--font-sora), Arial, sans-serif;
+}
+
+.nimia-accent-text {
+  /* Solid accent color instead of a gradient clip, for clean legibility. */
+  color: var(--nimia-pink);
 }
 
 .nimia-gradient-bg {
   background: linear-gradient(
     135deg,
-    var(--nimia-indigo),
-    var(--nimia-violet),
-    var(--nimia-rose),
-    var(--nimia-gold)
+    var(--nimia-maroon),
+    var(--nimia-crimson),
+    var(--nimia-pink)
   );
 }
 
@@ -83,18 +75,18 @@ body {
   transform: translateY(-4px);
   border-color: var(--nimia-border-hover);
   background: var(--nimia-surface-hover);
-  box-shadow: 0 24px 70px rgba(106, 66, 232, 0.13);
+  box-shadow: 0 20px 60px rgba(43, 10, 26, 0.65);
 }
 
 .nimia-button-primary {
   position: relative;
   overflow: hidden;
-  background: #5b3df5;
+  background: var(--nimia-crimson);
   color: white;
-  border: 1px solid rgba(125, 99, 255, 0.8);
+  border: 1px solid rgba(255, 77, 141, 0.6);
   box-shadow:
-    0 10px 30px rgba(91, 61, 245, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    0 10px 30px rgba(193, 18, 77, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
   transition:
     transform 300ms ease,
     background 300ms ease,
@@ -108,7 +100,7 @@ body {
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.22),
+    rgba(255, 255, 255, 0.2),
     transparent 45%
   );
   opacity: 0.7;
@@ -116,12 +108,16 @@ body {
 }
 
 .nimia-button-primary:hover {
-  background: #7153ff;
-  border-color: rgba(154, 134, 255, 0.95);
+  background: #de2a6b;
+  border-color: rgba(255, 77, 141, 0.9);
   transform: translateY(-2px);
   box-shadow:
-    0 18px 48px rgba(91, 61, 245, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    0 18px 48px rgba(193, 18, 77, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.nimia-button-primary:active {
+  transform: scale(0.97);
 }
 
 .nimia-button-secondary {
@@ -135,9 +131,36 @@ body {
 
 .nimia-button-secondary:hover {
   transform: translateY(-2px);
-  border-color: rgba(91, 61, 245, 0.55);
-  background: rgba(91, 61, 245, 0.1);
+  border-color: rgba(255, 77, 141, 0.55);
+  background: rgba(193, 18, 77, 0.12);
 }
+
+.nimia-button-secondary:active {
+  transform: scale(0.97);
+}
+
+.nimia-button-primary:focus-visible,
+.nimia-button-secondary:focus-visible,
+.nimia-flow-btn:focus-visible {
+  outline: 2px solid var(--nimia-pink);
+  outline-offset: 2px;
+}
+
+/* Bottom next/back pill (FlowNav) */
+.nimia-flow-btn {
+  transition:
+    transform 200ms ease,
+    color 200ms ease,
+    background 200ms ease;
+}
+
+.nimia-flow-btn:active {
+  transform: scale(0.94);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Gallery ticker (news-ticker style auto-scroll)                         */
+/* ---------------------------------------------------------------------- */
 
 @keyframes gallery-ticker {
   from {
@@ -155,4 +178,175 @@ body {
 
 .animate-gallery-ticker:hover {
   animation-play-state: paused;
+}
+
+@keyframes gallery-ticker-reverse {
+  from {
+    transform: translateX(-50%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-gallery-ticker-reverse {
+  animation: gallery-ticker-reverse 34s linear infinite;
+}
+
+.animate-gallery-ticker-reverse:hover {
+  animation-play-state: paused;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Flow-step transitions (native View Transitions API, no library)        */
+/* ---------------------------------------------------------------------- */
+
+::view-transition-old(root) {
+  animation: nimia-fade-out 280ms ease forwards;
+}
+
+::view-transition-new(root) {
+  animation: nimia-fade-in 320ms ease forwards;
+}
+
+@keyframes nimia-fade-out {
+  to {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.99);
+  }
+}
+
+@keyframes nimia-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Animated ambient background (behind every screen)                      */
+/* ---------------------------------------------------------------------- */
+
+.nimia-bg {
+  background: var(--background);
+}
+
+.nimia-bg-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.55;
+  will-change: transform;
+}
+
+.nimia-bg-blob-1 {
+  left: 8%;
+  top: 4%;
+  height: 420px;
+  width: 420px;
+  background: radial-gradient(circle, var(--nimia-crimson), transparent 70%);
+  animation: nimia-drift-1 28s ease-in-out infinite alternate;
+}
+
+.nimia-bg-blob-2 {
+  right: 6%;
+  top: 12%;
+  height: 380px;
+  width: 380px;
+  background: radial-gradient(circle, var(--nimia-pink), transparent 70%);
+  opacity: 0.4;
+  animation: nimia-drift-2 32s ease-in-out infinite alternate;
+  animation-delay: -6s;
+}
+
+.nimia-bg-blob-3 {
+  left: 20%;
+  bottom: 6%;
+  height: 460px;
+  width: 460px;
+  background: radial-gradient(circle, var(--nimia-maroon), transparent 70%);
+  opacity: 0.7;
+  animation: nimia-drift-3 26s ease-in-out infinite alternate;
+  animation-delay: -12s;
+}
+
+@keyframes nimia-drift-1 {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(6%, 8%) scale(1.15);
+  }
+}
+
+@keyframes nimia-drift-2 {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(-8%, 6%) scale(1.1);
+  }
+}
+
+@keyframes nimia-drift-3 {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(5%, -6%) scale(1.2);
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Reveal-on-appear (used by components/motion/Reveal.tsx)                */
+/* ---------------------------------------------------------------------- */
+
+.nimia-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 600ms ease,
+    transform 600ms ease;
+}
+
+.nimia-reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Opacity-only variant for elements that already animate `transform` on
+   hover (e.g. gallery cards) so the two transitions never fight. */
+.nimia-fade-in {
+  opacity: 0;
+  transition: opacity 500ms ease;
+}
+
+.nimia-fade-in-visible {
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Reduced motion: keep the ambient color, drop all movement              */
+/* ---------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .nimia-bg-blob {
+    animation: none !important;
+  }
+
+  .nimia-reveal {
+    transition: opacity 300ms ease;
+    transform: none;
+  }
+
+  .animate-gallery-ticker,
+  .animate-gallery-ticker-reverse {
+    animation: none !important;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
 }

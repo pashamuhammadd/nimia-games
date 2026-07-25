@@ -1,16 +1,20 @@
+// Slim closing footer. The main site navigation now lives in the Navbar
+// and the FlowNav next/back buttons, so this only needs the essentials:
+// copyright and the external link to the production studio site.
 export default function Footer() {
   return (
-    <footer className="border-t border-white/10 px-5 py-8 md:px-6">
-      <div className="mx-auto flex max-w-7xl flex-col justify-between gap-4 text-sm text-white/40 md:flex-row md:items-center">
+    <footer className="border-t border-white/10 px-5 py-4 md:px-6">
+      <div className="mx-auto flex max-w-6xl flex-col justify-between gap-2 text-[11px] text-white/40 sm:flex-row sm:items-center">
         <p>© 2026 Nimia Games. All rights reserved.</p>
 
-        <div className="flex gap-5">
-          <a href="#games" className="hover:text-white">Games</a>
-          <a href="#gallery" className="hover:text-white">Gallery</a>
-          <a href="https://studio.nimiagames.com" target="_blank" className="hover:text-white">
-            Studio
-          </a>
-        </div>
+        <a
+          href="https://studio.nimiagames.com"
+          target="_blank"
+          rel="noreferrer"
+          className="transition hover:text-white"
+        >
+          Nimia Studio ↗
+        </a>
       </div>
     </footer>
   );
