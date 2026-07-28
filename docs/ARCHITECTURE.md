@@ -1,6 +1,18 @@
-# Nimia Games — Arsitektur Platform (Tahap 1: Perencanaan)
+# Nimia Games — Arsitektur Platform
 
-Status: **DRAFT — menunggu persetujuan** sebelum lanjut ke Tahap 2 (struktur folder).
+Status: **Tahap 1 (arsitektur) disetujui. Tahap 2 (struktur folder) sudah discaffold, menunggu Anda jalankan `MIGRATE.ps1` + verifikasi lokal sebelum push.**
+
+## Status Tahap 2 (28 Juli 2026)
+
+File-file baru berikut sudah ditulis ke device Anda di root repo (`C:\Users\mochn\nimia-games\`):
+
+- `turbo.json`, `package.json.monorepo`, `README.md.monorepo`, `MIGRATE.ps1` — aktif setelah Anda jalankan script
+- `packages/config`, `packages/ui`, `packages/db`, `packages/email`, `packages/auth`, `packages/validators` — masing-masing `package.json` + `README.md` + placeholder `src/index.ts` (kosong, diisi tahap berikutnya sesuai catatan di README masing-masing)
+- `apps/studio/` — skeleton Next.js polos (belum Tailwind/shadcn, belum Supabase), halaman placeholder, `.env.example` untuk Supabase/Cloudinary/Resend
+
+Yang BELUM otomatis (sengaja, karena butuh `git mv` yang cuma bisa dijalankan dari mesin Anda sendiri): memindahkan `app/`, `components/`, `data/`, `hooks/`, `lib/`, `types/`, `public/`, dan config root (`package.json`, `next.config.ts`, `tsconfig.json`, `eslint.config.mjs`, `postcss.config.mjs`, `next-env.d.ts`, `README.md`) yang sekarang ada di ROOT repo ke `apps/www/`. Jalankan `MIGRATE.ps1` di root repo untuk melakukan ini secara otomatis (pakai `git mv` supaya riwayat git tetap terjaga), lalu ikuti langkah manual yang dicetak di akhir script (npm install, verifikasi lokal, baru push + update Root Directory di Vercel).
+
+**Penting:** jangan commit/push sebelum `npm run dev:www` dan `npm run dev:studio` sukses jalan lokal, dan jangan lupa ubah Root Directory project Vercel yang sudah ada (nimiagames.com) jadi `apps/www` sebelum/bersamaan dengan push, supaya deploy production tidak putus.
 
 Dokumen ini merancang transisi dari `nimia-games` (saat ini: 1 Next.js app untuk landing page, sudah live di www.nimiagames.com) menjadi platform studio digital dengan 3 subdomain terintegrasi: `www`, `portfolio`, dan `studio`. Sesuai keputusan yang disepakati: **monorepo Turborepo**, prioritas pembangunan **studio.nimiagames.com** duluan, dan backend services (Supabase/Cloudinary/Resend) **belum dibuat** — jadi Tahap 1–2 akan menyiapkan struktur & kode yang siap pakai begitu akun/API key tersedia.
 
@@ -105,4 +117,4 @@ Saya akan tulis panduan lengkap langkah-langkahnya di README masing-masing packa
 
 ---
 
-**Menunggu persetujuan Anda untuk lanjut ke Tahap 2 (struktur folder monorepo).** Kalau ada bagian dari rencana di atas yang mau diubah (misalnya urutan tahap, pilihan library PDF, atau struktur tabel), sebutkan saja sebelum saya lanjut.
+**Tahap 2 sedang berjalan** — jalankan `MIGRATE.ps1` sesuai instruksi di atas, verifikasi lokal, lalu kabari saya. Setelah itu saya lanjut ke Tahap 3 (skema database Supabase) begitu Anda sudah punya project Supabase, atau saya bisa siapkan dulu file migration SQL-nya sebagai kode siap pakai sambil Anda urus akunnya.
