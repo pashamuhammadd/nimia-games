@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   title: "Contact",
   description:
     "Get in touch with Nimia Games for game development, animation, and digital asset collaborations through Nimia Studio.",
+  alternates: {
+    canonical: "/contact",
+  },
 };
 
 export default function ContactPage() {

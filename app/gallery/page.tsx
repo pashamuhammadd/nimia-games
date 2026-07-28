@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "Gallery",
   description:
     "The complete collection of animation, motion graphics, game trailers, and Solana ecosystem visual showcases produced by Nimia Games.",
+  alternates: {
+    canonical: "/gallery",
+  },
 };
 
 export default function GalleryPage() {

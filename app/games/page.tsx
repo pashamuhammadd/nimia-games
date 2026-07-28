@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "Games",
   description:
     "Explore all the original games Nimia Games is developing, including Lifetopia World, a cozy life simulation set in the Solana ecosystem.",
+  alternates: {
+    canonical: "/games",
+  },
 };
 
 export default function GamesPage() {

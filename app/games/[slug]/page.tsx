@@ -24,6 +24,9 @@ export async function generateMetadata({
   return {
     title: game.name,
     description: game.description,
+    alternates: {
+      canonical: `/games/${game.slug}`,
+    },
     openGraph: {
       title: `${game.name} | Nimia Games`,
       description: game.description,
