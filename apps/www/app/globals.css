@@ -299,6 +299,85 @@ body {
 }
 
 /* ---------------------------------------------------------------------- */
+/* Typewriter caret (used by components/motion/TypedText.tsx)             */
+/* ---------------------------------------------------------------------- */
+
+.nimia-typed-cursor {
+  display: inline-block;
+  width: 3px;
+  height: 0.85em;
+  margin-left: 3px;
+  vertical-align: -0.1em;
+  background: var(--nimia-pink);
+  animation: nimia-caret-blink 0.85s step-end infinite;
+  transition: opacity 400ms ease;
+}
+
+.nimia-typed-cursor-hidden {
+  opacity: 0;
+}
+
+@keyframes nimia-caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Floating brand mark (used by components/home/AboutSection.tsx)         */
+/* ---------------------------------------------------------------------- */
+
+.nimia-logo-glow {
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    var(--nimia-pink) 0%,
+    var(--nimia-crimson) 45%,
+    transparent 72%
+  );
+  filter: blur(48px);
+  opacity: 0.32;
+  animation: nimia-logo-glow-pulse 5s ease-in-out infinite alternate;
+}
+
+/* Dark glass disc sitting between the glow and the logo mark itself, so
+   the crimson/pink icon reads against a neutral dark backdrop instead of
+   blending straight into the pink glow behind it. */
+.nimia-logo-plate {
+  border: 1px solid var(--nimia-border);
+  background: rgba(6, 2, 4, 0.6);
+  backdrop-filter: blur(20px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes nimia-logo-glow-pulse {
+  from {
+    opacity: 0.25;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 0.45;
+    transform: scale(1.05);
+  }
+}
+
+.nimia-logo-float {
+  animation: nimia-logo-float 6s ease-in-out infinite;
+}
+
+@keyframes nimia-logo-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(2deg);
+  }
+}
+
+/* ---------------------------------------------------------------------- */
 /* Reveal-on-appear (used by components/motion/Reveal.tsx)                */
 /* ---------------------------------------------------------------------- */
 
@@ -343,6 +422,16 @@ body {
   .animate-gallery-ticker,
   .animate-gallery-ticker-reverse {
     animation: none !important;
+  }
+
+  .nimia-logo-float,
+  .nimia-logo-glow {
+    animation: none !important;
+  }
+
+  .nimia-typed-cursor {
+    animation: none !important;
+    opacity: 0 !important;
   }
 
   ::view-transition-old(root),

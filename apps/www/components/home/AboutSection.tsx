@@ -29,32 +29,55 @@ export default function AboutSection({ variant = "full" }: AboutSectionProps) {
         </div>
 
         <Reveal>
-          <h2 className="max-w-2xl text-2xl font-black leading-tight text-white md:text-4xl">
-            More than a <span className="nimia-accent-text">game studio.</span>
-          </h2>
+          <div className="grid items-center gap-10 md:grid-cols-[1fr_260px] lg:grid-cols-[1fr_320px]">
+            <div>
+              <h2 className="max-w-2xl text-2xl font-black leading-tight text-white md:text-4xl">
+                More than a{" "}
+                <span className="nimia-accent-text">game studio.</span>
+              </h2>
 
-          <p className="mt-5 max-w-2xl text-sm leading-7 text-white/60 md:text-base">
-            Nimia Games is an independent creative studio dedicated to
-            building original games, high-quality animation, and digital
-            experiences that inspire players, communities, and the Solana
-            ecosystem.
-          </p>
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-white/60 md:text-base">
+                Nimia Games is an independent creative studio dedicated to
+                building original games, high-quality animation, and digital
+                experiences that inspire players, communities, and the Solana
+                ecosystem.
+              </p>
 
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/60 md:text-base">
-            We combine creativity, technology, and production experience to
-            create memorable digital worlds with long-term vision and strong
-            execution.
-          </p>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/60 md:text-base">
+                We combine creativity, technology, and production experience
+                to create memorable digital worlds with long-term vision and
+                strong execution.
+              </p>
 
-          {!isPreview && (
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/60 md:text-base">
-              Our first title, Lifetopia World, is built with true on-chain
-              ownership on Solana. From day one, we&rsquo;re designing our
-              production pipeline, tooling, and partnerships so the studio
-              can expand across more ecosystems and more original IPs as we
-              grow.
-            </p>
-          )}
+              {!isPreview && (
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-white/60 md:text-base">
+                  Our first title, Lifetopia World, is built with true
+                  on-chain ownership on Solana. From day one, we&rsquo;re
+                  designing our production pipeline, tooling, and
+                  partnerships so the studio can expand across more
+                  ecosystems and more original IPs as we grow.
+                </p>
+              )}
+            </div>
+
+            {/* Decorative animated brand mark — hidden on small screens to
+                keep mobile lean, shown from md+ as a floating accent next to
+                the copy. Purely decorative, so it's aria-hidden. */}
+            <div
+              aria-hidden
+              className="relative hidden aspect-square w-full max-w-[260px] justify-self-center md:flex md:items-center md:justify-center"
+            >
+              <div className="nimia-logo-glow absolute inset-0" />
+              <div className="nimia-logo-plate absolute inset-[13%] rounded-full" />
+              <Image
+                src="/logo.png"
+                alt=""
+                width={320}
+                height={320}
+                className="nimia-logo-float relative w-3/5 drop-shadow-[0_10px_26px_rgba(0,0,0,0.65)]"
+              />
+            </div>
+          </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             <div className="nimia-card rounded-2xl p-5">

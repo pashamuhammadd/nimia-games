@@ -7,6 +7,7 @@ export default function JsonLd() {
     name: "Nimia Games",
     url: "https://nimiagames.com",
     logo: "https://nimiagames.com/logo.png",
+    image: "https://nimiagames.com/logo.png",
     founder: {
       "@type": "Person",
       name: "Pasha Muhammad",
