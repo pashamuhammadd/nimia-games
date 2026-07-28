@@ -1,5 +1,6 @@
 import FlowLink from "@/components/flow/FlowLink";
 import Reveal from "@/components/motion/Reveal";
+import TypedText from "@/components/motion/TypedText";
 
 const stats = [
   { value: "3+", label: "Games in Development" },
@@ -20,8 +21,17 @@ export default function HeroSection() {
           </p>
 
           <h1 className="mt-6 max-w-2xl text-3xl font-black leading-[1.05] tracking-tight text-white md:text-5xl">
-            Building Games, Animation &{" "}
-            <span className="nimia-accent-text">Digital Worlds.</span>
+            <span className="sr-only">
+              Building Games, Animation &amp; Digital Worlds.
+            </span>
+            <span aria-hidden="true">
+              <TypedText
+                segments={[
+                  { text: "Building Games, Animation & " },
+                  { text: "Digital Worlds.", accent: true },
+                ]}
+              />
+            </span>
           </h1>
 
           <p className="mt-4 max-w-lg text-sm leading-7 text-white/60 md:text-base">
