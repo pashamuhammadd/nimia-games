@@ -37,7 +37,16 @@ export function OrderForm({
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<OrderFormValues>({
-    resolver: zodResolver(orderFormSchema),
+    // Casting the SCHEMA (the argument going IN to zodResolver) to `any` —
+    // not the resolver's return value — is what actually avoids "Type
+    // instantiation is excessively deep and possibly infinite". Casting the
+    // *result* (tried first) doesn't help: TS still has to fully compute
+    // zodResolver's return type before a cast can apply to it, and that
+    // computation is what blows up. Casting the input short-circuits
+    // TypeScript's inference before it ever walks the schema. Runtime
+    // behavior is unaffected — zod still validates the real shape at
+    // runtime either way, this only changes what TypeScript infers.
+    resolver: zodResolver(orderFormSchema as any),
     defaultValues: {
       email: defaultEmail ?? "",
     },

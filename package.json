@@ -12,9 +12,14 @@
     "dev:www": "turbo run dev --filter=www",
     "dev:studio": "turbo run dev --filter=studio",
     "build": "turbo run build",
+    "build:www": "turbo run build --filter=www",
+    "build:studio": "turbo run build --filter=studio",
     "lint": "turbo run lint"
   },
   "devDependencies": {
     "turbo": "^2.3.3"
+  },
+  "overrides": {
+    "zod": "3.24.1"
   }
 }
