@@ -1,13 +1,13 @@
 import { Body, Container, Head, Html, Img, Link, Preview, Section, Text } from "react-email";
 import * as React from "react";
 
-// Design rationale (Tahap 4, disiapkan lebih awal sambil nunggu verifikasi
-// domain Resend): satu layout dipakai semua template email transaksional
-// supaya brand-nya konsisten (header logo, warna aksen crimson, footer
-// kontak) tanpa menduplikasi markup di tiap template. Warna & font sengaja
-// ditulis sebagai nilai HEX/font-stack langsung (bukan CSS variable seperti
-// di web) karena sebagian besar email client (Outlook, Gmail app) tidak
-// mendukung custom property atau Tailwind's @theme.
+// Design rationale (Tahap 4, prepared early while waiting on Resend domain
+// verification): one shared layout is used by every transactional email
+// template so the branding stays consistent (header logo, crimson accent,
+// contact footer) without duplicating markup per template. Colors & fonts
+// are deliberately written as literal HEX values/font stacks (not CSS
+// variables like on the web) because most email clients (Outlook, Gmail
+// app) don't support custom properties or Tailwind's @theme.
 export const BRAND = {
   maroon: "#2b0a1a",
   crimson: "#c1124d",
@@ -23,17 +23,16 @@ export const BRAND = {
 export const FONT_STACK =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
-// Logo & wordmark di-host di apps/www (satu-satunya app yang punya /public
-// statis) — email client tidak bisa memuat aset dari domain studio yang
-// di-noindex, jadi sengaja pakai URL absolut ke www. Dua file PNG terpisah
-// dari yang dipakai di web:
-// - logo-email.png: crop rapat dari logo.png (versi asli banyak padding
-//   transparan, jadi kalau ditampilkan kecil di email malah keliatan makin
-//   kecil lagi).
-// - nimia-games-wordmark-dark.png: rekoloring dari wordmark SVG di web
-//   (aslinya putih untuk background gelap www) jadi maroon/crimson supaya
-//   kebaca di kartu putih email. SVG sengaja dikonversi ke PNG karena
-//   Outlook desktop tidak render <img src="*.svg"> sama sekali.
+// Logo & wordmark are hosted on apps/www (the only app with a static
+// /public folder) — email clients can't load assets from the noindex'd
+// studio domain, so these are deliberately absolute URLs to www. Two PNGs
+// separate from the ones used on the web:
+// - logo-email.png: a tight crop of logo.png (the original has a lot of
+//   transparent padding, which makes it look even smaller at small sizes).
+// - nimia-games-wordmark-dark.png: the web wordmark SVG recolored from
+//   white (built for www's dark background) to maroon/crimson so it reads
+//   on the email's white card. Converted to PNG on purpose — Outlook
+//   desktop doesn't render <img src="*.svg"> at all.
 export const LOGO_URL = "https://www.nimiagames.com/logo-email.png";
 export const WORDMARK_URL = "https://www.nimiagames.com/nimia-games-wordmark-dark.png";
 export const SITE_URL = "https://www.nimiagames.com";
@@ -57,7 +56,7 @@ type EmailLayoutProps = {
 
 export function EmailLayout({ previewText, children }: EmailLayoutProps) {
   return (
-    <Html lang="id">
+    <Html lang="en">
       <Head />
       <Preview>{previewText}</Preview>
       <Body
@@ -70,9 +69,9 @@ export function EmailLayout({ previewText, children }: EmailLayoutProps) {
       >
         <Container style={{ maxWidth: 480, margin: "0 auto", padding: "0 16px" }}>
           <Section style={{ textAlign: "center", padding: "0 0 28px" }}>
-            {/* Table + align="center" (bukan margin:auto) sengaja dipakai di sini
-                karena ini cara paling reliable buat nge-center elemen table di
-                Outlook desktop. */}
+            {/* A table + align="center" (not margin:auto) is used here on
+                purpose — it's the most reliable way to center a table
+                element in Outlook desktop. */}
             <table role="presentation" align="center" cellPadding={0} cellSpacing={0} border={0}>
               <tbody>
                 <tr>
@@ -109,10 +108,10 @@ export function EmailLayout({ previewText, children }: EmailLayoutProps) {
 
           <Section style={{ padding: "24px 8px 0", textAlign: "center" }}>
             <Text style={{ color: BRAND.muted, fontSize: 12, lineHeight: "18px", margin: "0 0 4px" }}>
-              Nimia Games &middot; Studio pengembangan game indie
+              Nimia Games &middot; Indie game development studio
             </Text>
             <Text style={{ color: BRAND.muted, fontSize: 12, lineHeight: "18px", margin: 0 }}>
-              Ada pertanyaan? Balas email ini atau hubungi{" "}
+              Questions? Reply to this email or reach us at{" "}
               <Link href={`mailto:${CONTACT_EMAIL}`} style={{ color: BRAND.crimson }}>
                 {CONTACT_EMAIL}
               </Link>

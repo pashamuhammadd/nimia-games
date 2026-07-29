@@ -20,7 +20,7 @@ export async function signInAction(
     password: formData.get("password"),
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Input tidak valid." };
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
   const supabase = createServerClient(await cookies());
@@ -29,7 +29,7 @@ export async function signInAction(
     return {
       error:
         error.message === "Invalid login credentials"
-          ? "Email atau password salah."
+          ? "Incorrect email or password."
           : error.message,
     };
   }
@@ -48,7 +48,7 @@ export async function signUpAction(
     confirm_password: formData.get("confirm_password"),
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Input tidak valid." };
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
   const supabase = createServerClient(await cookies());
@@ -69,7 +69,7 @@ export async function signUpAction(
     return {
       error:
         error.message === "User already registered"
-          ? "Email ini sudah terdaftar. Coba login."
+          ? "This email is already registered. Try logging in."
           : error.message,
     };
   }

@@ -2,20 +2,20 @@ import { Button, Heading, Hr, Section, Text } from "react-email";
 import * as React from "react";
 import { BRAND, EmailLayout, ctaButtonStyle } from "../components/EmailLayout";
 
-// Design rationale: Supabase Auth mengirim email "Confirm signup" ini
-// SENDIRI (bukan lewat server action / Resend kita) begitu ada yang
-// register di studio.nimiagames.com — kontennya dikonfigurasi langsung di
-// Supabase Dashboard > Authentication > Email Templates, bukan di-render
-// dari kode Next.js. Komponen React ini ada supaya desainnya tetap satu
-// sumber kebenaran (bisa di-preview lokal via `npm run dev`, sama kayak
-// template lain di sini), tapi versi yang BENERAN dipakai Supabase adalah
-// HTML statis di packages/email/supabase-templates/confirm-signup.html
-// (lihat README) — karena Supabase butuh HTML mentah + variable Go-template
-// ({{ .ConfirmationURL }}), bukan komponen React.
+// Design rationale: Supabase Auth sends this "Confirm signup" email ITSELF
+// (not through our server actions / Resend) as soon as someone registers on
+// studio.nimiagames.com — its content is configured directly in the
+// Supabase Dashboard > Authentication > Email Templates, not rendered from
+// Next.js code. This React component exists so the design still has one
+// source of truth (previewable locally via `npm run dev`, same as the other
+// templates here), but the version Supabase actually sends is the static
+// HTML at packages/email/supabase-templates/confirm-signup.html (see
+// README) — because Supabase needs raw HTML + Go-template variables
+// ({{ .ConfirmationURL }}), not a React component.
 export type ConfirmSignupEmailProps = {
-  /** Di Supabase, ini diisi otomatis dari {{ .ConfirmationURL }} */
+  /** In Supabase, this is filled automatically from {{ .ConfirmationURL }} */
   confirmationUrl: string;
-  /** Di Supabase, ini diisi otomatis dari {{ .Email }} */
+  /** In Supabase, this is filled automatically from {{ .Email }} */
   email: string;
 };
 
@@ -28,27 +28,27 @@ const textStyle: React.CSSProperties = {
 
 export function ConfirmSignupEmail({ confirmationUrl, email }: ConfirmSignupEmailProps) {
   return (
-    <EmailLayout previewText="Konfirmasi email untuk aktifkan akun Nimia Games kamu">
+    <EmailLayout previewText="Confirm your email to activate your Nimia Games account">
       <Heading style={{ color: BRAND.maroon, fontSize: 20, margin: "0 0 16px" }}>
-        Satu langkah lagi &mdash; konfirmasi email kamu
+        One more step &mdash; confirm your email
       </Heading>
 
-      <Text style={textStyle}>Halo,</Text>
+      <Text style={textStyle}>Hi there,</Text>
 
       <Text style={textStyle}>
-        Terima kasih sudah mendaftar di <strong>studio.nimiagames.com</strong>{" "}
-        dengan email <strong>{email}</strong>. Klik tombol di bawah untuk
-        konfirmasi email dan aktifkan akun kamu.
+        Thanks for signing up at <strong>studio.nimiagames.com</strong> with
+        the email <strong>{email}</strong>. Click the button below to
+        confirm your email and activate your account.
       </Text>
 
       <Section style={{ textAlign: "center", margin: "24px 0 20px" }}>
         <Button href={confirmationUrl} style={ctaButtonStyle}>
-          Konfirmasi email
+          Confirm email
         </Button>
       </Section>
 
       <Text style={{ ...textStyle, fontSize: 12, color: BRAND.muted }}>
-        Kalau tombolnya tidak berfungsi, salin dan buka link ini di browser:
+        If the button doesn&apos;t work, copy and paste this link into your browser:
         <br />
         <span style={{ wordBreak: "break-all" }}>{confirmationUrl}</span>
       </Text>
@@ -56,8 +56,8 @@ export function ConfirmSignupEmail({ confirmationUrl, email }: ConfirmSignupEmai
       <Hr style={{ borderColor: BRAND.border, margin: "24px 0" }} />
 
       <Text style={{ ...textStyle, fontSize: 12, color: BRAND.muted, margin: 0 }}>
-        Bukan kamu yang mendaftar? Abaikan saja email ini &mdash; akunnya
-        tidak akan aktif tanpa konfirmasi.
+        Didn&apos;t sign up for this? Just ignore this email &mdash; the
+        account won&apos;t be activated without confirmation.
       </Text>
     </EmailLayout>
   );
@@ -65,7 +65,7 @@ export function ConfirmSignupEmail({ confirmationUrl, email }: ConfirmSignupEmai
 
 ConfirmSignupEmail.PreviewProps = {
   confirmationUrl: "https://studio.nimiagames.com/auth/confirm?token=preview-token",
-  email: "klien@contoh.com",
+  email: "client@example.com",
 } satisfies ConfirmSignupEmailProps;
 
 export default ConfirmSignupEmail;

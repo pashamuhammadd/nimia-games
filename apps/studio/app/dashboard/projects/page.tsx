@@ -1,18 +1,18 @@
 import { Card, CardHeader, CardTitle, CardDescription } from "@nimia/ui";
 
-export const metadata = { title: "Proyek" };
+export const metadata = { title: "Projects" };
 
 export default function ProjectsPage() {
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">Proyek</h1>
+      <h1 className="text-2xl font-bold">Projects</h1>
       <Card>
         <CardHeader>
-          <CardTitle>Segera hadir di Tahap 5</CardTitle>
+          <CardTitle>Coming in Phase 5</CardTitle>
           <CardDescription>
-            Pelacakan status proyek (planning → in progress → revisi →
-            selesai) beserta timeline update akan dibangun bersama sistem
-            invoice/PDF/email.
+            Project status tracking (planning → in progress → revision →
+            completed) along with an update timeline will be built alongside
+            the invoice/PDF/email system.
           </CardDescription>
         </CardHeader>
       </Card>

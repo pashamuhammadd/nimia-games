@@ -1,17 +1,17 @@
 import { Card, CardHeader, CardTitle, CardDescription } from "@nimia/ui";
 
-export const metadata = { title: "Invoice" };
+export const metadata = { title: "Invoices" };
 
 export default function InvoicesPage() {
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">Invoice</h1>
+      <h1 className="text-2xl font-bold">Invoices</h1>
       <Card>
         <CardHeader>
-          <CardTitle>Segera hadir di Tahap 5</CardTitle>
+          <CardTitle>Coming in Phase 5</CardTitle>
           <CardDescription>
-            Invoice, bukti pembayaran, dan receipt otomatis akan dibangun
-            bersama integrasi Cloudinary &amp; Resend.
+            Automatic invoices, payment proof, and receipts will be built
+            alongside the Cloudinary &amp; Resend integration.
           </CardDescription>
         </CardHeader>
       </Card>

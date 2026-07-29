@@ -19,16 +19,16 @@ export default async function StudioHomePage() {
       <div>
         <h1 className="text-3xl font-black tracking-tight">Nimia Studio</h1>
         <p className="mx-auto mt-2 max-w-md text-[var(--nimia-muted)]">
-          Portal klien Nimia Games — ajukan pesanan, pantau progres proyek,
-          dan kelola invoice dari satu tempat.
+          Nimia Games&apos; client portal — submit orders, track project
+          progress, and manage invoices, all in one place.
         </p>
       </div>
       <div className="flex gap-3">
         <Link href="/login" className={buttonVariants({ variant: "primary" })}>
-          Masuk
+          Log in
         </Link>
         <Link href="/register" className={buttonVariants({ variant: "outline" })}>
-          Daftar
+          Sign up
         </Link>
       </div>
     </main>

@@ -10,7 +10,7 @@ import {
   buttonVariants,
 } from "@nimia/ui";
 
-export const metadata = { title: "Ringkasan" };
+export const metadata = { title: "Overview" };
 
 export default async function DashboardOverviewPage() {
   const supabase = createServerClient(await cookies());
@@ -43,7 +43,7 @@ export default async function DashboardOverviewPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold">
-          Halo{profile?.full_name ? `, ${profile.full_name}` : ""} 👋
+          Hi{profile?.full_name ? `, ${profile.full_name}` : ""} 👋
         </h1>
         <p className="mt-1 text-[var(--nimia-muted)]">
           {client?.company_name ?? user?.email}
@@ -53,8 +53,8 @@ export default async function DashboardOverviewPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle>Total pesanan</CardTitle>
-            <CardDescription>Semua pesanan yang pernah kamu ajukan.</CardDescription>
+            <CardTitle>Total orders</CardTitle>
+            <CardDescription>All orders you&apos;ve ever submitted.</CardDescription>
           </CardHeader>
           <CardContent>
             <span className="text-3xl font-black">{orderCount}</span>
@@ -63,23 +63,23 @@ export default async function DashboardOverviewPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Ajukan pesanan baru</CardTitle>
+            <CardTitle>Submit a new order</CardTitle>
             <CardDescription>
-              Mulai proyek baru — 3D animation, game trailer, dan lainnya.
+              Start a new project — 3D animation, game trailer, and more.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="/dashboard/orders" className={buttonVariants({ size: "sm" })}>
-              Buat pesanan
+              New order
             </Link>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Proyek &amp; invoice</CardTitle>
+            <CardTitle>Projects &amp; invoices</CardTitle>
             <CardDescription>
-              Fitur pelacakan proyek dan invoice menyusul di Tahap 5.
+              Project tracking and invoicing are coming in Phase 5.
             </CardDescription>
           </CardHeader>
         </Card>

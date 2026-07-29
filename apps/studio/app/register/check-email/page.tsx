@@ -2,27 +2,27 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@nimia/ui";
 
-export const metadata: Metadata = { title: "Cek email kamu" };
+export const metadata: Metadata = { title: "Check your email" };
 
 export default function CheckEmailPage() {
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-12">
       <Card className="w-full max-w-sm text-center">
         <CardHeader>
-          <CardTitle>Cek email kamu</CardTitle>
+          <CardTitle>Check your email</CardTitle>
           <CardDescription>
-            Kami sudah mengirim link verifikasi. Buka email kamu dan klik link
-            tersebut untuk mengaktifkan akun, lalu{" "}
+            We&apos;ve sent a verification link. Open your email and click the
+            link to activate your account, then{" "}
             <Link href="/login" className="font-medium text-[var(--nimia-crimson)]">
-              masuk di sini
+              log in here
             </Link>
             .
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-[var(--nimia-muted)]">
-            Tidak menerima email? Cek folder spam, atau tunggu beberapa menit
-            lalu coba daftar ulang.
+            Didn&apos;t get the email? Check your spam folder, or wait a few
+            minutes and try signing up again.
           </p>
         </CardContent>
       </Card>

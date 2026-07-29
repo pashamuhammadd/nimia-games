@@ -25,8 +25,8 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle>Masuk ke Nimia Studio</CardTitle>
-        <CardDescription>Gunakan email &amp; password akun klien kamu.</CardDescription>
+        <CardTitle>Log in to Nimia Studio</CardTitle>
+        <CardDescription>Use your client account email and password.</CardDescription>
       </CardHeader>
       <form action={formAction}>
         <CardContent className="flex flex-col gap-4">
@@ -48,12 +48,12 @@ export function LoginForm() {
         </CardContent>
         <CardFooter className="flex-col items-stretch gap-3">
           <Button type="submit" isLoading={isPending} className="w-full">
-            Masuk
+            Log in
           </Button>
           <p className="text-center text-sm text-[var(--nimia-muted)]">
-            Belum punya akun?{" "}
+            Don&apos;t have an account?{" "}
             <Link href="/register" className="font-medium text-[var(--nimia-crimson)]">
-              Daftar
+              Sign up
             </Link>
           </p>
         </CardFooter>

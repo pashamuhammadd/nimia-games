@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Label } from "@nimia/ui";
 
-export const metadata = { title: "Profil" };
+export const metadata = { title: "Profile" };
 
 export default async function ProfilePage() {
   const supabase = createServerClient(await cookies());
@@ -23,22 +23,22 @@ export default async function ProfilePage() {
     .single();
 
   const rows: { label: string; value: string }[] = [
-    { label: "Nama lengkap", value: profile?.full_name || "—" },
+    { label: "Full name", value: profile?.full_name || "—" },
     { label: "Email", value: user?.email ?? "—" },
-    { label: "Perusahaan", value: client?.company_name || "—" },
+    { label: "Company", value: client?.company_name || "—" },
     { label: "WhatsApp", value: client?.whatsapp || "—" },
-    { label: "Negara", value: client?.country || "—" },
+    { label: "Country", value: client?.country || "—" },
   ];
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">Profil</h1>
+      <h1 className="text-2xl font-bold">Profile</h1>
       <Card className="max-w-md">
         <CardHeader>
-          <CardTitle>Informasi akun</CardTitle>
+          <CardTitle>Account information</CardTitle>
           <CardDescription>
-            Edit profil akan tersedia di tahap berikutnya — untuk sekarang,
-            hubungi admin jika ada data yang perlu diperbarui.
+            Profile editing will be available in a future phase — for now,
+            contact admin if any information needs updating.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">

@@ -3,17 +3,17 @@ import * as React from "react";
 import { BRAND, EmailLayout, ctaButtonStyle } from "../components/EmailLayout";
 
 export type OrderReceivedEmailProps = {
-  /** Nama lengkap klien, dari orders.full_name */
+  /** Client's full name, from orders.full_name */
   clientName: string;
-  /** Nama layanan yang dipesan, dari services.name */
+  /** Name of the service ordered, from services.name */
   serviceName: string;
-  /** Referensi pendek untuk ditunjukkan ke klien, mis. 8 karakter pertama orders.id */
+  /** Short reference to show the client, e.g. the first 8 chars of orders.id */
   orderId: string;
-  /** Sudah diformat jadi string (mis. "29 Juli 2026, 14.30 WIB") sebelum dikirim ke sini */
+  /** Already formatted as a string (e.g. "July 29, 2026, 2:30 PM WIB") before being passed in */
   submittedAt: string;
-  /** orders.description — ditampilkan sebagai kutipan, dipotong kalau kepanjangan */
+  /** orders.description — shown as a quote, truncated if too long */
   description: string;
-  /** Link ke halaman detail pesanan di studio dashboard */
+  /** Link to the order's detail page on the studio dashboard */
   dashboardUrl: string;
 };
 
@@ -40,18 +40,18 @@ export function OrderReceivedEmail({
       : description;
 
   return (
-    <EmailLayout previewText={`Pesanan ${serviceName} kamu sudah kami terima`}>
+    <EmailLayout previewText={`We've received your ${serviceName} order`}>
       <Heading style={{ color: BRAND.maroon, fontSize: 20, margin: "0 0 16px" }}>
-        Pesanan kamu sudah kami terima 🎉
+        We&apos;ve received your order 🎉
       </Heading>
 
-      <Text style={textStyle}>Halo {clientName},</Text>
+      <Text style={textStyle}>Hi {clientName},</Text>
 
       <Text style={textStyle}>
-        Terima kasih sudah mengirimkan pesanan untuk layanan{" "}
-        <strong>{serviceName}</strong>. Tim Nimia Games akan meninjau detail
-        yang kamu kirimkan dan menghubungi kamu kembali dengan penawaran
-        harga &amp; estimasi pengerjaan dalam 1&ndash;2 hari kerja.
+        Thanks for submitting your order for <strong>{serviceName}</strong>.
+        The Nimia Games team will review the details you sent and get back
+        to you with a quote and timeline estimate within 1&ndash;2 business
+        days.
       </Text>
 
       <Section
@@ -64,13 +64,13 @@ export function OrderReceivedEmail({
         }}
       >
         <Text style={{ ...textStyle, margin: "0 0 2px", fontSize: 12, color: BRAND.muted }}>
-          Nomor referensi pesanan
+          Order reference number
         </Text>
         <Text style={{ ...textStyle, margin: "0 0 12px", fontFamily: "monospace", fontSize: 13 }}>
           {orderId}
         </Text>
         <Text style={{ ...textStyle, margin: "0 0 2px", fontSize: 12, color: BRAND.muted }}>
-          Dikirim pada
+          Submitted on
         </Text>
         <Text style={{ ...textStyle, margin: 0 }}>{submittedAt}</Text>
       </Section>
@@ -81,29 +81,29 @@ export function OrderReceivedEmail({
 
       <Section style={{ textAlign: "center", margin: "24px 0 8px" }}>
         <Button href={dashboardUrl} style={ctaButtonStyle}>
-          Lihat status pesanan
+          View order status
         </Button>
       </Section>
 
       <Hr style={{ borderColor: BRAND.border, margin: "24px 0" }} />
 
       <Text style={{ ...textStyle, fontSize: 12, color: BRAND.muted, margin: 0 }}>
-        Belum ada tagihan di tahap ini &mdash; kami akan mengirim penawaran
-        harga terlebih dahulu sebelum mulai pengerjaan.
+        There&apos;s no charge at this stage &mdash; we&apos;ll send a quote
+        first before starting any work.
       </Text>
     </EmailLayout>
   );
 }
 
-// Data contoh untuk React Email's dev server (`npm run dev`) supaya template
-// bisa di-preview tanpa perlu order sungguhan.
+// Sample data for React Email's dev server (`npm run dev`) so the template
+// can be previewed without a real order.
 OrderReceivedEmail.PreviewProps = {
   clientName: "Pasha",
   serviceName: "2D Platformer Game Development",
   orderId: "ORD-8F3A2C10",
-  submittedAt: "29 Juli 2026, 14.30 WIB",
+  submittedAt: "July 29, 2026, 2:30 PM WIB",
   description:
-    "Kami butuh game platformer 2D bergaya pixel art untuk kampanye promosi produk, durasi permainan sekitar 5-10 menit, dengan 3 level.",
+    "We need a pixel-art style 2D platformer game for a product promotion campaign, roughly 5-10 minutes of gameplay, with 3 levels.",
   dashboardUrl: "https://studio.nimiagames.com/dashboard/orders",
 } satisfies OrderReceivedEmailProps;
 

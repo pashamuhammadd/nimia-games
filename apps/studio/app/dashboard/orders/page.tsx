@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
 import { OrderForm } from "./OrderForm";
 
-export const metadata = { title: "Pesanan" };
+export const metadata = { title: "Orders" };
 
 export default async function OrdersPage() {
   const supabase = createServerClient(await cookies());
@@ -19,9 +19,9 @@ export default async function OrdersPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold">Pesanan</h1>
+        <h1 className="text-2xl font-bold">Orders</h1>
         <p className="mt-1 text-[var(--nimia-muted)]">
-          Isi form di bawah untuk mengajukan proyek baru ke tim Nimia Games.
+          Fill out the form below to submit a new project to the Nimia Games team.
         </p>
       </div>
       <OrderForm services={services ?? []} defaultEmail={user?.email ?? undefined} />

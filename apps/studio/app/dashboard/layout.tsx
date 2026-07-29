@@ -6,12 +6,12 @@ import { Button } from "@nimia/ui";
 import { signOutAction } from "../actions";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Ringkasan" },
-  { href: "/dashboard/orders", label: "Pesanan" },
-  { href: "/dashboard/projects", label: "Proyek" },
-  { href: "/dashboard/invoices", label: "Invoice" },
-  { href: "/dashboard/messages", label: "Pesan" },
-  { href: "/dashboard/profile", label: "Profil" },
+  { href: "/dashboard", label: "Overview" },
+  { href: "/dashboard/orders", label: "Orders" },
+  { href: "/dashboard/projects", label: "Projects" },
+  { href: "/dashboard/invoices", label: "Invoices" },
+  { href: "/dashboard/messages", label: "Messages" },
+  { href: "/dashboard/profile", label: "Profile" },
 ];
 
 export default async function DashboardLayout({
@@ -49,7 +49,7 @@ export default async function DashboardLayout({
         <div className="border-t border-[var(--nimia-border)] p-3">
           <form action={signOutAction}>
             <Button type="submit" variant="ghost" size="sm" className="w-full justify-start">
-              Keluar
+              Log out
             </Button>
           </form>
         </div>
@@ -60,7 +60,7 @@ export default async function DashboardLayout({
           <span className="text-base font-black">Nimia Studio</span>
           <form action={signOutAction}>
             <Button type="submit" variant="ghost" size="sm">
-              Keluar
+              Log out
             </Button>
           </form>
         </header>

@@ -15,7 +15,7 @@ export type CreateOrderResult = { success: true } | { success: false; error: str
 export async function createOrderAction(values: OrderFormValues): Promise<CreateOrderResult> {
   const parsed = orderFormSchema.safeParse(values);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "Input tidak valid." };
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
   const supabase = createServerClient(await cookies());
@@ -23,7 +23,7 @@ export async function createOrderAction(values: OrderFormValues): Promise<Create
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return { success: false, error: "Sesi kamu berakhir, silakan masuk lagi." };
+    return { success: false, error: "Your session has expired, please log in again." };
   }
 
   // clients row is auto-created on signup by the handle_new_auth_user
@@ -37,7 +37,7 @@ export async function createOrderAction(values: OrderFormValues): Promise<Create
   if (clientError || !client) {
     return {
       success: false,
-      error: "Profil klien tidak ditemukan. Coba muat ulang halaman atau hubungi admin.",
+      error: "Client profile not found. Try reloading the page or contact admin.",
     };
   }
 

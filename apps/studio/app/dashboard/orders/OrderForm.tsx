@@ -66,10 +66,10 @@ export function OrderForm({
     return (
       <Card className="mx-auto max-w-xl">
         <CardHeader>
-          <CardTitle>Pesanan terkirim 🎉</CardTitle>
+          <CardTitle>Order submitted 🎉</CardTitle>
           <CardDescription>
-            Tim Nimia Games akan meninjau pesananmu dan menghubungi lewat
-            email/WhatsApp dengan penawaran harga.
+            The Nimia Games team will review your order and reach out via
+            email/WhatsApp with a quote.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -79,13 +79,13 @@ export function OrderForm({
   return (
     <Card className="mx-auto max-w-xl">
       <CardHeader>
-        <CardTitle>Ajukan pesanan baru</CardTitle>
-        <CardDescription>Ceritakan proyekmu, tim kami akan mengirim penawaran.</CardDescription>
+        <CardTitle>Submit a new order</CardTitle>
+        <CardDescription>Tell us about your project, and our team will send you a quote.</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <CardContent className="flex flex-col gap-4">
           <div>
-            <Label htmlFor="service_id">Layanan</Label>
+            <Label htmlFor="service_id">Service</Label>
             <Select
               id="service_id"
               defaultValue=""
@@ -93,7 +93,7 @@ export function OrderForm({
               {...register("service_id")}
             >
               <option value="" disabled>
-                Pilih layanan
+                Select a service
               </option>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -106,7 +106,7 @@ export function OrderForm({
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <Label htmlFor="full_name">Nama lengkap</Label>
+              <Label htmlFor="full_name">Full name</Label>
               <Input id="full_name" invalid={!!errors.full_name} {...register("full_name")} />
               <FieldError>{errors.full_name?.message}</FieldError>
             </div>
@@ -124,33 +124,33 @@ export function OrderForm({
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <Label htmlFor="company_name">Perusahaan (opsional)</Label>
+              <Label htmlFor="company_name">Company (optional)</Label>
               <Input id="company_name" {...register("company_name")} />
             </div>
             <div>
-              <Label htmlFor="whatsapp">WhatsApp (opsional)</Label>
+              <Label htmlFor="whatsapp">WhatsApp (optional)</Label>
               <Input id="whatsapp" {...register("whatsapp")} />
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <Label htmlFor="country">Negara (opsional)</Label>
+              <Label htmlFor="country">Country (optional)</Label>
               <Input id="country" {...register("country")} />
             </div>
             <div>
-              <Label htmlFor="budget">Perkiraan budget (opsional)</Label>
-              <Input id="budget" placeholder="mis. Rp10.000.000" {...register("budget")} />
+              <Label htmlFor="budget">Estimated budget (optional)</Label>
+              <Input id="budget" placeholder="e.g. $1,000" {...register("budget")} />
             </div>
           </div>
 
           <div>
-            <Label htmlFor="deadline">Tenggat waktu (opsional)</Label>
+            <Label htmlFor="deadline">Deadline (optional)</Label>
             <Input id="deadline" type="date" {...register("deadline")} />
           </div>
 
           <div>
-            <Label htmlFor="description">Deskripsi proyek</Label>
+            <Label htmlFor="description">Project description</Label>
             <Textarea
               id="description"
               rows={5}
@@ -161,7 +161,7 @@ export function OrderForm({
           </div>
 
           <div>
-            <Label htmlFor="reference_link">Link referensi (opsional)</Label>
+            <Label htmlFor="reference_link">Reference link (optional)</Label>
             <Input
               id="reference_link"
               placeholder="https://..."
@@ -175,7 +175,7 @@ export function OrderForm({
         </CardContent>
         <CardFooter>
           <Button type="submit" isLoading={isSubmitting} className="w-full sm:w-auto">
-            Kirim pesanan
+            Submit order
           </Button>
         </CardFooter>
       </form>
