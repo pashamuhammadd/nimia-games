@@ -1,9 +1,55 @@
-html,
-body {
-  margin: 0;
-  padding: 0;
+@import "tailwindcss";
+
+/*
+ * Design rationale (Tahap 4): studio.nimiagames.com is a working dashboard
+ * (forms, tables, invoices) rather than a marketing page, so unlike
+ * www's dark cinematic theme, this uses a light, high-contrast surface for
+ * readability during real use — while still reusing the exact same brand
+ * variable names/values (maroon/crimson/pink) from apps/www/app/globals.css
+ * for accents (buttons, links, focus rings) so the two apps read as one
+ * brand even though the layout style differs.
+ */
+:root {
+  --background: #faf7f8;
+  --foreground: #1a0f14;
+
+  /* Nimia Games brand palette — same values as apps/www */
+  --nimia-maroon: #2b0a1a;
+  --nimia-crimson: #c1124d;
+  --nimia-crimson-hover: #a30f42;
+  --nimia-pink: #ff4d8d;
+
+  --nimia-border: rgba(43, 10, 26, 0.12);
+  --nimia-surface: #ffffff;
+  --nimia-surface-hover: #fdf1f5;
+  --nimia-muted: #7a6870;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
 }
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+::selection {
+  background: rgba(193, 18, 77, 0.25);
+  color: var(--foreground);
+}
+
+a {
+  color: var(--nimia-crimson);
 }

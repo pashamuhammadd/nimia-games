@@ -2,9 +2,17 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Nimia Studio",
+  title: {
+    default: "Nimia Studio",
+    template: "%s | Nimia Studio",
+  },
   description:
     "Client portal, order system, project management, and invoicing for Nimia Games.",
+  robots: {
+    // Internal client dashboard — never meant to be indexed.
+    index: false,
+    follow: false,
+  },
 };
 
 export default function RootLayout({
@@ -13,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="id">
       <body>{children}</body>
     </html>
   );

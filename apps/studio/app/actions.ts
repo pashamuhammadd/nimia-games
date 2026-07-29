@@ -1,0 +1,84 @@
+"use server";
+
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { createServerClient } from "@nimia/db";
+import { signInSchema, signUpSchema } from "@nimia/validators";
+
+export type ActionState = { error?: string } | null;
+
+function str(value: FormDataEntryValue | null): string | undefined {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+}
+
+export async function signInAction(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = signInSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Input tidak valid." };
+  }
+
+  const supabase = createServerClient(await cookies());
+  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  if (error) {
+    return {
+      error:
+        error.message === "Invalid login credentials"
+          ? "Email atau password salah."
+          : error.message,
+    };
+  }
+
+  redirect("/dashboard");
+}
+
+export async function signUpAction(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = signUpSchema.safeParse({
+    full_name: formData.get("full_name"),
+    email: formData.get("email"),
+    password: formData.get("password"),
+    confirm_password: formData.get("confirm_password"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Input tidak valid." };
+  }
+
+  const supabase = createServerClient(await cookies());
+  const { error } = await supabase.auth.signUp({
+    email: parsed.data.email,
+    password: parsed.data.password,
+    options: {
+      data: {
+        full_name: parsed.data.full_name,
+        company_name: str(formData.get("company_name")),
+        whatsapp: str(formData.get("whatsapp")),
+        country: str(formData.get("country")),
+      },
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/login`,
+    },
+  });
+  if (error) {
+    return {
+      error:
+        error.message === "User already registered"
+          ? "Email ini sudah terdaftar. Coba login."
+          : error.message,
+    };
+  }
+
+  redirect("/register/check-email");
+}
+
+export async function signOutAction() {
+  const supabase = createServerClient(await cookies());
+  await supabase.auth.signOut();
+  redirect("/login");
+}

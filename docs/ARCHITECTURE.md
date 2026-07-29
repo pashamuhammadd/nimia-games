@@ -1,6 +1,6 @@
 # Nimia Games — Arsitektur Platform
 
-Status: **Tahap 1 (arsitektur) disetujui. Tahap 2 (struktur folder) sudah discaffold, menunggu Anda jalankan `MIGRATE.ps1` + verifikasi lokal sebelum push.**
+Status: **Tahap 1–3 selesai & live (monorepo, Supabase 20 tabel + RLS aktif). Tahap 4 (UI dasar studio: auth + dashboard shell + form Order Service) baru saja ditulis — menunggu Anda `npm install` + jalankan 2 migration SQL baru + verifikasi lokal sebelum commit/push. Lihat "Status Tahap 4" di bagian bawah dokumen ini.**
 
 ## Status Tahap 2 (28 Juli 2026)
 
@@ -118,3 +118,30 @@ Saya akan tulis panduan lengkap langkah-langkahnya di README masing-masing packa
 ---
 
 **Tahap 2 sedang berjalan** — jalankan `MIGRATE.ps1` sesuai instruksi di atas, verifikasi lokal, lalu kabari saya. Setelah itu saya lanjut ke Tahap 3 (skema database Supabase) begitu Anda sudah punya project Supabase, atau saya bisa siapkan dulu file migration SQL-nya sebagai kode siap pakai sambil Anda urus akunnya.
+
+---
+
+## Status Tahap 4 (29 Juli 2026)
+
+Tahap 3 sudah selesai & terverifikasi (20 tabel + RLS aktif semua di Supabase, `.env.local` terisi). Tahap 4 membangun UI dasar `studio.nimiagames.com` yang **beneran konek** ke Supabase Auth (bukan placeholder lagi):
+
+**`packages/ui`** — komponen gaya shadcn/ui ditulis tangan (bukan lewat CLI shadcn, dan sengaja belum pakai Radix UI dulu untuk mengurangi risiko dependency yang belum diverifikasi jalan di Next.js 16 + React 19): `Button`, `Input`, `Textarea`, `Select`, `Label`/`FieldError`, `Card` (+ sub-komponen). Dibangun pakai `clsx` + `tailwind-merge` + `class-variance-authority`, pola yang sama seperti shadcn/ui asli.
+
+**`apps/studio`** — Tailwind v4 diaktifkan (sebelumnya CSS polos). Tema dibuat **terang** (berbeda dari `apps/www` yang gelap) karena studio adalah dashboard kerja (form, tabel, invoice) yang perlu keterbacaan tinggi saat dipakai sehari-hari — tapi tetap pakai variabel warna brand (maroon/crimson/pink) yang sama persis dengan `apps/www` untuk aksen (tombol, link, focus ring), supaya dua app tetap terasa satu brand.
+
+- `middleware.ts` — refresh session Supabase di setiap request + redirect otomatis (belum login & buka `/dashboard/*` → `/login`; sudah login & buka `/login`/`/register` → `/dashboard`).
+- `app/actions.ts` — Server Actions `signInAction`/`signUpAction`/`signOutAction`, validasi Zod dari `@nimia/validators`.
+- `app/login`, `app/register`, `app/register/check-email` — form asli (bukan mock), pakai `useActionState` (React 19) supaya pesan error server tampil tanpa JavaScript tambahan.
+- `app/dashboard/layout.tsx` — shell terproteksi (sidebar desktop, nav bawah mobile, tombol Keluar), plus pengecekan sesi kedua di server component (defense in depth di luar middleware).
+- `app/dashboard/orders` — **Form Order Service** pakai `react-hook-form` + `zod` (`@hookform/resolvers/zod`) sesuai tech stack yang diminta, submit lewat Server Action `createOrderAction` yang **validasi ulang di server** sebelum insert ke tabel `orders` (jangan pernah percaya validasi client saja). Upload lampiran file **sengaja ditunda** sampai akun Cloudinary dibuat.
+- `app/dashboard/{projects,invoices,messages,profile}` — halaman placeholder "Segera hadir di Tahap 5" (kecuali profile, yang sudah menampilkan data asli dari tabel `users`/`clients`).
+
+**Bug yang ditemukan & diperbaiki saat menulis Tahap 4:** `packages/db/src/server.ts` (ditulis di Tahap 3) memanggil `cookieStore.setAll(...)`, padahal `cookies()` dari `next/headers` tidak punya method `setAll` (cuma `get`/`getAll`/`set`/`delete`) — kalau tidak diperbaiki, sesi login tidak akan pernah benar-benar tersimpan di cookie (gagal senyap, ketutup oleh `try/catch`). Sudah diperbaiki mengikuti pola resmi dari dokumentasi Supabase (loop `cookieStore.set()` per cookie).
+
+**2 migration SQL baru** (jalankan di SQL Editor Supabase, urutan setelah `0006`):
+- `0007_auto_provision_client.sql` — perluas trigger signup supaya otomatis bikin baris `clients` juga (bukan cuma `users`), pakai metadata dari form Daftar (company_name/whatsapp/country). Tanpa ini, form Order Service tidak akan menemukan `client_id` milik user yang baru daftar.
+- `0008_seed_services.sql` — isi 9 baris awal tabel `services` (satu per kategori) supaya dropdown "Layanan" di form Order Service tidak kosong. Aman dijalankan berkali-kali (skip baris yang namanya sudah ada) — silakan edit harga/nama setelah dijalankan.
+
+**Temuan tambahan yang juga diperbaiki:** `package.json` di root repo ternyata **tidak** berisi konfigurasi monorepo (`workspaces` + `packageManager`) seperti seharusnya — isinya malah sama seperti `apps/www/package.json` (kemungkinan sempat ter-revert entah bagaimana). Sudah ditulis ulang jadi manifest monorepo yang benar. **Cek `git diff package.json` sebelum commit** untuk memastikan Anda paham perubahannya, dan kalau `npm install` di root sempat aneh setelah ini, hapus `node_modules/` + `package-lock.json` di root lalu `npm install` ulang.
+
+Yang **belum** dikerjakan (menyusul di Tahap 5): server actions untuk convert order → project, invoice/PDF (`@react-pdf/renderer`), email Resend, upload Cloudinary, halaman admin.
