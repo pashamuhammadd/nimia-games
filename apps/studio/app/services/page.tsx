@@ -1,78 +1,44 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-  buttonVariants,
-  cn,
-} from "@nimia/ui";
 import { PublicNavbar } from "../components/PublicNavbar";
-import { formatServicePrice } from "../lib/format";
+import { ServicesExperience } from "./ServicesExperience";
 
-export const metadata: Metadata = { title: "Services" };
+export const metadata: Metadata = {
+  title: "Services",
+  description:
+    "Animation, game development, and website development for businesses, startups, and studios — explore what Nimia Studio builds and find the right service or package for your project.",
+};
 
+// Rebuilt as a full 7-section services experience (29 Juli 2026 redesign
+// brief). This page is deliberately NOT a pricing page, NOT a portfolio,
+// and NOT a company-profile page — its only job is to explain what Nimia
+// Studio offers, in depth, with a premium dark-cinematic presentation
+// (Linear / Cub Studio / Buck / Riot / Epic / Figma-tier reference).
+//
+// This REPLACES the previous version of this page, which rendered exactly
+// the 3 core-service cards and nothing else (built earlier the same day).
+// That 3-card block is now just Section 2 ("Core Services") of a much
+// larger page — see ServicesExperience.tsx for the full section order and
+// app/services/data.ts for all copy/pricing.
+//
+// The section components that used to live at
+// app/components/services/{ServicesSection,ServiceCard}.tsx are no longer
+// imported from here (Section 2's card design changed: no visual/thumbnail
+// panel per the new brief) — they're currently unused. Section 3 of this
+// redesign does still reuse the abstract per-category visuals from
+// app/components/services/visuals.tsx (AnimationVisual / GameDevVisual /
+// WebsiteVisual), so that file stays in use.
 export default async function ServicesPage() {
   const supabase = createServerClient(await cookies());
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: services } = await supabase
-    .from("services")
-    .select("id, name, description, base_price")
-    .eq("is_active", true)
-    .order("name", { ascending: true });
-
   return (
     <div className="nimia-dark">
       <PublicNavbar isAuthenticated={!!user} />
-
-      <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-        <div className="mb-10 text-center">
-          <h1 className="nimia-font-display text-3xl font-bold tracking-tight">Services</h1>
-          <p className="mx-auto mt-2 max-w-lg text-[var(--nimia-muted)]">
-            Pricing below is a starting point for each service. Once you submit
-            an order, our team reviews it and you can negotiate the final
-            price before paying.
-          </p>
-        </div>
-
-        {services && services.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {services.map((service) => (
-              <Card key={service.id} className="flex flex-col">
-                <CardHeader className="flex-1">
-                  <CardTitle>{service.name}</CardTitle>
-                  <CardDescription>{service.description}</CardDescription>
-                  <p className="pt-2 text-sm font-semibold text-[var(--nimia-pink)]">
-                    {formatServicePrice(service.base_price)}
-                  </p>
-                </CardHeader>
-                <CardFooter>
-                  <Link
-                    href={`/dashboard/orders?service=${service.id}`}
-                    className={cn(
-                      buttonVariants({ size: "sm" }),
-                      "w-full bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",
-                    )}
-                  >
-                    Order this service
-                  </Link>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <p className="text-center text-[var(--nimia-muted)]">
-            No services are available right now. Check back soon.
-          </p>
-        )}
-      </main>
+      <ServicesExperience />
     </div>
   );
 }

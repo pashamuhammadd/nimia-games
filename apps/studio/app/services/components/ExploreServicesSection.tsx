@@ -1,0 +1,117 @@
+"use client";
+
+import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { CheckCircle2 } from "lucide-react";
+import { CORE_SERVICES, SERVICE_DETAILS } from "../data";
+import { AnimationVisual, GameDevVisual, WebsiteVisual } from "../../components/services/visuals";
+
+// Abstract ambient visuals (pure CSS/SVG, no screenshots or gameplay
+// mockups) reused from the previous Services build — they were already
+// exactly the kind of non-literal, per-category visual this redesign wants
+// for a section like this one. Section 2's cards deliberately drop this
+// panel per the new brief; this section keeps it as texture next to each
+// detail block instead of a wall of text/chips.
+const VISUALS = {
+  animation: AnimationVisual,
+  "game-development": GameDevVisual,
+  "website-development": WebsiteVisual,
+} as const;
+
+// SECTION 3 — Explore Our Services. One large block per core service, in
+// the same fixed order as Section 2, each carrying an id so the matching
+// "Explore Service" card can smooth-scroll straight here.
+export function ExploreServicesSection() {
+  const shouldReduceMotion = useReducedMotion();
+
+  const fadeUp: Variants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 24 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } },
+  };
+
+  const gridContainer: Variants = {
+    hidden: {},
+    visible: {
+      transition: { staggerChildren: shouldReduceMotion ? 0 : 0.05, delayChildren: 0.1 },
+    },
+  };
+  const gridItem: Variants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 12 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
+  };
+
+  return (
+    <section className="relative px-4 py-20 sm:px-6 sm:py-28">
+      <div className="mx-auto max-w-3xl text-center">
+        <span className="inline-block rounded-full border border-[var(--nimia-crimson)]/30 bg-[var(--nimia-crimson)]/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--nimia-pink)]">
+          In Detail
+        </span>
+        <h2 className="nimia-font-display mt-5 text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+          Explore Our Services
+        </h2>
+        <p className="mx-auto mt-4 max-w-2xl text-[var(--nimia-muted)]">
+          A closer look at what falls under each of our three core services.
+        </p>
+      </div>
+
+      <div className="mx-auto mt-16 max-w-6xl space-y-20 sm:mt-20 sm:space-y-28">
+        {SERVICE_DETAILS.map((block, index) => {
+          const Visual = VISUALS[block.id];
+          const Icon = CORE_SERVICES.find((s) => s.id === block.id)?.icon;
+          const visualFirst = index % 2 === 0;
+
+          return (
+            <div key={block.id} id={block.id} className="scroll-mt-24">
+              <div className="grid items-center gap-10 md:grid-cols-2 md:gap-16">
+                <motion.div
+                  variants={fadeUp}
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, margin: "-100px" }}
+                  className={visualFirst ? "md:order-1" : "md:order-2"}
+                >
+                  {Icon ? (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06]">
+                      <Icon className="h-5 w-5 text-[var(--nimia-pink)]" strokeWidth={1.5} aria-hidden="true" />
+                    </div>
+                  ) : null}
+                  <h3 className="nimia-font-display mt-5 text-2xl font-bold sm:text-3xl">
+                    {block.title}
+                  </h3>
+                  <p className="mt-3 max-w-md text-[15px] leading-relaxed text-[var(--nimia-muted)]">
+                    {block.description}
+                  </p>
+
+                  <div className="relative mt-8 h-48 overflow-hidden rounded-2xl border border-white/10 bg-black/20 sm:h-56">
+                    <Visual />
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  variants={gridContainer}
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, margin: "-100px" }}
+                  className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${visualFirst ? "md:order-2" : "md:order-1"}`}
+                >
+                  {block.items.map((label) => (
+                    <motion.div
+                      key={label}
+                      variants={gridItem}
+                      className="group flex items-center gap-2.5 rounded-xl border border-[var(--nimia-border)] bg-[var(--nimia-surface)]/40 px-4 py-3.5 transition-colors duration-200 hover:border-[var(--nimia-crimson)]/40 hover:bg-[var(--nimia-crimson)]/[0.06]"
+                    >
+                      <CheckCircle2
+                        className="h-4 w-4 shrink-0 text-[var(--nimia-pink)]"
+                        aria-hidden="true"
+                      />
+                      <span className="text-sm font-medium text-[var(--foreground)]/90">{label}</span>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
