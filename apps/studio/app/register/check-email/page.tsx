@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Check your email" };
 
 export default function CheckEmailPage() {
   return (
-    <>
+    <div className="nimia-dark">
       <PublicNavbar isAuthenticated={false} />
       <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
         <Card className="w-full max-w-sm text-center">
@@ -16,7 +16,7 @@ export default function CheckEmailPage() {
             <CardDescription>
               We&apos;ve sent a verification link. Open your email and click the
               link to activate your account, then{" "}
-              <Link href="/login" className="font-medium text-[var(--nimia-crimson)]">
+              <Link href="/login" className="font-medium text-[var(--nimia-pink)]">
                 log in here
               </Link>
               .
@@ -30,6 +30,6 @@ export default function CheckEmailPage() {
           </CardContent>
         </Card>
       </main>
-    </>
+    </div>
   );
 }

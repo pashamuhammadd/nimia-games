@@ -2,15 +2,27 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@nimia/db";
-import { Card, CardHeader, CardTitle, CardDescription, buttonVariants } from "@nimia/ui";
+import { buttonVariants, cn } from "@nimia/ui";
+import { Play, Rocket, Smile, Wrench, Headphones } from "lucide-react";
 import { PublicNavbar } from "./components/PublicNavbar";
-import { formatServicePrice } from "./lib/format";
 
-const SHOWCASE_VIDEOS = [
-  "https://www.nimiagames.com/gallery/animation-1.mp4",
-  "https://www.nimiagames.com/gallery/animation-3.mp4",
-  "https://www.nimiagames.com/gallery/animation-4.mp4",
+// Placeholder numbers (confirmed with the user 29 Juli 2026 — these are
+// the reference design's example figures, not verified Nimia Games data
+// yet). Swap in the real numbers whenever you have them.
+const STATS = [
+  { icon: Rocket, value: "100+", label: "Projects Completed" },
+  { icon: Smile, value: "50+", label: "Happy Clients" },
+  { icon: Wrench, value: "5+", label: "Years Experience" },
+  { icon: Headphones, value: "24/7", label: "Support" },
 ];
+
+// Also placeholder (confirmed with the user 29 Juli 2026): the reference
+// design showed real engine/platform logos (Unity, Unreal, Solana, Steam,
+// AWS) — using those without a real relationship would misrepresent an
+// endorsement/partnership Nimia Games doesn't have, so this renders
+// generic labeled slots instead until you tell me which logos are
+// actually accurate to show here.
+const TRUST_PLACEHOLDERS = ["Partner", "Partner", "Partner", "Partner", "Partner"];
 
 export default async function StudioHomePage() {
   const supabase = createServerClient(await cookies());
@@ -22,108 +34,139 @@ export default async function StudioHomePage() {
     redirect("/dashboard");
   }
 
-  const { data: services } = await supabase
-    .from("services")
-    .select("id, name, description, base_price")
-    .eq("is_active", true)
-    .order("base_price", { ascending: true, nullsFirst: false })
-    .limit(3);
-
   return (
-    <>
+    <div className="nimia-dark">
       <PublicNavbar isAuthenticated={false} />
 
       <main>
-        <section className="mx-auto flex max-w-4xl flex-col items-center gap-6 px-4 py-20 text-center sm:px-6 sm:py-28">
-          <h1 className="text-4xl font-black tracking-tight sm:text-5xl">
-            Bring your game to life.
-          </h1>
-          <p className="max-w-xl text-lg text-[var(--nimia-muted)]">
-            Nimia Games Studio helps you create 3D animation, game trailers, and
-            game assets. Tell us what you need, get a quote, and track your
-            project from one dashboard.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Link href="/services" className={buttonVariants({ size: "lg" })}>
-              Browse services
-            </Link>
-            <Link href="/register" className={buttonVariants({ variant: "outline", size: "lg" })}>
-              Create an account
-            </Link>
-          </div>
-        </section>
+        {/* HERO */}
+        <section className="relative overflow-hidden">
+          {/* Ambient glow blobs, purely decorative */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-[var(--nimia-crimson)]/20 blur-[120px]"
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -bottom-40 -right-20 h-[28rem] w-[28rem] rounded-full bg-[var(--nimia-pink)]/10 blur-[120px]"
+          />
 
-        <section className="border-t border-[var(--nimia-border)] bg-[var(--nimia-surface)] px-4 py-16 sm:px-6">
-          <div className="mx-auto max-w-6xl">
-            <div className="mb-8 text-center">
-              <h2 className="text-2xl font-bold">Recent work</h2>
-              <p className="mt-1 text-[var(--nimia-muted)]">
-                A sample of animation and game asset work from the Nimia Games team.
+          <div className="relative mx-auto grid max-w-6xl gap-10 px-4 pt-8 pb-8 sm:px-6 lg:grid-cols-2 lg:items-center lg:pt-10 lg:pb-10">
+            <div>
+              {/* Reordered to lead with "Digital Assets" (29 Juli 2026, per
+                  user feedback: hero should read as a digital-asset studio
+                  first, game studio second — this and the headline/copy
+                  below were reordered together; revert if you'd rather
+                  keep "Game Development" first). */}
+              <span className="inline-block rounded-full border border-[var(--nimia-crimson)]/30 bg-[var(--nimia-crimson)]/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--nimia-pink)]">
+                Digital Assets &bull; Animation &bull; Game Development
+              </span>
+
+              <h1 className="nimia-font-display mt-4 text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+                <span className="nimia-gradient-text">Digital Assets</span> That Bring Ideas to Life
+              </h1>
+
+              <p className="mt-4 max-w-lg text-lg text-[var(--nimia-muted)]">
+                Nimia Games Studio is a creative production studio specializing
+                in <strong className="font-semibold text-[var(--nimia-pink)]">digital assets</strong>,{" "}
+                <strong className="font-semibold text-[var(--nimia-pink)]">animation</strong>, and{" "}
+                <strong className="font-semibold text-[var(--nimia-pink)]">game development</strong> for
+                studios and brands worldwide.
               </p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {SHOWCASE_VIDEOS.map((src) => (
-                <video
-                  key={src}
-                  src={src}
-                  className="aspect-video w-full rounded-xl border border-[var(--nimia-border)] bg-black object-cover"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  preload="metadata"
-                />
-              ))}
-              <div className="relative overflow-hidden rounded-xl border border-[var(--nimia-border)]">
-                {/* eslint-disable-next-line @next/next/no-img-element -- external
-                    marketing asset already hosted on apps/www, see docs/ARCHITECTURE.md
-                    "Rancangan Arsitektur Tahap 5" assumption #1 */}
-                <img
-                  src="https://www.nimiagames.com/games/lifetopia-preview.png"
-                  alt="Lifetopia game preview"
-                  className="h-full w-full object-cover"
-                />
-                <span className="absolute bottom-2 left-2 rounded-md bg-black/60 px-2 py-1 text-xs font-medium text-white">
-                  Lifetopia
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
 
-        {services && services.length > 0 ? (
-          <section className="px-4 py-16 sm:px-6">
-            <div className="mx-auto max-w-6xl">
-              <div className="mb-8 text-center">
-                <h2 className="text-2xl font-bold">Services</h2>
-                <p className="mt-1 text-[var(--nimia-muted)]">
-                  Pricing is a starting point. You can negotiate the final price with our team.
-                </p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                {services.map((service) => (
-                  <Card key={service.id}>
-                    <CardHeader>
-                      <CardTitle>{service.name}</CardTitle>
-                      <CardDescription className="line-clamp-2">
-                        {service.description}
-                      </CardDescription>
-                      <p className="pt-2 text-sm font-semibold text-[var(--nimia-crimson)]">
-                        {formatServicePrice(service.base_price)}
-                      </p>
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
-              <div className="mt-8 text-center">
-                <Link href="/services" className={buttonVariants({ variant: "outline" })}>
-                  See all services
+              {/* No arrow icon inside either CTA (29 Juli 2026, per user
+                  feedback). "View Our Work" gets a stronger border than
+                  the default outline variant for the same reason as the
+                  navbar's Log in button — see PublicNavbar.tsx.
+                  href is temporarily "/services": the Recent Work section
+                  this used to scroll to was removed from the home page
+                  (29 Juli 2026, moving to its own page reachable from the
+                  navbar per user request) and that page doesn't exist
+                  yet. Repoint this to the real work/portfolio page once
+                  it's built — flag its route when you're ready for it. */}
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <Link href="/services" className={buttonVariants({ size: "lg" })}>
+                  Start a Project
+                </Link>
+                <Link
+                  href="/services"
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "lg" }),
+                    "gap-2 border-[var(--foreground)]/30 hover:border-[var(--nimia-pink)]/70 hover:bg-[var(--nimia-surface-hover)]",
+                  )}
+                >
+                  View Our Work
+                  <Play className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </div>
+
+              {/* Shrunk further (29 Juli 2026, per user feedback) so this
+                  row takes up less height and "Trusted by" sits higher. */}
+              <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {STATS.map(({ icon: Icon, value, label }) => (
+                  <div key={label}>
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--nimia-crimson)]/15 text-[var(--nimia-pink)]">
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                    </div>
+                    <p className="mt-1.5 text-lg font-bold">{value}</p>
+                    <p className="text-xs text-[var(--nimia-muted)]">{label}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </section>
-        ) : null}
+
+            {/* Hero visual: the Nimia mark itself, floating/tilting in place
+                of a photo (the reference's character art was explicitly a
+                style reference only, not a real asset — see user request
+                29 Juli 2026). `perspective` on this wrapper is what makes
+                the child's rotateY/rotateX in .nimia-hero-mark actually
+                read as 3D instead of a flat skew. */}
+            <div
+              className="relative mx-auto flex max-w-md items-center justify-center py-2"
+              style={{ perspective: "1200px" }}
+            >
+              <div
+                aria-hidden="true"
+                className="absolute h-72 w-72 rounded-full bg-[var(--nimia-crimson)]/25 blur-[80px]"
+              />
+              {/* eslint-disable-next-line @next/next/no-img-element -- see
+                  PublicNavbar.tsx for the same fixed-local-asset rationale */}
+              <img
+                src="/nimia-mark-hero.png"
+                alt="Nimia Games mark"
+                className="nimia-hero-mark relative z-10 w-full max-w-sm"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* TRUST (placeholder — see TRUST_PLACEHOLDERS note above) */}
+        <section className="border-t border-[var(--nimia-border)] px-4 py-6 sm:px-6">
+          <div className="mx-auto max-w-6xl text-center">
+            <p className="text-xs font-medium uppercase tracking-widest text-[var(--nimia-muted)]">
+              Trusted by innovative studios &amp; brands
+            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-4">
+              {TRUST_PLACEHOLDERS.map((label, i) => (
+                <span
+                  key={i}
+                  className="rounded-lg border border-dashed border-[var(--nimia-border)] px-6 py-3 text-sm font-medium text-[var(--nimia-muted)]"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Recent Work and the Services teaser were removed from the home
+            page (29 Juli 2026, per user request) — that content is moving
+            to its own page reachable from the navbar. /services already
+            exists as a full listing (see app/services/page.tsx) so the
+            navbar's "Services" link still works; a dedicated
+            work/portfolio page still needs to be built and linked from
+            the navbar once you're ready for that. */}
       </main>
-    </>
+    </div>
   );
 }

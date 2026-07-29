@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Log in" };
 
 export default function LoginPage() {
   return (
-    <>
+    <div className="nimia-dark">
       {/* isAuthenticated is always false here: middleware.ts already
           redirects a signed-in visitor away from /login to /dashboard
           before this page ever renders. */}
@@ -14,6 +14,6 @@ export default function LoginPage() {
       <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
         <LoginForm />
       </main>
-    </>
+    </div>
   );
 }

@@ -340,3 +340,63 @@ Logo yang sama juga dipasang di email (Resend + template Supabase Auth), gantiin
 **PENTING, 2 hal yang masih perlu Anda lakukan supaya logo baru ini beneran muncul di email:**
 1. **Deploy ulang `apps/www`** (commit + push) — email logo dimuat dari URL absolut `https://www.nimiagames.com/nimia-studio-lockup-email.png`, jadi selama file ini belum live di production, email yang terkirim akan menampilkan gambar rusak/kosong.
 2. **Paste ulang isi `confirm-signup.html` yang baru ke Supabase Dashboard** (Authentication > Email Templates > Confirm signup) — sama seperti sebelumnya, Supabase tidak baca file ini otomatis dari repo.
+
+---
+
+## Update Hero & tema publik jadi dark (29 Juli 2026)
+
+User kirim gambar referensi (mockup dibuat via AI, eksplisit cuma referensi gaya bukan aset final) dan minta hero landing page dibikin senada: dark, badge pill, heading besar dengan kata bergradasi, CTA ganda, baris statistik, visual di kanan, baris "trusted by". Juga minta CTA navbar cuma "Log in" (bukan "Sign up" terpisah).
+
+**Keputusan desain kunci:**
+- **Seluruh sisi publik jadi dark** (bukan cuma hero): navbar, landing (`/`), `/services`, `/login`, `/register`, `/register/check-email` — supaya konsisten, tidak ada navbar dark nempel di atas halaman terang. Dashboard (`/dashboard/*`) TETAP terang, tidak diubah (tetap tools kerja harian, bukan halaman marketing).
+- Dark theme diimplementasikan sebagai class `.nimia-dark` (di `apps/studio/app/globals.css`) yang meng-override variable CSS yang SAMA yang sudah dipakai `packages/ui` (Button, Card, dll) — jadi semua komponen shared otomatis re-theme tanpa perlu ditulis ulang. Nilai variabelnya persis sama dengan `apps/www/app/globals.css`.
+- Font `Sora` + `Rajdhani` (sama seperti `apps/www`) ditambahkan ke `apps/studio/app/layout.tsx`, tapi HANYA dipakai di halaman publik (lewat class `.nimia-dark`/`.nimia-font-display`) — dashboard tetap pakai font sistem seperti sebelumnya.
+- `Modal` (dipakai untuk login cepat dari navbar) di-render lewat React portal ke `document.body`, di LUAR pohon DOM `.nimia-dark` — jadi `LoginModal.tsx` sengaja kasih `className="nimia-dark"` langsung ke `Modal` supaya modalnya tetap dark walau posisinya di luar wrapper (kalau tidak, modal akan tetap terang, keluar dari tema).
+- Warna teks link/aksen di atas background gelap diganti dari `--nimia-crimson` (#c1124d, kontras cuma ~3.3:1 di atas dark, di bawah standar AA 4.5:1 untuk teks normal) ke `--nimia-pink` (#ff4d8d, kontras ~6.5:1) supaya tetap gampang dibaca. Warna solid tombol utama (background crimson) tidak berubah.
+
+**Hero baru (`apps/studio/app/page.tsx`):**
+- Badge pill "Game Development • Animation • Digital Assets" (dari deskripsi bisnis yang sudah dipakai di `apps/www`, bukan karangan baru).
+- Heading "Bring Your **Game** to Life" dengan kata "Game" pakai gradient crimson→pink.
+- Baris statistik (100+ Projects, 50+ Clients, 5+ Years, 24/7 Support) — **INI PLACEHOLDER**, angka dari gambar referensi, BUKAN data asli Nimia Games (dikonfirmasi ke user, mereka minta pakai persis dulu). Ganti kapan pun sudah ada angka sebenarnya.
+- Baris "Trusted by innovative studios & brands" — **INI JUGA PLACEHOLDER**, isinya cuma kotak generik bertuliskan "Partner" (BUKAN logo asli Unity/Unreal Engine/Solana/Steam/AWS seperti di gambar referensi) karena logo asli itu menyiratkan partnership yang belum tentu benar. Tunggu instruksi user logo yang benar apa saja sebelum diisi.
+- Visual di kanan hero: BUKAN foto karakter seperti referensi (user eksplisit bilang itu cuma referensi gaya), tapi mark Nimia sendiri (`apps/studio/public/nimia-mark-hero.png`, hasil crop resolusi tinggi dari `apps/www/public/logo.png`) dengan animasi CSS (mengambang + tilt 3D + glow). **Ini pendekatan CSS murni, BUKAN render 3D/WebGL sungguhan** — user sempat minta "kalau bisa versi 3D", tapi itu butuh sumber vector mark (belum ada, cuma raster) + dependency Three.js baru, jadi untuk sekarang dipakai pendekatan CSS yang lebih ringan dulu. Bisa diupgrade ke WebGL beneran nanti kalau user mau, sebagai pekerjaan terpisah.
+- Tombol "Watch Showreel" dari referensi SENGAJA tidak dibuat — belum ada video showreel asli, daripada bikin tombol yang menjanjikan video yang tidak ada.
+- Section "Recent Work" (video showcase yang sudah ada dari sebelumnya) diberi `id="work"` supaya CTA "View Our Work" dan link navbar "Work" bisa scroll ke situ.
+
+**Navbar (`PublicNavbar.tsx`):** CTA sekarang cuma "Log in" (buka modal) + "Start a Project" (ke `/services`) — tombol "Sign up" terpisah dihapus sesuai instruksi user (masih bisa diakses lewat link di dalam modal login atau alur order). Link nav ditambah "Work" (scroll ke `#work`); "Process" dan "About" dari gambar referensi SENGAJA tidak ditambah karena belum ada halaman/section untuk itu — tanya kalau mau dibikin.
+
+---
+
+## Update Hero — kompaksi, copy digital-asset-first, font, CTA (29 Juli 2026)
+
+Setelah user coba jalankan hasil update sebelumnya di device sendiri, masuk feedback koreksi (bukan bug, semua ini penyesuaian desain):
+
+1. **Landing dibuat lebih padat vertikal** supaya section Hero + Trust ("footer" sesuai istilah user) muat dalam 1 layar tanpa scroll di ukuran desktop biasa. Padding hero (`py-20`/`lg:py-28` → `pt-8 pb-10`/`lg:pt-10 lg:pb-14`), jarak antar elemen di dalam hero (`mt-6`/`mt-8`/`mt-12` → `mt-4`/`mt-6`/`mt-8`), ukuran heading (`text-5xl sm:text-6xl` → `text-4xl sm:text-5xl lg:text-6xl`), dan padding section Trust (`py-10` → `py-6`) semua dikecilkan. Diverifikasi lewat mockup statis (HTML+CSS manual, karena Tailwind CDN diblokir jaringan sandbox jadi tidak bisa dites lewat CDN) yang di-screenshot pakai Playwright di 1440×900 dan 1280×720 — hero+trust muat penuh di kedua ukuran itu. **Catatan jujur:** ini best-effort, bukan jaminan matematis untuk SEMUA ukuran layar/zoom browser (monitor sangat pendek atau zoom besar tetap bisa butuh scroll dikit) — kalau nanti masih terasa kurang padat di monitor Anda, kasih tahu ukuran layarnya biar saya sesuaikan lagi.
+2. **Badge & heading tidak lagi "kosong" di atas** — padding atas section hero yang dikecilkan (poin 1) otomatis menghilangkan jarak kosong berlebih di atas badge pill.
+3. **CTA sekarang jelas keliatan seperti tombol.** Akar masalahnya: variant "outline" di `packages/ui/Button` pakai `border-[var(--nimia-border)]` yang di tema dark cuma 9% opacity putih di atas background nyaris hitam — nyaris tidak keliatan. Diperbaiki dengan override border lebih terang (`border-[var(--foreground)]/30`, makin terang lagi saat hover ke `/70`) langsung di titik pemakaian ("Log in" di navbar, "View Our Work" di hero) — bukan ubah token global `--nimia-border`, supaya card/divider lain yang masih pakai border tipis itu (memang dimaksudkan tipis) tidak ikut berubah.
+4. **Ikon panah (ArrowRight) dihapus dari semua CTA** ("Start a Project" di navbar & hero) sesuai instruksi user. Ikon Play di "View Our Work" DIPERTAHANKAN (bukan panah, dan relevan sebagai isyarat "tonton karya kami").
+5. **Copy hero diarahkan ke "digital asset studio" lebih dulu, bukan "game studio"** — badge pill diurutkan ulang jadi "Digital Assets • Animation • Game Development" (dari sebelumnya Game Development duluan), heading diganti dari "Bring Your **Game** to Life" jadi "**Digital Assets** That Bring Ideas to Life" (gradient sekarang di "Digital Assets"), dan paragraf deskripsi diurutkan ulang jadi digital assets → animation → game development.
+6. **Font heading diganti dari Rajdhani ke Plus Jakarta Sans** (`apps/studio/app/layout.tsx`, `.nimia-font-display` di `globals.css`) — Rajdhani (kondensed, cenderung all-caps) dirasa terlalu "kaku"/techy, Plus Jakarta Sans dipilih karena tetap tegas untuk heading tapi lebih hangat dan gampang dibaca, senada dengan Sora yang sudah dipakai di body. Rajdhani sudah tidak dipakai sama sekali lagi di `apps/studio` (dicek: cuma dipakai lewat class `.nimia-font-display`, satu titik ganti).
+
+File yang berubah: `apps/studio/app/layout.tsx`, `apps/studio/app/globals.css`, `apps/studio/app/page.tsx`, `apps/studio/app/components/PublicNavbar.tsx`.
+
+Statistik (100+/50+/5+/24-7) dan placeholder "Trusted by" TETAP belum diganti data asli — masih menunggu instruksi user, tidak disentuh di update ini.
+
+---
+
+## Update Hero — hapus Recent Work/Services dari home, navbar hover crimson, stats dikecilkan lagi (29 Juli 2026)
+
+Feedback lanjutan setelah user coba lagi di device (semua penyesuaian desain, bukan bug):
+
+1. **Section "Recent Work" dan teaser "Services" DIHAPUS dari `apps/studio/app/page.tsx`** — user bilang kontennya akan dipindah ke halaman terpisah yang bisa diakses dari navbar (halaman itu SENDIRI BELUM DIBANGUN, ini di luar scope update ini). Efek samping yang saya perbaiki sekalian:
+   - Query Supabase `services` di `page.tsx` dihapus (tidak dipakai lagi), begitu juga import `Card`/`CardHeader`/`CardTitle`/`CardDescription`/`formatServicePrice` dan konstanta `SHOWCASE_VIDEOS` yang jadi mati kalau tidak ikut dihapus.
+   - Link nav "Work" di `PublicNavbar.tsx` (yang tadinya scroll ke `id="work"` di section Recent Work) **DIHAPUS SEMENTARA** dari `NAV_LINKS` — section tujuannya sudah tidak ada, jadi kalau link ini dibiarkan akan jadi mati. Tambahkan lagi begitu halaman work/portfolio yang baru sudah dibangun, arahkan ke situ.
+   - Tombol "View Our Work" di hero (sebelumnya `href="#work"`) untuk sementara diarahkan ke `/services` supaya tidak jadi link mati — **INI SEMENTARA**, kasih tahu saya rute halaman work/portfolio yang benar begitu sudah direncanakan, nanti saya arahkan ulang.
+   - `/services` sendiri TIDAK terpengaruh — halaman itu sudah ada penuh dari sub-tahap 1 (`app/services/page.tsx`), cuma teaser 3-kartu di home yang dihapus, bukan halamannya.
+2. **Warna teks navbar diganti dari `--nimia-pink` ke `--nimia-crimson`** untuk state aktif & hover (default/non-hover tetap putih, tidak berubah) — permintaan eksplisit user ("navbar warna teksnya harusnya putih, pas di hover warnanya jadi merah Nimia"). Berlaku di kedua tempat: nav desktop dan menu mobile di `PublicNavbar.tsx`. **Catatan kecil:** `--nimia-crimson` di atas background gelap kontrasnya ~3.35:1 (di bawah standar AA 4.5:1 untuk teks statis, itu sebabnya link/teks LAIN di halaman ini sengaja pakai pink, lihat update sebelumnya) — tapi untuk state hover yang sifatnya sementara/interaktif ini longgar diikuti sesuai permintaan eksplisit Anda; kalau nanti dirasa kurang kebaca saat hover, kasih tahu.
+3. **Baris statistik dikecilkan lagi** (dari update sebelumnya yang sudah dikecilkan sekali) supaya "Trusted by" naik lebih tinggi: lingkaran ikon `h-7 w-7` (dari `h-9 w-9`), angka `text-lg` (dari `text-2xl`), label `text-xs` (dari `text-sm`), jarak antar baris `mt-5`/`gap-3` (dari `mt-8`/`gap-4`). Padding bawah hero juga dikecilkan sedikit lagi (`pb-8`/`lg:pb-10`, dari `pb-10`/`lg:pb-14`) karena kontennya sudah lebih pendek.
+4. **Tombol CTA hero ("Start a Project" & "View Our Work")** sudah cocok dengan screenshot mockup yang saya kirim sebelumnya (Desktop 1440×900) — kodenya sebenarnya sudah menghasilkan tampilan yang sama sejak update sebelumnya (solid crimson tanpa ikon panah untuk "Start a Project", outline dengan border lebih terang + ikon Play untuk "View Our Work"); perubahan di titik 3 di atas (stats mengecil) otomatis membuat kedua tombol ini terlihat lebih menonjol karena ruang di sekitarnya lebih lega.
+
+Diverifikasi ulang lewat mockup statis yang sama (Playwright, 1440×900 & 1280×720) — hero+trust makin ringkas, "Trusted by" naik jelas lebih tinggi dibanding versi sebelumnya.
+
+File yang berubah: `apps/studio/app/page.tsx`, `apps/studio/app/components/PublicNavbar.tsx`.

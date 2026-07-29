@@ -7,6 +7,14 @@ import { Menu, X } from "lucide-react";
 import { Button, buttonVariants, cn } from "@nimia/ui";
 import { LoginModal } from "./LoginModal";
 
+// "Work" (scroll-to-section on the landing page) was removed 29 Juli 2026:
+// the Recent Work section it pointed at was pulled off the home page and
+// is moving to its own dedicated page per user request, but that page
+// doesn't exist yet — add it back here, pointed at the new route, once
+// it's built. "Process" and "About" (shown in the reference design) are
+// deliberately left out for the same reason: there's no actual
+// page/section behind them yet — a real nav link that fails on load is
+// worse than one fewer nav item; ask if you want those built out.
 const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/services", label: "Services" },
@@ -18,6 +26,14 @@ const NAV_LINKS = [
 // — the two areas were confirmed with the user to have opposite nav
 // patterns: public pages get a top navbar with NO sidebar, dashboard pages
 // keep their existing sidebar with NO top navbar.
+//
+// Redesigned dark (29 Juli 2026, per user reference image) to match
+// apps/www's cinematic dark brand instead of the dashboard's light theme.
+// `nimia-dark` (see globals.css) overrides the SAME CSS variables
+// Button/Card etc already read, so this file barely changes color-wise —
+// it just needs to render inside that scope. It's applied here directly on
+// <header> (self-contained) AND the caller wraps its own page content in
+// the same class, so header and page background merge with no seam.
 export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: boolean }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -25,7 +41,7 @@ export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: bo
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-[var(--nimia-border)] bg-[var(--nimia-surface)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--nimia-surface)]/80">
+      <header className="nimia-dark sticky top-0 z-40 border-b border-[var(--nimia-border)] bg-[var(--background)]/90 backdrop-blur supports-[backdrop-filter]:bg-[var(--background)]/70">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link
             href="/"
@@ -62,11 +78,26 @@ export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: bo
               </Link>
             ) : (
               <>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setLoginOpen(true)}>
+                {/* Login is the only auth-labeled CTA in the navbar (per
+                    user instruction) — "Sign up" isn't shown as its own
+                    button; it's still reachable via the login modal's
+                    "Sign up" link or via Start a Project -> /services.
+                    Border strengthened past the default outline variant
+                    (29 Juli 2026, per user feedback: --nimia-border at
+                    9% white was nearly invisible against the dark
+                    background, so it didn't read as a button). No arrow
+                    icon inside per the same feedback round. */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-[var(--foreground)]/30 hover:border-[var(--nimia-pink)]/70 hover:bg-[var(--nimia-surface-hover)]"
+                  onClick={() => setLoginOpen(true)}
+                >
                   Log in
                 </Button>
-                <Link href="/register" className={buttonVariants({ size: "sm" })}>
-                  Sign up
+                <Link href="/services" className={buttonVariants({ size: "sm" })}>
+                  Start a Project
                 </Link>
               </>
             )}
@@ -117,6 +148,7 @@ export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: bo
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="border-[var(--foreground)]/30 hover:border-[var(--nimia-pink)]/70 hover:bg-[var(--nimia-surface-hover)]"
                     onClick={() => {
                       setMobileOpen(false);
                       setLoginOpen(true);
@@ -125,11 +157,11 @@ export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: bo
                     Log in
                   </Button>
                   <Link
-                    href="/register"
+                    href="/services"
                     onClick={() => setMobileOpen(false)}
-                    className={buttonVariants({ size: "sm" })}
+                    className={cn(buttonVariants({ size: "sm" }), "justify-center")}
                   >
-                    Sign up
+                    Start a Project
                   </Link>
                 </>
               )}

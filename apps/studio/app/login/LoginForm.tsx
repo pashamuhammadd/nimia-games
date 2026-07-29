@@ -66,7 +66,7 @@ export function LoginForm({
       </Button>
       <p className="text-center text-sm text-[var(--nimia-muted)]">
         Don&apos;t have an account?{" "}
-        <Link href="/register" className="font-medium text-[var(--nimia-crimson)]" onClick={onSuccess}>
+        <Link href="/register" className="font-medium text-[var(--nimia-pink)]" onClick={onSuccess}>
           Sign up
         </Link>
       </p>
@@ -88,7 +88,7 @@ export function LoginForm({
         <div className="mt-5 flex flex-col items-stretch gap-3">{footer}</div>
         <p className="mt-3 text-center text-xs text-[var(--nimia-muted)]">
           Prefer a full page?{" "}
-          <Link href="/login" className="font-medium text-[var(--nimia-crimson)]" onClick={onSuccess}>
+          <Link href="/login" className="font-medium text-[var(--nimia-pink)]" onClick={onSuccess}>
             Use the login page instead
           </Link>
         </p>

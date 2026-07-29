@@ -84,7 +84,7 @@ export function RegisterForm() {
           </Button>
           <p className="text-center text-sm text-[var(--nimia-muted)]">
             Already have an account?{" "}
-            <Link href="/login" className="font-medium text-[var(--nimia-crimson)]">
+            <Link href="/login" className="font-medium text-[var(--nimia-pink)]">
               Log in
             </Link>
           </p>

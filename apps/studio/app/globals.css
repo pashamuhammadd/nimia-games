@@ -30,6 +30,61 @@
   --color-foreground: var(--foreground);
 }
 
+/*
+ * Dark scope for the PUBLIC/marketing side of studio.nimiagames.com
+ * (navbar, landing hero, /services, /login, /register — added Tahap 5
+ * sub-tahap 1, second pass, 29 Juli 2026). The dashboard keeps the light
+ * theme above unchanged (still a working tool, not a marketing page).
+ * This overrides the SAME variable names Card/Button/etc already read
+ * from (see packages/ui) with apps/www's exact dark values, so every
+ * shared component re-themes automatically for anything wrapped in this
+ * class — no per-component dark-mode logic needed.
+ */
+.nimia-dark {
+  --background: #0a0407;
+  --foreground: #ffffff;
+  --nimia-border: rgba(255, 255, 255, 0.09);
+  --nimia-surface: rgba(255, 255, 255, 0.04);
+  --nimia-surface-hover: rgba(255, 255, 255, 0.08);
+  --nimia-muted: #b3a2aa;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sora), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+.nimia-font-display {
+  font-family: var(--font-jakarta), var(--font-sora), Arial, sans-serif;
+}
+
+.nimia-gradient-text {
+  background: linear-gradient(135deg, var(--nimia-crimson), var(--nimia-pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Hero mark animation (Tahap 5 sub-tahap 1) — a real WebGL/3D-rendered
+   logo would need a vector source of just the mark plus a Three.js
+   dependency (see docs/ARCHITECTURE.md); this is the lighter CSS-only
+   approximation: a slow continuous 3D tilt + gentle float + soft glow,
+   applied to the existing raster mark. */
+@keyframes nimia-float {
+  0%, 100% { transform: translateY(0) rotateY(-14deg) rotateX(4deg); }
+  50% { transform: translateY(-18px) rotateY(14deg) rotateX(-4deg); }
+}
+
+.nimia-hero-mark {
+  animation: nimia-float 7s ease-in-out infinite;
+  transform-style: preserve-3d;
+  filter: drop-shadow(0 30px 60px rgba(193, 18, 77, 0.45));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nimia-hero-mark {
+    animation: none;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
