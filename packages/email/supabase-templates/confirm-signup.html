@@ -1,0 +1,127 @@
+<!--
+  Template "Confirm signup" untuk Supabase Auth — TIDAK dijalankan oleh
+  Next.js/Resend, ini di-paste langsung ke:
+  Supabase Dashboard > Authentication > Email Templates > Confirm signup
+
+  Variabel {{ .ConfirmationURL }} dan {{ .Email }} diisi otomatis oleh
+  Supabase saat email dikirim (lihat docs.supabase.com/guides/auth untuk
+  daftar variabel lain: .Token, .TokenHash, .SiteURL, .RedirectTo, .Data).
+
+  Desainnya sengaja disamakan manual dengan
+  packages/email/src/templates/ConfirmSignupEmail.tsx (React component-nya,
+  untuk preview lokal) + EmailLayout.tsx (warna & header) — karena Supabase
+  butuh HTML mentah, bukan komponen React, jadi tidak bisa di-generate
+  otomatis. Kalau desain brand berubah, dua tempat ini perlu diupdate
+  bareng-bareng.
+
+  CATATAN: mengganti konten template ini TIDAK mengubah alamat pengirim.
+  Selama custom SMTP belum disambungkan ke Resend (Authentication >
+  Settings > SMTP Settings), email ini tetap terkirim dari alamat default
+  Supabase, bukan dari contact@nimiagames.com — itu langkah terpisah,
+  dilakukan setelah domain Resend selesai verifikasi.
+-->
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Konfirmasi email Nimia Games</title>
+  </head>
+  <body style="margin:0; padding:32px 0; background-color:#faf7f8; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="max-width:480px; width:100%;">
+            <tr>
+              <td style="padding:0 16px;">
+
+                <!-- Header: logo + wordmark -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td align="center" style="padding:0 0 28px;">
+                      <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td style="vertical-align:middle; padding-right:10px;">
+                            <img src="https://www.nimiagames.com/logo-email.png" width="53" height="40" alt="" style="display:block;" />
+                          </td>
+                          <td style="vertical-align:middle;">
+                            <img src="https://www.nimiagames.com/nimia-games-wordmark-dark.png" width="257" height="24" alt="Nimia Games" style="display:block;" />
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Card -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff; border-radius:12px; border:1px solid #ecdfe4; overflow:hidden;">
+                  <tr>
+                    <td style="background-color:#2b0a1a; padding:4px; line-height:4px; font-size:0;">&nbsp;</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:32px 32px 24px;">
+                      <h2 style="color:#2b0a1a; font-size:20px; margin:0 0 16px;">
+                        Satu langkah lagi &mdash; konfirmasi email kamu
+                      </h2>
+
+                      <p style="color:#1a0f14; font-size:14px; line-height:22px; margin:0 0 16px;">
+                        Halo,
+                      </p>
+
+                      <p style="color:#1a0f14; font-size:14px; line-height:22px; margin:0 0 16px;">
+                        Terima kasih sudah mendaftar di <strong>studio.nimiagames.com</strong>
+                        dengan email <strong>{{ .Email }}</strong>. Klik tombol di bawah untuk
+                        konfirmasi email dan aktifkan akun kamu.
+                      </p>
+
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td align="center" style="padding:8px 0 20px;">
+                            <a href="{{ .ConfirmationURL }}" style="display:inline-block; background-color:#c1124d; color:#ffffff; font-size:14px; font-weight:600; text-decoration:none; padding:12px 28px; border-radius:8px;">
+                              Konfirmasi email
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <p style="color:#7a6870; font-size:12px; line-height:20px; margin:0 0 16px;">
+                        Kalau tombolnya tidak berfungsi, salin dan buka link ini di browser:<br />
+                        <span style="word-break:break-all;">{{ .ConfirmationURL }}</span>
+                      </p>
+
+                      <hr style="border:none; border-top:1px solid #ecdfe4; margin:24px 0;" />
+
+                      <p style="color:#7a6870; font-size:12px; line-height:20px; margin:0;">
+                        Bukan kamu yang mendaftar? Abaikan saja email ini &mdash; akunnya
+                        tidak akan aktif tanpa konfirmasi.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Footer -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td align="center" style="padding:24px 8px 0;">
+                      <p style="color:#7a6870; font-size:12px; line-height:18px; margin:0 0 4px;">
+                        Nimia Games &middot; Studio pengembangan game indie
+                      </p>
+                      <p style="color:#7a6870; font-size:12px; line-height:18px; margin:0;">
+                        Ada pertanyaan? Hubungi
+                        <a href="mailto:contact@nimiagames.com" style="color:#c1124d;">contact@nimiagames.com</a>
+                      </p>
+                      <p style="color:#7a6870; font-size:12px; line-height:18px; margin:12px 0 0;">
+                        <a href="https://www.nimiagames.com" style="color:#7a6870; text-decoration:underline;">nimiagames.com</a>
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

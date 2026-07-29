@@ -1,3 +1,21 @@
-// @nimia/email — template React Email (dikirim via Resend): order dibuat, invoice dibuat,
-// pembayaran diterima, receipt tersedia, dst. Diisi di Tahap 5 (backend studio).
-export {};
+export {
+  EmailLayout,
+  BRAND,
+  FONT_STACK,
+  LOGO_URL,
+  WORDMARK_URL,
+  SITE_URL,
+  CONTACT_EMAIL,
+  ctaButtonStyle,
+} from "./components/EmailLayout";
+
+export { OrderReceivedEmail, type OrderReceivedEmailProps } from "./templates/OrderReceivedEmail";
+
+// ConfirmSignupEmail HANYA untuk preview lokal / referensi desain — email
+// aslinya dikirim oleh Supabase Auth sendiri dari HTML statis di
+// supabase-templates/confirm-signup.html (lihat README), bukan dari
+// komponen ini.
+export {
+  ConfirmSignupEmail,
+  type ConfirmSignupEmailProps,
+} from "./templates/ConfirmSignupEmail";
