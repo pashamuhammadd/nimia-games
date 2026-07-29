@@ -56,7 +56,10 @@ export default async function ServicesPage() {
                 <CardFooter>
                   <Link
                     href={`/dashboard/orders?service=${service.id}`}
-                    className={cn(buttonVariants({ size: "sm" }), "w-full")}
+                    className={cn(
+                      buttonVariants({ size: "sm" }),
+                      "w-full bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",
+                    )}
                   >
                     Order this service
                   </Link>

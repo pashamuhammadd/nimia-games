@@ -73,7 +73,13 @@ export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: bo
 
           <div className="hidden items-center gap-3 md:flex">
             {isAuthenticated ? (
-              <Link href="/dashboard" className={buttonVariants({ size: "sm" })}>
+              <Link
+                href="/dashboard"
+                className={cn(
+                  buttonVariants({ size: "sm" }),
+                  "bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",
+                )}
+              >
                 Go to dashboard
               </Link>
             ) : (
@@ -96,7 +102,16 @@ export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: bo
                 >
                   Log in
                 </Button>
-                <Link href="/services" className={buttonVariants({ size: "sm" })}>
+                {/* bg/text/hover repeated on top of buttonVariants() as a
+                    safety net (29 Juli 2026) — see the @source note in
+                    globals.css for why. */}
+                <Link
+                  href="/services"
+                  className={cn(
+                    buttonVariants({ size: "sm" }),
+                    "bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",
+                  )}
+                >
                   Start a Project
                 </Link>
               </>
@@ -138,7 +153,10 @@ export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: bo
                 <Link
                   href="/dashboard"
                   onClick={() => setMobileOpen(false)}
-                  className={buttonVariants({ size: "sm" })}
+                  className={cn(
+                    buttonVariants({ size: "sm" }),
+                    "bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",
+                  )}
                 >
                   Go to dashboard
                 </Link>
@@ -159,7 +177,10 @@ export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: bo
                   <Link
                     href="/services"
                     onClick={() => setMobileOpen(false)}
-                    className={cn(buttonVariants({ size: "sm" }), "justify-center")}
+                    className={cn(
+                      buttonVariants({ size: "sm" }),
+                      "justify-center bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",
+                    )}
                   >
                     Start a Project
                   </Link>

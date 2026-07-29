@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/* Explicitly register packages/ui as a content source (29 Juli 2026).
+   Tailwind v4's automatic content detection excludes node_modules by
+   default, and @nimia/ui is resolved into this app through a workspace
+   symlink at node_modules/@nimia/ui -> ../../packages/ui. Without this
+   line, Tailwind can silently fail to see classes that only ever appear
+   inside packages/ui/src/components/*.tsx (this is what caused the
+   "primary" Button variant to render with no background/white-text at
+   all in production — see docs/ARCHITECTURE.md for the full story).
+   Path is relative to this file: app/ -> studio/ -> apps/ -> repo root. */
+@source "../../../packages/ui/src";
+
 /*
  * Design rationale (Tahap 4): studio.nimiagames.com is a working dashboard
  * (forms, tables, invoices) rather than a marketing page, so unlike
@@ -105,6 +116,19 @@ body {
   color: var(--foreground);
 }
 
-a {
-  color: var(--nimia-crimson);
+/* Wrapped in @layer base (29 Juli 2026) — this MUST be inside a layer,
+   not plain unlayered CSS. Tailwind v4 emits all of its own utilities
+   inside named layers (@layer theme, base, components, utilities), and
+   per the CSS Cascade Layers spec, unlayered rules ALWAYS beat layered
+   ones regardless of selector specificity or source order. A plain
+   `a { color: ... }` here was silently overriding every text-color
+   utility applied to any <Link>/<a> on the site (text-white on "Start a
+   Project", text-[var(--foreground)] on "View Our Work", etc.) — the
+   text was still there, just rendered in --nimia-crimson every time,
+   invisible on a crimson button background. Now that this lives in
+   @layer base, Tailwind's @layer utilities classes correctly win. */
+@layer base {
+  a {
+    color: var(--nimia-crimson);
+  }
 }

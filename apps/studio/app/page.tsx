@@ -85,7 +85,17 @@ export default async function StudioHomePage() {
                   yet. Repoint this to the real work/portfolio page once
                   it's built — flag its route when you're ready for it. */}
               <div className="mt-6 flex flex-wrap items-center gap-3">
-                <Link href="/services" className={buttonVariants({ size: "lg" })}>
+                {/* bg/text/hover repeated here on top of buttonVariants()
+                    as a safety net (29 Juli 2026) — see the @source note
+                    in globals.css for why the "primary" variant's OWN
+                    classes were silently not rendering in production. */}
+                <Link
+                  href="/services"
+                  className={cn(
+                    buttonVariants({ size: "lg" }),
+                    "bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",
+                  )}
+                >
                   Start a Project
                 </Link>
                 <Link

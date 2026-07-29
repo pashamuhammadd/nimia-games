@@ -400,3 +400,39 @@ Feedback lanjutan setelah user coba lagi di device (semua penyesuaian desain, bu
 Diverifikasi ulang lewat mockup statis yang sama (Playwright, 1440×900 & 1280×720) — hero+trust makin ringkas, "Trusted by" naik jelas lebih tinggi dibanding versi sebelumnya.
 
 File yang berubah: `apps/studio/app/page.tsx`, `apps/studio/app/components/PublicNavbar.tsx`.
+
+---
+
+## BUG PENTING ditemukan & diperbaiki: tombol "primary" tidak ter-style di production (29 Juli 2026)
+
+User kirim screenshot `studio.nimiagames.com` yang SUDAH di-push ke production, dibandingkan dengan mockup yang saya kirim. Perbedaannya jelas: tombol **"Start a Project"** (baik di navbar maupun hero) tampil sebagai TEKS POLOS berwarna crimson, TANPA kotak/background/padding sama sekali — bukan cuma beda gaya dikit, tombolnya beneran tidak ke-style. Tombol **"Log in"** dan **"View Our Work"** (variant outline) terlihat OK karena kebetulan semua class yang membuatnya terlihat seperti tombol (border, warna border, warna hover) ditulis LANGSUNG di `page.tsx`/`PublicNavbar.tsx`, bukan diwariskan dari `packages/ui/src/components/Button.tsx`.
+
+**Akar masalah:** `apps/studio` pakai Tailwind v4 (`@import "tailwindcss";` di `globals.css`, tanpa `tailwind.config.js` — v4 memang begitu). Tailwind v4 punya "automatic content detection" yang **otomatis MENGECUALIKAN apa pun di dalam `node_modules`**. Karena `@nimia/ui` adalah workspace package yang di-resolve npm sebagai symlink di `node_modules/@nimia/ui` → `../../packages/ui`, kemungkinan besar Tailwind tidak pernah benar-benar men-scan file asli di `packages/ui/src/components/Button.tsx` — artinya SEMUA class yang HANYA ada di dalam file itu (termasuk seluruh isi `variant.primary`: `bg-[var(--nimia-crimson)] text-white shadow-sm hover:bg-[var(--nimia-crimson-hover)]`, dan base classes `inline-flex h-11 px-6` dst.) tidak pernah masuk ke CSS yang di-compile, jadi tidak render sama sekali di production. Variant `outline` KEBETULAN "selamat" secara visual karena border/warnanya sudah saya duplikasi manual langsung di file pemanggil pada update-update sebelumnya (bukan karena Button.tsx-nya benar-benar ke-scan).
+
+**PENTING — ini kemungkinan bukan cuma soal hero.** Kalau dugaan ini benar, SEMUA tombol `variant="primary"` (default) di SELURUH `apps/studio` — termasuk tombol submit di form login/register/order dashboard yang sudah lama ada dari Tahap 4 — kemungkinan JUGA sudah lama tidak ter-style dengan benar di production, cuma belum ketahuan/dilaporkan. Setelah fix di bawah ini dipasang, tolong cek juga tombol-tombol di dashboard (submit form order, dst) — kalau tampilannya berubah/membaik, itu tandanya dugaan ini benar dan sebelumnya memang sudah lama begini.
+
+**Perbaikan (2 lapis):**
+1. **Fix akar masalah** — tambah `@source "../../../packages/ui/src";` tepat setelah `@import "tailwindcss";` di `apps/studio/app/globals.css`, supaya Tailwind eksplisit disuruh men-scan folder itu meskipun diakses lewat symlink `node_modules`. Ini seharusnya memperbaiki SEMUA komponen `packages/ui` sekaligus, bukan cuma tombol.
+2. **Safety net tambahan** (jaga-jaga kalau fix #1 belum cukup, atau untuk hasil yang jelas terlihat cepat) — di titik-titik tombol primary yang dipakai lewat `<Link>` (bukan `<Button>`, karena Link tidak lewat komponen `Button.tsx` sama sekali jadi tidak dapat manfaat dari fix manapun di `Button.tsx` itu sendiri kalau ada masalah lain), saya tambahkan literal class `bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]` LANGSUNG di file pemanggil (yang sudah terbukti ke-scan Tailwind dengan benar): "Start a Project" (hero, navbar desktop, navbar mobile), "Go to dashboard" (navbar desktop, navbar mobile — belum pernah terlihat karena `isAuthenticated` masih hardcode `false`, tapi diperbaiki sekalian), "Order this service" (`app/services/page.tsx`).
+
+File yang berubah: `apps/studio/app/globals.css`, `apps/studio/app/page.tsx`, `apps/studio/app/components/PublicNavbar.tsx`, `apps/studio/app/services/page.tsx`.
+
+**Belum bisa saya verifikasi langsung** — sandbox saya tidak punya akses jaringan buat install Tailwind CLI/jalankan build asli, dan `page.tsx` butuh koneksi Supabase asli buat jalan penuh, jadi saya tidak bisa compile CSS beneran dan screenshot hasilnya sendiri. **Mohon push perubahan ini dan cek langsung di production** — kalau tombol "Start a Project" masih belum solid crimson dengan teks putih setelah ini, kirim screenshot lagi, kemungkinan ada lapisan masalah lain yang perlu digali.
+
+### Lanjutan bug ini — root cause SEBENARNYA ditemukan (29 Juli 2026, sama hari)
+
+Setelah fix di atas dipasang, user push & cek lagi: background "Start a Project" SUDAH solid crimson (fix #2/safety-net di atas berhasil), tapi **teksnya sama sekali tidak kelihatan** (kosong), dan teks "View Our Work" tampil crimson padahal harusnya putih. Ini mengarah ke masalah LAIN yang lebih mendasar, ketemu setelah re-baca ulang `globals.css` baris demi baris:
+
+```css
+a {
+  color: var(--nimia-crimson);
+}
+```
+
+Baris ini ada di paling bawah `globals.css`, ditulis polos TANPA dibungkus `@layer` apa pun. **Tailwind v4 membungkus SEMUA utility class-nya sendiri di dalam named layer (`@layer theme, base, components, utilities;`)** — dan menurut spesifikasi CSS Cascade Layers, **rule yang TIDAK ada di dalam layer manapun SELALU menang melawan rule yang ada di dalam layer, terlepas dari specificity atau urutan penulisan**. Karena `a { color: ... }` ini ditulis polos (unlayered), rule ini SELALU mengalahkan class Tailwind apa pun yang mengatur warna teks pada elemen `<a>`/`<Link>` — termasuk `text-white` di tombol "Start a Project" (makanya teksnya jadi warna crimson-di-atas-crimson, alias tidak kelihatan sama sekali) dan `text-[var(--foreground)]` di tombol "View Our Work" (makanya tampil crimson, bukan putih). Class-nya SUDAH benar dan SUDAH ter-compile — cuma kalah prioritas di level CSS cascade layer.
+
+**Fix:** bungkus rule itu dengan `@layer base { a { color: var(--nimia-crimson); } }` di `globals.css`, supaya rule ini ikut sistem layer Tailwind dan bisa dikalahkan dengan benar oleh utility class manapun yang eksplisit di elemen tersebut (persis seperti perilaku normal yang diharapkan). Ini juga otomatis memperbaiki warna teks link LAIN di seluruh halaman publik yang mungkin diam-diam kena masalah sama (link "Sign up"/"log in here" di form, dll — semuanya pakai `<Link>`/`<a>`).
+
+**Pelajaran untuk ke depan:** kalau menambah CSS custom polos (bukan lewat class Tailwind) di file manapun yang di-`@import "tailwindcss"`, SELALU bungkus dengan `@layer base { ... }` (untuk reset/default seperti elemen `a`, `h1`, dst) supaya tidak diam-diam mengalahkan utility class Tailwind di elemen yang sama. Berlaku juga untuk `apps/www/app/globals.css` kalau ada pola serupa di sana — belum saya cek, tapi worth di-audit kalau ada masalah warna teks link yang aneh di situ juga.
+
+File yang berubah (putaran ini): `apps/studio/app/globals.css`.
