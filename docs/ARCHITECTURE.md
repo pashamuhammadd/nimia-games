@@ -1,6 +1,6 @@
 # Nimia Games — Arsitektur Platform
 
-Status: **Tahap 1–3 selesai & live (monorepo, Supabase 20 tabel + RLS aktif). Tahap 4 (UI dasar studio: auth + dashboard shell + form Order Service) baru saja ditulis — menunggu Anda `npm install` + jalankan 2 migration SQL baru + verifikasi lokal sebelum commit/push. Lihat "Status Tahap 4" di bagian bawah dokumen ini.**
+Status: **Tahap 1–4 SELESAI, DI-DEPLOY, DAN TERVERIFIKASI LIVE di production** — monorepo, Supabase 20 tabel + RLS aktif, auth + dashboard shell + form Order Service jalan end-to-end di `studio.nimiagames.com` (kedua Vercel deployment hijau). Email profesional (Resend + custom SMTP Supabase + template branded) juga sudah aktif, dan seluruh UI `apps/studio` sudah diterjemahkan ke Bahasa Inggris (`apps/www` tetap Bahasa Indonesia, keputusan sengaja). **Tahap 5 (backend: order→project→invoice, PDF, Cloudinary) BELUM DIMULAI.** Lihat "Status Tahap 4" dan "Status Tahap 4.5" di bagian bawah dokumen ini.
 
 ## Status Tahap 2 (28 Juli 2026)
 
@@ -121,9 +121,9 @@ Saya akan tulis panduan lengkap langkah-langkahnya di README masing-masing packa
 
 ---
 
-## Status Tahap 4 (29 Juli 2026)
+## Status Tahap 4 — SELESAI, DI-DEPLOY, DAN TERVERIFIKASI LIVE (29 Juli 2026)
 
-Tahap 3 sudah selesai & terverifikasi (20 tabel + RLS aktif semua di Supabase, `.env.local` terisi). Tahap 4 membangun UI dasar `studio.nimiagames.com` yang **beneran konek** ke Supabase Auth (bukan placeholder lagi):
+Tahap 3 sudah selesai & terverifikasi (20 tabel + RLS aktif semua di Supabase, `.env.local` terisi). Tahap 4 membangun UI dasar `studio.nimiagames.com` yang **beneran konek** ke Supabase Auth (bukan placeholder lagi). **Update: seluruh isi bagian ini sudah di-commit, di-push, dan kedua Vercel deployment (`nimia-games` & `nimia-games-studio`) hijau/sukses.** User sudah test end-to-end di production: daftar → konfirmasi email → login → submit form Order Service → row masuk ke tabel `orders`.
 
 **`packages/ui`** — komponen gaya shadcn/ui ditulis tangan (bukan lewat CLI shadcn, dan sengaja belum pakai Radix UI dulu untuk mengurangi risiko dependency yang belum diverifikasi jalan di Next.js 16 + React 19): `Button`, `Input`, `Textarea`, `Select`, `Label`/`FieldError`, `Card` (+ sub-komponen). Dibangun pakai `clsx` + `tailwind-merge` + `class-variance-authority`, pola yang sama seperti shadcn/ui asli.
 
@@ -144,4 +144,199 @@ Tahap 3 sudah selesai & terverifikasi (20 tabel + RLS aktif semua di Supabase, `
 
 **Temuan tambahan yang juga diperbaiki:** `package.json` di root repo ternyata **tidak** berisi konfigurasi monorepo (`workspaces` + `packageManager`) seperti seharusnya — isinya malah sama seperti `apps/www/package.json` (kemungkinan sempat ter-revert entah bagaimana). Sudah ditulis ulang jadi manifest monorepo yang benar. **Cek `git diff package.json` sebelum commit** untuk memastikan Anda paham perubahannya, dan kalau `npm install` di root sempat aneh setelah ini, hapus `node_modules/` + `package-lock.json` di root lalu `npm install` ulang.
 
-Yang **belum** dikerjakan (menyusul di Tahap 5): server actions untuk convert order → project, invoice/PDF (`@react-pdf/renderer`), email Resend, upload Cloudinary, halaman admin.
+### Bug yang ditemukan & diperbaiki saat commit/deploy Tahap 4 ke Vercel
+
+Setelah kode di atas selesai ditulis dan lolos `npm run dev` lokal, proses commit → push → deploy ke Vercel memakan beberapa putaran debugging (referensi kalau ketemu gejala serupa lagi):
+
+1. **`Type instantiation is excessively deep and possibly infinite`** di `zodResolver(orderFormSchema)` saat `next build` (lolos di `next dev` karena Turbopack dev tidak strict type-check). Skema `orderFormSchema` sempat pakai `.optional().or(z.literal(""))` di banyak field sekaligus, plus `apps/studio/package.json` sempat punya `zod` versi ganda (root override vs direct dependency) yang memperparah. **Fix yang beneran mempan:** cast argumen yang MASUK ke `zodResolver`, bukan hasilnya — `zodResolver(schema as any)`, BUKAN `zodResolver(schema) as Resolver<T>` (cast hasil tidak menolong karena TypeScript tetap harus menghitung tipe argumen dulu sebelum cast berlaku). Simplifikasi skema (buang union `.or(z.literal(""))`, pakai `.optional()` polos + `z.preprocess` khusus untuk `reference_link`) membantu tapi TIDAK cukup sendirian.
+2. **`Parameter 'cookiesToSet' implicitly has an 'any' type`** di `middleware.ts` DAN `packages/db/src/server.ts` (pola sama di dua tempat) — hanya muncul di `next build`, tidak di `next dev`. Fix: kasih tipe eksplisit `{ name: string; value: string; options?: Record<string, unknown> }[]`.
+3. **PALING MEMAKAN WAKTU — native binary `lightningcss`/`@tailwindcss/oxide` hilang di `package-lock.json` untuk platform Linux**, setelah lockfile di-generate ulang dari Windows saat memperbaiki bug #1. Gejala: Vercel build gagal di KEDUA app (`www` & `studio`, satu lockfile di-share) dengan `Error: Cannot find module '../lightningcss.linux-x64-gnu.node'`. Yang TIDAK mempan: clear build cache Vercel, ganti Install Command jadi `npm install` manual, `npm install --package-lock-only --os=linux --cpu=x64 --libc=glibc`. **Yang akhirnya mempan:** parsing `package-lock.json` langsung untuk menemukan versi persis `lightningcss-linux-x64-gnu` & `@tailwindcss/oxide-linux-x64-gnu` yang sudah tercatat di metadata `optionalDependencies` milik paket induknya, lalu menambahkan keduanya sebagai **`optionalDependencies` LANGSUNG di root `package.json`** (lihat root `package.json` saat ini). Verifikasi dengan mencari string `lightningcss-linux-x64-gnu` di `package-lock.json` sebelum push — harus ada baris "resolved" dengan URL tarball.
+4. **Pengaturan production belum lengkap meski build sukses:** Vercel Environment Variables project `nimia-games-studio` (termasuk `NEXT_PUBLIC_SITE_URL=https://studio.nimiagames.com`) perlu diisi manual (tidak otomatis dari `.env.local`), begitu juga Supabase Authentication → URL Configuration (Site URL & Redirect URLs) yang defaultnya masih `localhost`. Sudah diperbaiki dan dikonfirmasi user.
+
+**Pelajaran umum:** `next dev` (Turbopack) TIDAK strict type-check dan tidak butuh lockfile lengkap — kelihatan "aman" padahal `next build` (dipakai Vercel) bisa gagal karena hal yang tidak kelihatan di dev. Selalu jalankan `npm run build:studio`/`build:www` lokal SEBELUM push kalau ada perubahan dependency/tipe.
+
+Yang **belum** dikerjakan (menyusul di Tahap 5): server actions untuk convert order → project, invoice/PDF (`@react-pdf/renderer`), pengiriman `OrderReceivedEmail` beneran lewat Resend di server action, upload Cloudinary, halaman admin.
+
+---
+
+## Status Tahap 4.5 — Email profesional (Resend) & lokalisasi Bahasa Inggris (29 Juli 2026)
+
+Di luar 6 tahap resmi "Cara Bekerja" (karena sifatnya konfigurasi akun pihak ketiga + perbaikan bahasa, bukan fitur baru), dua pekerjaan berikut selesai setelah Tahap 4 UI live:
+
+**Setup Resend:**
+- Domain `nimiagames.com` ditambahkan & **terverifikasi** di Resend (DNS record di-manage lewat Hostinger — DKIM/SPF di subdomain `send.nimiagames.com`, tidak bentrok dengan mailbox `contact@nimiagames.com` yang sudah ada di root domain).
+- `RESEND_API_KEY` sudah didapat (disimpan user, belum dipakai kode manapun — dipakai nanti di Tahap 5 untuk kirim `OrderReceivedEmail`).
+- **Custom SMTP Supabase Auth** disambungkan ke Resend (Authentication → Settings → SMTP Settings): host `smtp.resend.com`, port `587`, username `resend`, password = Resend API key, sender `contact@nimiagames.com` / nama pengirim "Nimia Games Studio". Ini membuat email bawaan Supabase Auth (konfirmasi signup, reset password, dst) terkirim dari alamat brand, bukan alamat default Supabase lagi.
+
+**`packages/email` (React Email v6, `react-email@6.5.0` + `@react-email/ui@6.5.0` — versi harus SAMA PERSIS, kalau beda CLI `email dev` akan coba auto-install lewat spawn subprocess yang bisa gagal di Windows dengan `spawn cmd.exe ENOENT`):**
+- `src/components/EmailLayout.tsx` — layout bersama semua template: warna brand sebagai HEX literal (bukan CSS variable — banyak email client tidak mendukung custom property), logo + wordmark sebagai dua PNG terpisah yang di-host di `apps/www/public/` (`logo-email.png` crop rapat, `nimia-games-wordmark-dark.png` hasil rekolorasi SVG putih di web jadi maroon/crimson untuk background terang) — sengaja PNG bukan SVG karena Outlook desktop tidak render `<img src="*.svg">`.
+- `src/templates/OrderReceivedEmail.tsx` — template konfirmasi pesanan, dikirim via Resend (`resend.emails.send({ react: <OrderReceivedEmail ... /> })`, tidak perlu `render()` manual). **Belum dikirim dari mana pun** — baru template-nya, pengiriman beneran menyusul di Tahap 5 saat `createOrderAction` dibangun ulang untuk itu.
+- `src/templates/ConfirmSignupEmail.tsx` + `supabase-templates/confirm-signup.html` — desain yang sama untuk email "Confirm signup" bawaan Supabase Auth. Dua file terpisah karena Supabase butuh HTML mentah + Go-template variable (`{{ .ConfirmationURL }}`, `{{ .Email }}`), bukan komponen React — `.tsx`-nya cuma referensi desain/preview lokal, yang **beneran aktif** adalah `confirm-signup.html` yang di-paste manual ke Supabase Dashboard (Authentication → Email Templates → Confirm signup). Kalau desain brand berubah, dua file ini harus diupdate manual bareng-bareng, tidak ada build step yang sinkronkan otomatis.
+
+**Lokalisasi Bahasa Inggris (keputusan user, 29 Juli 2026):** seluruh `apps/studio` (semua halaman, form, pesan error), `packages/validators` (pesan error Zod), `packages/email` (isi email + subject), dan template Supabase Auth (`confirm-signup.html`) diterjemahkan penuh ke Bahasa Inggris. **`apps/www` sengaja TIDAK diubah**, tetap Bahasa Indonesia (audiens lokal, keputusan eksplisit user). `packages/ui` sudah dicek — tidak ada teks hardcoded di sana, aman. Migration `0009_translate_service_descriptions.sql` (translate deskripsi 9 baris `services` yang di-seed migration 0008) dan `0010_fix_custom_project_description.sql` (follow-up kecil menghapus satu strip panjang yang kelewat) sudah dijalankan user di SQL Editor.
+
+**Catatan gaya untuk konten Inggris ke depan:** user secara eksplisit minta HINDARI strip panjang (em dash "—"/`&mdash;`) di teks yang tampil ke pengguna (UI, email) karena terasa tidak natural/kelihatan seperti tulisan AI — pecah jadi kalimat pendek atau pakai kata sambung biasa ("and", "so", koma) sebagai gantinya. Berlaku untuk teks Inggris baru di `apps/studio`, `packages/email`, dan konten Inggris lain di proyek ini; tidak berlaku untuk komentar kode (tidak dilihat user) atau `apps/www` yang berbahasa Indonesia.
+
+Yang **belum** dikerjakan: mengirim `OrderReceivedEmail` beneran (Tahap 5), template lain (penawaran harga, invoice, pembayaran — juga Tahap 5).
+
+---
+
+## Rancangan Arsitektur Tahap 5 (menunggu persetujuan) — 29 Juli 2026
+
+Tahap 5 jauh lebih besar dari perkiraan awal dokumen ini (bagian 4 & 5 di atas cuma menyebut "order→project, invoice/PDF, email, Cloudinary"). Setelah diskusi detail dengan user (kuesioner tertulis + tanya jawab), scope-nya berkembang jadi: negosiasi harga, pembayaran kripto multi-jaringan dengan verifikasi manual, halaman keuangan khusus founder, dan sistem referral/ambassador dengan integrasi Discord. Bagian ini merancang semuanya sebelum satu baris kode pun ditulis, sesuai "Cara Bekerja".
+
+### 1. Peran & akses (roles)
+
+`user_role` enum (sekarang cuma `admin` | `client`) diperluas jadi 4 tingkat:
+
+- **`client`** — user biasa, order & bayar (role default, tidak berubah)
+- **`staff`** — kelola pesanan (approve/reject/negosiasi/konfirmasi pembayaran), TIDAK bisa lihat halaman keuangan. Menggantikan makna `admin` yang lama untuk orang selain founder.
+- **`founder`** — semua kemampuan `staff`, PLUS akses halaman keuangan (`/dashboard/finance`). Untuk sekarang cuma 1 akun (milik Anda), tapi role-nya dipisah dari `staff` dari awal supaya kalau nanti ada staff lain, mereka otomatis TIDAK bisa lihat keuangan tanpa perlu migrasi ulang.
+- **Ambassador BUKAN role di `users`** — status ambassador disimpan di tabel terpisah (`ambassadors`, lihat bagian 6), karena satu akun client BISA JUGA jadi ambassador sekaligus (order sendiri + referensikan orang lain), jadi tidak cocok jadi satu enum yang saling eksklusif.
+
+Migrasi: `ALTER TYPE user_role ADD VALUE 'staff'; ALTER TYPE user_role ADD VALUE 'founder';`, lalu update akun Anda yang sekarang `admin` jadi `founder` (row `admin` lama dipertahankan di enum untuk kompatibilitas mundur, tapi tidak dipakai lagi untuk akun baru).
+
+### 2. Skema database tambahan (migration 0011 dst.)
+
+**Perluasan `orders`** (kolom baru):
+- `proposed_price_usd numeric` — harga yang diajukan buyer saat negosiasi
+- `final_price_usd numeric` — harga yang disepakati (diisi begitu admin konfirmasi)
+- `payment_network text`, `payment_token text` — jaringan & token yang dipilih buyer (mis. `bsc` / `USDT`)
+- `payment_wallet_address text` — snapshot alamat wallet perusahaan yang ditampilkan ke buyer (dari `payment_wallets`, disalin ke sini supaya kalau alamat perusahaan berubah nanti, histori order lama tidak ikut berubah)
+- `payment_expected_amount numeric` — jumlah token yang harus dikirim (dihitung dari `final_price_usd` dikonversi ke token pada saat itu)
+- `payment_tx_hash text` — hash transaksi yang disubmit buyer
+- `payment_submitted_at timestamptz`
+- `payment_verified_by uuid references users`, `payment_verified_at timestamptz`
+- `payment_underpaid_note text` — catatan otomatis kalau ada toleransi kurang bayar (lihat bagian 5)
+
+**`order_status` enum** (sekarang: `pending_review`, `quotation_sent`, `rejected`, `converted`) — diperluas jadi: `pending_review`, `negotiating`, `awaiting_payment`, `payment_submitted`, `paid`, `converted`, `rejected`. Alur: buyer submit → `pending_review` → buyer/admin nego → `negotiating` → admin setuju harga → `awaiting_payment` → buyer submit tx hash → `payment_submitted` → admin konfirmasi → `paid` → admin convert jadi project → `converted`.
+
+**Tabel baru `order_negotiations`** — log setiap tawaran (bukan cuma field tunggal yang ketimpa), karena bisa bolak-balik beberapa ronde:
+`id, order_id, proposed_by ('client'|'staff'), amount_usd, message, created_at`
+
+**Tabel baru `payment_wallets`** — alamat wallet perusahaan per jaringan, dikelola admin (bukan hardcode di kode):
+`id, network ('ethereum'|'bsc'|'tron'|'solana'|'cardano'), address, is_active, created_at`
+Diseed cuma 3 baris dulu (`ethereum`, `bsc`, `tron`) sesuai keputusan mulai bertahap — lihat bagian 5.
+
+**Tabel baru `ambassador_applications`** — form pendaftaran publik:
+`id, full_name, email, telegram, discord_username, wallet_address, status ('pending'|'approved'|'rejected'), reviewed_by, reviewed_at, created_at`
+
+**Tabel baru `ambassadors`** — dibuat begitu aplikasi di-approve:
+`id, user_id references users, referral_code text unique, commission_rate numeric, founding_member boolean, created_at`
+`commission_rate` DIKUNCI pas approve (0.10 untuk 100 ambassador pertama yang disetujui, 0.05 setelahnya) — bukan dihitung ulang tiap saat, supaya kalau kuota 100 sudah lewat, ambassador lama tetap 10% selamanya sesuai kesepakatan.
+
+**Tabel baru `referrals`** — siapa direferensikan siapa:
+`id, ambassador_id, referred_user_id, created_at`
+Diisi otomatis saat orang daftar lewat link `studio.nimiagames.com/register?ref=KODE`.
+
+**Tabel baru `commissions`** — ledger komisi per order:
+`id, ambassador_id, order_id, amount_usd, rate_applied, status ('pending'|'paid'), paid_at, paid_tx_reference, created_at`
+Baris dibuat otomatis begitu `orders.status` jadi `paid` (kalau order itu dari client yang punya baris di `referrals`).
+
+Halaman keuangan founder (bagian 7) dan halaman referral ambassador (bagian 6) cukup dihitung on-the-fly dari tabel-tabel di atas (query agregat), tidak perlu tabel ringkasan terpisah — lebih simpel dan selalu akurat tanpa perlu sinkronisasi.
+
+### 3. Struktur halaman & navigasi
+
+**Halaman publik** (navbar di atas, TANPA sidebar — sesuai jawaban Anda):
+- `/` — landing page: hero + wordmark "Nimia Games Studio" di navbar kiri, tombol Login di navbar kanan, section fitur singkat, showcase karya (lihat catatan di bagian "Asumsi" di bawah), teaser harga layanan dengan CTA ke `/services`
+- `/services` — daftar semua layanan sebagai card, harga "mulai dari" + teks kecil "harga bisa dinego", klik card → halaman order layanan itu
+- `/services/[slug]` — form order spesifik per layanan (skrip/referensi/style/deadline/pilihan pembayaran) + estimasi harga otomatis + tombol "Ajukan Negosiasi"
+- `/register` — halaman penuh, form daftar akun (tetap ada, tidak dihapus)
+- `/login` — halaman penuh, form login (tetap ada, tidak dihapus) — dipakai kalau user langsung ketik/navigasi ke URL ini, atau dari link internal yang eksplisit menuju halaman login
+- `/ambassador/apply` — form aplikasi program ambassador (nama, email, telegram, discord, wallet address)
+- **CTA "Login" di navbar** (tombol di kanan atas, muncul di semua halaman publik) membuka **modal login** langsung di tempat (tanpa pindah halaman) — ini shortcut cepat supaya user tidak perlu klik lagi buat mulai order. Modal ini punya link "Belum punya akun? Daftar" yang mengarahkan ke `/register`, dan link kecil "atau gunakan halaman login penuh" yang mengarahkan ke `/login` kalau user lebih suka itu. Jadi ADA dua jalur ke login (modal dari navbar untuk kecepatan, halaman `/login` tetap ada untuk kerapian/URL yang bisa di-share/bookmark) — bukan salah satu doang. Setelah login sukses (lewat jalur mana pun), redirect ke `/dashboard`.
+
+**Dashboard** (sidebar di kiri, TANPA navbar atas — struktur yang sudah ada dari Tahap 4, cuma ditambah item baru + ikon + active-state):
+- `/dashboard` — Overview (semua role)
+- `/dashboard/orders` — untuk `client`: order milik mereka sendiri + status + tombol nego kalau masih tahap negosiasi
+- `/dashboard/admin/orders` — untuk `staff`/`founder` SAJA: tabel semua order masuk, filter status, klik → detail + aksi (approve/reject/nego/konfirmasi pembayaran dengan link explorer)
+- `/dashboard/projects`, `/dashboard/invoices` — dibangun penuh di Tahap 5 (bukan placeholder lagi, sesuai jawaban Anda)
+- `/dashboard/finance` — untuk `founder` SAJA, redirect kalau role lain coba akses
+- `/dashboard/referrals` — untuk user yang punya baris di `ambassadors` SAJA: link referral mereka, daftar orang yang direferensikan + status order, komisi pending/paid
+- `/dashboard/profile` — sudah ada, tidak berubah
+
+Sidebar menampilkan item sesuai role: `client` tidak lihat "Admin Orders"/"Finance", `staff` lihat "Admin Orders" tapi tidak "Finance", `founder` lihat semua, siapa pun yang punya baris `ambassadors` lihat "Referrals" (independen dari role).
+
+### 4. Alur buyer lengkap (ringkasan dari jawaban Anda)
+
+`/services/[slug]` (isi form + lihat estimasi harga) → klik "Ajukan Negosiasi" → masuk `order_negotiations` + `orders.status = negotiating` → staff/founder lihat di `/dashboard/admin/orders`, bisa langsung setuju atau counter-offer → begitu harga disepakati (`orders.status = awaiting_payment`, `final_price_usd` terisi) → buyer dapat notifikasi (email + badge) untuk lanjut bayar → halaman pembayaran tampilkan alamat wallet sesuai jaringan pilihan buyer + jumlah token yang harus dikirim → buyer kirim manual dari wallet-nya sendiri → buyer submit tx hash di form → `orders.status = payment_submitted` → staff/founder buka `/dashboard/admin/orders`, klik link otomatis ke block explorer yang sesuai (Etherscan/BscScan/Tronscan) buat cek alamat perusahaan + tx hash yang disubmit buyer → kalau valid, klik "Konfirmasi Pembayaran" (ada modal konfirmasi) → `orders.status = paid`, invoice PDF otomatis ter-generate, email konfirmasi terkirim, baris `commissions` otomatis dibuat kalau buyer itu hasil referral → staff/founder convert jadi project kapan pun siap mulai kerjain.
+
+### 5. Sistem pembayaran kripto — Fase 1
+
+Sesuai keputusan mulai bertahap: **Fase 1 cuma 3 jaringan — Ethereum, BNB Smart Chain, Tron** (paling likuid buat USDT/USDC, dan Tron punya biaya gas paling murah buat USDT yang paling umum dipakai). Solana & Cardano jadi Fase 2, ditambahkan sebagai baris baru di `payment_wallets` kapan pun siap tanpa perlu ubah struktur.
+
+Harga selalu dalam USD (`final_price_usd`). Untuk stablecoin (USDT/USDC/BUSD) konversinya ~1:1, tidak perlu API harga real-time. Untuk token native (ETH, BNB) perlu kurs live — pakai CoinGecko API (gratis, tanpa API key untuk kebutuhan sederhana ini) buat hitung `payment_expected_amount` pas invoice dibuat.
+
+Toleransi kurang bayar 1-2% dianggap lunas otomatis, dengan `payment_underpaid_note` terisi teks sopan yang muncul di invoice/email (akan saya tulis draft bahasanya pas bagian ini dikerjakan).
+
+Verifikasi pembayaran **manual sepenuhnya** — tidak ada auto-verify lewat API blockchain di Fase 1 (sesuai keputusan Anda), cuma kemudahan link otomatis ke explorer yang benar berdasarkan `payment_network` yang tersimpan.
+
+### 6. Sistem referral/ambassador
+
+Alur: seseorang isi `/ambassador/apply` → masuk `ambassador_applications` status `pending` → founder review & approve manual di dashboard → sistem generate `referral_code` unik + kunci `commission_rate` (10% kalau masih di antara 100 approval pertama, 5% setelahnya, dihitung dari `count(*) where status='approved'` saat itu) → baris baru masuk `ambassadors`.
+
+Soal Discord (dari jawaban Anda: ada channel khusus program ini, ambassador diarahkan ke situ setelah daftar) — untuk Fase 1 saya asumsikan **role Discord di-assign MANUAL oleh Anda** setelah approve (bukan bot otomatis), karena bikin Discord bot yang otomatis assign role itu pekerjaan terpisah yang cukup besar sendiri (butuh bot server yang jalan terus-menerus, bukan cuma serverless function). Yang otomatis: begitu approved, sistem kasih **link invite Discord** (statis, Anda buat sekali di server Discord) ke ambassador lewat email/halaman referral mereka. **Koreksi saya kalau maunya harus otomatis dari awal** — bisa, tapi itu scope tambahan di luar Tahap 5 ini.
+
+Notifikasi order baru ke Discord (dari jawaban 3.2) — ini SEDERHANA, cukup Discord Webhook (bukan bot): server action kirim POST ke URL webhook channel admin setiap ada order baru/negosiasi baru. Tidak perlu bot server terpisah.
+
+Dashboard referrer (`/dashboard/referrals`) tampilkan: link referral mereka (siap di-copy), daftar `referrals` mereka + status order masing-masing, total `commissions` status `pending` vs `paid`.
+
+### 7. Halaman founder (`/dashboard/finance`)
+
+Tampilkan (query agregat dari `orders` where `status='paid'` dan `commissions`):
+- Total pendapatan: semua waktu, per bulan (grup by bulan), per tahun
+- Total komisi harus dibayar (`commissions.status='pending'`) vs sudah dibayar (`status='paid'`)
+
+Akses: route terpisah gated by `role='founder'`, redirect kalau role lain coba buka (tanpa re-auth tambahan, sesuai jawaban Anda).
+
+### 8. Asumsi yang saya pakai — koreksi kalau ada yang salah
+
+1. **Showcase karya di landing page** (jawaban 1.1: karya "yang belum dibuat") — saya asumsikan pakai ULANG aset yang SUDAH ADA dan sudah dipakai di `apps/www` (`gallery/animation-1.mp4` s.d. `animation-6.mp4`, `games/lifetopia-preview.png`), bukan bikin konten baru dari nol. Kalau ada karya lain yang belum pernah ditampilkan di web sama sekali dan mau dipakai di sini, saya perlu file asetnya dulu.
+2. **Login punya DUA jalur: modal cepat dari CTA navbar DAN halaman penuh `/login`** (dikoreksi 29 Juli 2026 setelah konfirmasi Anda) — bukan salah satu doang. Register tetap cuma halaman penuh `/register`, tidak ada versi modal untuk register.
+3. **Discord role assignment manual** (bukan bot otomatis) — lihat bagian 6 di atas, ini yang paling besar kemungkinan perlu dikoreksi kalau ternyata Anda mau otomatis dari awal.
+4. **`messages` table (chat 2 arah) TIDAK dipakai dulu** sesuai jawaban 3.3 — diskusi lewat tiket Discord, bukan di dalam sistem.
+
+### 9. Urutan pengerjaan (sesuai prioritas Anda)
+
+1. Redesign visual (navbar publik, sidebar dengan ikon + active-state, landing page dengan showcase & pricing teaser)
+2. Halaman admin kelola pesanan (`/dashboard/admin/orders`, alur negosiasi)
+3. Sistem pembayaran kripto Fase 1 (ETH/BSC/Tron) + verifikasi manual
+4. Halaman keuangan founder
+5. Sistem referral/ambassador (termasuk `/ambassador/apply` + webhook Discord)
+6. Invoice/PDF otomatis (`@react-pdf/renderer`)
+
+Tiap nomor di atas akan saya kerjakan sebagai sub-tahap sendiri dengan konfirmasi sebelum lanjut ke nomor berikutnya, karena masing-masing sudah cukup besar sendiri-sendiri.
+
+**Belum dikerjakan apa pun dari rancangan ini** — menunggu persetujuan Anda dulu sebelum saya mulai menulis migration SQL & kode.
+
+---
+
+## Status Tahap 5, sub-tahap 1 — Redesign visual (29 Juli 2026)
+
+Setelah rancangan di atas disetujui (termasuk koreksi soal login: modal cepat dari navbar TETAP disertai halaman `/login` penuh, bukan salah satu doang), sub-tahap 1 (murni visual, tanpa logic negosiasi/pembayaran) sudah ditulis ke device:
+
+- **`packages/ui`** — komponen baru `Modal` (hand-authored, portal ke `document.body`, tutup via klik luar/Escape/tombol X), diekspor dari `src/index.ts`.
+- **`apps/studio/app/components/PublicNavbar.tsx`** — navbar publik (logo+wordmark kiri, link Home/Services, tombol Login+Sign up kanan, hamburger menu di mobile). Dipasang di `/`, `/services`, `/login`, `/register`, `/register/check-email`.
+- **`apps/studio/app/components/LoginModal.tsx`** — modal login cepat dari navbar, isinya `LoginForm` varian `"modal"` (field & server action sama persis dengan halaman `/login`, cuma tanpa bungkus Card karena Modal sudah punya panel sendiri). Ada link kecil "Use the login page instead" di dalam modal untuk yang mau ke `/login` langsung.
+- **`apps/studio/app/login/LoginForm.tsx`** — ditambah prop `variant: "page" | "modal"` supaya satu komponen dipakai baik oleh `/login` maupun modal, tidak ada logic duplikat.
+- **`apps/studio/app/components/DashboardNav.tsx`** — daftar nav dashboard dipisah jadi Client Component supaya bisa pakai `usePathname()` untuk highlight item aktif; tiap item sekarang punya ikon (`lucide-react`).
+- **`apps/studio/app/dashboard/layout.tsx`** — pakai `DashboardNav`, header sidebar diganti dari teks polos "Nimia Studio" jadi logo+wordmark asli (dua PNG yang sama dengan yang dipakai di email, di-copy ke `apps/studio/public/`).
+- **`apps/studio/app/page.tsx`** (landing) — didesain ulang: hero baru, section showcase (3 video dari `apps/www/public/gallery/` + preview Lifetopia, direferensikan via URL absolut ke `www.nimiagames.com`, TIDAK di-duplikat ke repo studio supaya tidak menggandakan file besar), section teaser 3 layanan termurah dari tabel `services` dengan CTA ke `/services`.
+- **`apps/studio/app/services/page.tsx`** (baru) — listing semua layanan aktif dari tabel `services` (baca data saja, tidak ada logic baru), tiap card punya tombol "Order this service" yang mengarah ke `/dashboard/orders?service=<id>`.
+- **`apps/studio/app/dashboard/orders/page.tsx` + `OrderForm.tsx`** — sedikit ditambah (bukan sub-tahap 2, cuma pelengkap `/services`): baca query param `?service=` dan pre-select layanan itu di form, supaya klik "Order this service" tidak perlu cari lagi manual layanan yang sama.
+- **`apps/studio/package.json`** — tambah dependency `lucide-react` (versi `>=0.400.0`, sengaja tanpa `^` karena mayoritas versi lucide-react masih di angka `0.x` — caret di semver `0.x` mengunci ke minor version persis, jadi `>=` lebih aman supaya `npm install` otomatis ambil versi terbaru yang tersedia).
+
+**Belum termasuk di sub-tahap ini** (menyusul di sub-tahap 2): form order per-layanan dengan estimasi harga otomatis dan tombol "Ajukan Negosiasi" di `/services/[slug]`, serta halaman admin `/dashboard/admin/orders`. Untuk sekarang, tombol "Order this service" di `/services` mengarah ke form Order yang sudah ada di `/dashboard/orders` (Tahap 4), bukan alur negosiasi baru.
+
+**Belum dijalankan `npm install` di device** — karena ada dependency baru (`lucide-react`), jalankan `npm install` di root repo dulu sebelum `npm run dev:studio`/`build:studio`.
+
+**Update logo (29 Juli 2026):** atas permintaan user, logo lockup diganti dari "mark + wordmark NIMIA GAMES biasa" jadi custom: mark di kiri, teks 2 baris di kanan ("STUDIO" pakai font Ethnocentric, lebih besar, warna crimson; "NIMIA GAMES" pakai font Conthrax, lebih kecil, warna abu-abu). Font di-convert jadi vector path (bukan di-embed sebagai font hidup) pakai `fontTools`, jadi hasilnya 1 file SVG mandiri (`apps/studio/public/nimia-studio-lockup.svg`) yang tampilannya konsisten di semua browser tanpa perlu font itu ter-install. Dipasang di `PublicNavbar.tsx` dan `dashboard/layout.tsx` (gantiin 2 PNG terpisah yang lama).
+
+Logo yang sama juga dipasang di email (Resend + template Supabase Auth), gantiin logo+wordmark lama, karena user eksplisit minta konsistensi branding di semua tempat:
+- `apps/www/public/nimia-studio-lockup-email.png` — versi PNG hasil rasterisasi dari SVG di atas (dengan background transparan, resolusi 3x untuk tetap tajam di layar retina), karena Outlook desktop tidak bisa render `<img src="*.svg">`.
+- `packages/email/src/components/EmailLayout.tsx` — header email disederhanakan dari 2 gambar (logo + wordmark terpisah) jadi 1 gambar (`STUDIO_LOCKUP_URL`). Export lama `LOGO_URL`/`WORDMARK_URL` dihapus dari `packages/email/src/index.ts`.
+- `packages/email/supabase-templates/confirm-signup.html` — header-nya disamakan juga.
+
+**PENTING, 2 hal yang masih perlu Anda lakukan supaya logo baru ini beneran muncul di email:**
+1. **Deploy ulang `apps/www`** (commit + push) — email logo dimuat dari URL absolut `https://www.nimiagames.com/nimia-studio-lockup-email.png`, jadi selama file ini belum live di production, email yang terkirim akan menampilkan gambar rusak/kosong.
+2. **Paste ulang isi `confirm-signup.html` yang baru ke Supabase Dashboard** (Authentication > Email Templates > Confirm signup) — sama seperti sebelumnya, Supabase tidak baca file ini otomatis dari repo.

@@ -23,18 +23,16 @@ export const BRAND = {
 export const FONT_STACK =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
-// Logo & wordmark are hosted on apps/www (the only app with a static
-// /public folder) — email clients can't load assets from the noindex'd
-// studio domain, so these are deliberately absolute URLs to www. Two PNGs
-// separate from the ones used on the web:
-// - logo-email.png: a tight crop of logo.png (the original has a lot of
-//   transparent padding, which makes it look even smaller at small sizes).
-// - nimia-games-wordmark-dark.png: the web wordmark SVG recolored from
-//   white (built for www's dark background) to maroon/crimson so it reads
-//   on the email's white card. Converted to PNG on purpose — Outlook
-//   desktop doesn't render <img src="*.svg"> at all.
-export const LOGO_URL = "https://www.nimiagames.com/logo-email.png";
-export const WORDMARK_URL = "https://www.nimiagames.com/nimia-games-wordmark-dark.png";
+// Header lockup (mark + "STUDIO / NIMIA GAMES" two-line wordmark), same
+// asset used in apps/studio's navbar/sidebar
+// (apps/studio/public/nimia-studio-lockup.svg), added 29 Juli 2026 to
+// replace the old separate logo+wordmark pair once the Studio-specific
+// lockup was designed. Hosted on apps/www (the only app with a static
+// /public folder reliably reachable by every email client — the studio
+// domain is noindex'd) as a PRE-RASTERIZED PNG, not the SVG directly:
+// Outlook desktop doesn't render <img src="*.svg"> at all. Rendered at
+// 3x the display size below for a crisp look on retina screens.
+export const STUDIO_LOCKUP_URL = "https://www.nimiagames.com/nimia-studio-lockup-email.png";
 export const SITE_URL = "https://www.nimiagames.com";
 export const CONTACT_EMAIL = "contact@nimiagames.com";
 
@@ -75,15 +73,12 @@ export function EmailLayout({ previewText, children }: EmailLayoutProps) {
             <table role="presentation" align="center" cellPadding={0} cellSpacing={0} border={0}>
               <tbody>
                 <tr>
-                  <td style={{ verticalAlign: "middle", paddingRight: 10 }}>
-                    <Img src={LOGO_URL} width={53} height={40} alt="" style={{ display: "block" }} />
-                  </td>
-                  <td style={{ verticalAlign: "middle" }}>
+                  <td>
                     <Img
-                      src={WORDMARK_URL}
-                      width={257}
-                      height={24}
-                      alt="Nimia Games"
+                      src={STUDIO_LOCKUP_URL}
+                      width={230}
+                      height={75}
+                      alt="Nimia Games Studio"
                       style={{ display: "block" }}
                     />
                   </td>

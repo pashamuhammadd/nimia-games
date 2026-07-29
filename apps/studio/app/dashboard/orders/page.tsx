@@ -4,7 +4,16 @@ import { OrderForm } from "./OrderForm";
 
 export const metadata = { title: "Orders" };
 
-export default async function OrdersPage() {
+export default async function OrdersPage({
+  searchParams,
+}: {
+  // `?service=<id>` is set by the "Order this service" button on the public
+  // /services page (Tahap 5, sub-stage 1) so picking a service there
+  // pre-selects it here instead of the buyer having to find it again.
+  searchParams: Promise<{ service?: string }>;
+}) {
+  const { service } = await searchParams;
+
   const supabase = createServerClient(await cookies());
   const {
     data: { user },
@@ -24,7 +33,11 @@ export default async function OrdersPage() {
           Fill out the form below to submit a new project to the Nimia Games team.
         </p>
       </div>
-      <OrderForm services={services ?? []} defaultEmail={user?.email ?? undefined} />
+      <OrderForm
+        services={services ?? []}
+        defaultEmail={user?.email ?? undefined}
+        defaultServiceId={service}
+      />
     </div>
   );
 }

@@ -18,3 +18,4 @@ export {
   CardContent,
   CardFooter,
 } from "./components/Card";
+export { Modal, type ModalProps } from "./components/Modal";

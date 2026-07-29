@@ -4,15 +4,7 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@nimia/db";
 import { Button } from "@nimia/ui";
 import { signOutAction } from "../actions";
-
-const NAV_ITEMS = [
-  { href: "/dashboard", label: "Overview" },
-  { href: "/dashboard/orders", label: "Orders" },
-  { href: "/dashboard/projects", label: "Projects" },
-  { href: "/dashboard/invoices", label: "Invoices" },
-  { href: "/dashboard/messages", label: "Messages" },
-  { href: "/dashboard/profile", label: "Profile" },
-];
+import { DashboardNav } from "../components/DashboardNav";
 
 export default async function DashboardLayout({
   children,
@@ -32,19 +24,13 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen">
       <aside className="hidden w-60 shrink-0 border-r border-[var(--nimia-border)] bg-[var(--nimia-surface)] md:flex md:flex-col">
-        <div className="px-6 py-5">
-          <span className="text-lg font-black tracking-tight">Nimia Studio</span>
-        </div>
+        <Link href="/dashboard" className="flex items-center px-6 py-5">
+          {/* eslint-disable-next-line @next/next/no-img-element -- fixed local
+              brand asset, see the same note in PublicNavbar.tsx */}
+          <img src="/nimia-studio-lockup.svg" alt="Nimia Games Studio" className="h-7 w-auto" />
+        </Link>
         <nav className="flex flex-1 flex-col gap-1 px-3">
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--nimia-surface-hover)]"
-            >
-              {item.label}
-            </Link>
-          ))}
+          <DashboardNav variant="sidebar" />
         </nav>
         <div className="border-t border-[var(--nimia-border)] p-3">
           <form action={signOutAction}>
@@ -57,7 +43,10 @@ export default async function DashboardLayout({
 
       <div className="flex min-h-screen flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-[var(--nimia-border)] bg-[var(--nimia-surface)] px-4 py-3 md:hidden">
-          <span className="text-base font-black">Nimia Studio</span>
+          <Link href="/dashboard" className="flex items-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/nimia-studio-lockup.svg" alt="Nimia Games Studio" className="h-7 w-auto" />
+          </Link>
           <form action={signOutAction}>
             <Button type="submit" variant="ghost" size="sm">
               Log out
@@ -66,15 +55,7 @@ export default async function DashboardLayout({
         </header>
 
         <nav className="flex gap-1 overflow-x-auto border-b border-[var(--nimia-border)] bg-[var(--nimia-surface)] px-3 py-2 md:hidden">
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="shrink-0 rounded-md px-3 py-1.5 text-sm font-medium hover:bg-[var(--nimia-surface-hover)]"
-            >
-              {item.label}
-            </Link>
-          ))}
+          <DashboardNav variant="mobile" />
         </nav>
 
         <main className="flex-1 p-4 md:p-8">{children}</main>

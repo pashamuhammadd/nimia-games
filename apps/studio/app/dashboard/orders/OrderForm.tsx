@@ -25,9 +25,11 @@ type ServiceOption = { id: string; name: string };
 export function OrderForm({
   services,
   defaultEmail,
+  defaultServiceId,
 }: {
   services: ServiceOption[];
   defaultEmail?: string;
+  defaultServiceId?: string;
 }) {
   const [submitted, setSubmitted] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -49,6 +51,7 @@ export function OrderForm({
     resolver: zodResolver(orderFormSchema as any),
     defaultValues: {
       email: defaultEmail ?? "",
+      service_id: defaultServiceId ?? "",
     },
   });
 
@@ -88,7 +91,7 @@ export function OrderForm({
             <Label htmlFor="service_id">Service</Label>
             <Select
               id="service_id"
-              defaultValue=""
+              defaultValue={defaultServiceId ?? ""}
               invalid={!!errors.service_id}
               {...register("service_id")}
             >
