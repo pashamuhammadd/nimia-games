@@ -1,0 +1,95 @@
+"use client";
+
+import { motion, useReducedMotion } from "framer-motion";
+
+// Opening statement for the Why Nimia page. Deliberately positions AI as a
+// tool Nimia uses well, not as a competitor to put down (per user
+// instruction, 29 Juli 2026: never suggest AI is bad, position it as
+// technology Nimia embraces, then show what a professional team adds on
+// top of it).
+export function HeroHeadline() {
+  const shouldReduceMotion = useReducedMotion();
+
+  const container = {
+    hidden: {},
+    visible: {
+      transition: {
+        staggerChildren: shouldReduceMotion ? 0 : 0.12,
+        delayChildren: 0.05,
+      },
+    },
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 22 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] as const },
+    },
+  };
+
+  return (
+    <section className="relative overflow-hidden px-4 pb-20 pt-20 sm:px-6 sm:pt-28">
+      {/* Ambient glow, same visual language as the homepage hero */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-0 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-[var(--nimia-crimson)]/20 blur-[140px]"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-32 -right-10 h-[26rem] w-[26rem] rounded-full bg-[var(--nimia-pink)]/10 blur-[120px]"
+      />
+      {/* Faint grid texture for a more cinematic, studio-reel feel */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-[0.06]"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, var(--foreground) 1px, transparent 1px), linear-gradient(to bottom, var(--foreground) 1px, transparent 1px)",
+          backgroundSize: "64px 64px",
+          maskImage: "radial-gradient(ellipse 60% 60% at 50% 0%, black, transparent)",
+        }}
+      />
+
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="visible"
+        className="relative mx-auto max-w-4xl text-center"
+      >
+        <motion.span
+          variants={item}
+          className="inline-block rounded-full border border-[var(--nimia-crimson)]/30 bg-[var(--nimia-crimson)]/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--nimia-pink)]"
+        >
+          Why Nimia
+        </motion.span>
+
+        <motion.h1
+          variants={item}
+          className="nimia-font-display mt-6 text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl"
+        >
+          AI Can Generate.
+          <br />
+          <span className="nimia-gradient-text">Nimia Delivers.</span>
+        </motion.h1>
+
+        <motion.p
+          variants={item}
+          className="mx-auto mt-6 max-w-2xl text-lg text-[var(--nimia-muted)] sm:text-xl"
+        >
+          AI can generate images in seconds. We turn ideas into
+          production-ready assets with professional art direction, technical
+          optimization, and a team that works with you at every step.
+        </motion.p>
+
+        <motion.p
+          variants={item}
+          className="mx-auto mt-4 max-w-xl text-sm font-medium uppercase tracking-widest text-[var(--nimia-muted)]"
+        >
+          AI is a tool we use well. Nimia is the team behind what ships.
+        </motion.p>
+      </motion.div>
+    </section>
+  );
+}

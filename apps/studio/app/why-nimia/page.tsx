@@ -1,18 +1,21 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
-import { buttonVariants, cn } from "@nimia/ui";
 import { PublicNavbar } from "../components/PublicNavbar";
+import { WhyNimiaExperience } from "./WhyNimiaExperience";
 
-export const metadata: Metadata = { title: "Why Nimia" };
+export const metadata: Metadata = {
+  title: "Why Nimia",
+  description:
+    "AI can generate images in seconds. Nimia turns ideas into production-ready games, animation, and digital assets with professional art direction, a dedicated creative team, and a live project dashboard.",
+};
 
-// Placeholder page (29 Juli 2026) — added as part of the 5-item navbar
-// expansion (Home, Why Nimia, Services, Portfolio, Contact). The user
-// confirmed this should be its own page and that they'll send their own
-// bullet points for what makes Nimia Games worth choosing — those haven't
-// arrived yet, so this deliberately does NOT invent claims/reasons.
-// Replace the section below with the real content once it's sent.
+// Redesigned 29 Juli 2026, replacing the earlier "check back soon"
+// placeholder now that the user sent the full content brief for this page.
+// The section-by-section content itself lives in WhyNimiaExperience.tsx
+// (a client component, since it uses Framer Motion) so this file stays a
+// thin server component that only handles auth state for the navbar, same
+// pattern as page.tsx and services/page.tsx.
 export default async function WhyNimiaPage() {
   const supabase = createServerClient(await cookies());
   const {
@@ -22,26 +25,7 @@ export default async function WhyNimiaPage() {
   return (
     <div className="nimia-dark">
       <PublicNavbar isAuthenticated={!!user} />
-
-      <main className="mx-auto max-w-3xl px-4 py-20 text-center sm:px-6">
-        <h1 className="nimia-font-display text-3xl font-bold tracking-tight">Why Nimia</h1>
-        <p className="mx-auto mt-4 max-w-lg text-[var(--nimia-muted)]">
-          This page is being written — we want to tell you exactly what sets
-          Nimia Games apart, properly, instead of filling this space with
-          generic claims. Check back soon.
-        </p>
-        <div className="mt-8">
-          <Link
-            href="/contact"
-            className={cn(
-              buttonVariants({ size: "lg" }),
-              "bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",
-            )}
-          >
-            Get in touch in the meantime
-          </Link>
-        </div>
-      </main>
+      <WhyNimiaExperience />
     </div>
   );
 }
