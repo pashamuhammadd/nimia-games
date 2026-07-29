@@ -436,3 +436,54 @@ Baris ini ada di paling bawah `globals.css`, ditulis polos TANPA dibungkus `@lay
 **Pelajaran untuk ke depan:** kalau menambah CSS custom polos (bukan lewat class Tailwind) di file manapun yang di-`@import "tailwindcss"`, SELALU bungkus dengan `@layer base { ... }` (untuk reset/default seperti elemen `a`, `h1`, dst) supaya tidak diam-diam mengalahkan utility class Tailwind di elemen yang sama. Berlaku juga untuk `apps/www/app/globals.css` kalau ada pola serupa di sana — belum saya cek, tapi worth di-audit kalau ada masalah warna teks link yang aneh di situ juga.
 
 File yang berubah (putaran ini): `apps/studio/app/globals.css`.
+
+**KONFIRMASI USER (29 Juli 2026): fix ini benar dan sudah beres** — setelah push, user konfirmasi "memang itu ternyata masalahnya". Tombol "Start a Project" & "View Our Work" sudah tampil sesuai desain (solid crimson + teks putih / outline + teks putih). Status bug: **SELESAI**.
+
+---
+
+## Update font: samakan studio dengan www — balik ke Rajdhani (29 Juli 2026)
+
+User bandingkan langsung font `studio` vs `www` dan lebih suka gaya `www`. Dicek `apps/www/app/layout.tsx` + `globals.css`: `www` pakai **Sora** (body) + **Rajdhani** (heading, lewat class `.font-display`) — persis kombinasi yang tadinya dipakai `studio` SEBELUM diganti ke Plus Jakarta Sans di update sebelumnya (yang waktu itu dilakukan atas dasar feedback "Rajdhani kesan-nya kaku").
+
+**Dibalik hari ini juga:** `apps/studio/app/layout.tsx` (import `Rajdhani` lagi, ganti `Plus_Jakarta_Sans`) dan `apps/studio/app/globals.css` (`.nimia-font-display` kembali ke `var(--font-rajdhani), var(--font-sora), Arial, sans-serif`) — sekarang identik dengan konfigurasi `www` (font sama, weight sama, nama variable sama). Plus Jakarta Sans sudah tidak dipakai sama sekali lagi di `apps/studio`.
+
+File yang berubah: `apps/studio/app/layout.tsx`, `apps/studio/app/globals.css`.
+
+---
+
+## Update navbar: dari 2 item ke 5 (Home, Why Nimia, Services, Portfolio, Contact) + halaman Contact fungsional via Resend (29 Juli 2026)
+
+User minta navbar publik `studio.nimiagames.com` dilengkapi dari 2 item (Home, Services) jadi 5: **Home, Why Nimia, Services, Portfolio, Contact**. Karena 3 dari 5 item ini butuh halaman baru yang belum pernah dibahas isinya, saya tanya dulu lewat 4 pertanyaan (menghindari kebiasaan lama proyek ini: jangan bikin konten bisnis/scope halaman baru tanpa konfirmasi) — jawaban user:
+
+1. **"Why Nimia" formatnya** → halaman sendiri (`/why-nimia`), bukan anchor section di landing page.
+2. **Isi "Why Nimia"** → user akan kasih poin-poinnya sendiri (BELUM dikirim saat update ini dibuat — lihat "Masih menunggu dari user" di bawah).
+3. **Halaman Contact isinya** → form kontak yang benar-benar mengirim email lewat Resend (bukan cuma info kontak statis).
+4. **Halaman Portfolio isinya** → tunggu karya baru dari user; **eksplisit TIDAK boleh** pakai ulang konten Recent Work (video showcase + preview Lifetopia) yang sudah dihapus dari home page di update sebelumnya.
+
+### Yang dibangun
+
+1. **`apps/studio/app/components/PublicNavbar.tsx`** — `NAV_LINKS` diperluas jadi 5 item: Home (`/`), Why Nimia (`/why-nimia`), Services (`/services`), Portfolio (`/portfolio`), Contact (`/contact`). Semua link ini sekarang hidup/valid (tidak ada link mati).
+
+2. **`/contact` — halaman kontak fungsional, pertama kali Resend BENERAN dipakai kirim email di codebase ini** (sebelumnya `OrderReceivedEmail`/`ConfirmSignupEmail` cuma template, belum pernah ada `resend.emails.send()` di mana pun):
+   - `packages/validators/src/contact.ts` — schema Zod baru `contactFormSchema` (name/email/message), diekspor lewat `packages/validators/src/index.ts`. Pola sama persis dengan `order.ts`/`auth.ts`.
+   - `packages/email/src/templates/ContactMessageEmail.tsx` — template email baru, dikirim KE inbox studio (`contact@nimiagames.com`) tiap ada pesan masuk dari form, bukan ke pengunjung. Diekspor lewat `packages/email/src/index.ts`.
+   - `apps/studio/app/contact/actions.ts` — server action `sendContactMessageAction`, validasi ulang pakai `contactFormSchema` di server (jangan percaya validasi client saja), lalu `resend.emails.send({ from: RESEND_FROM_EMAIL, to: "contact@nimiagames.com", replyTo: <email pengirim>, react: ContactMessageEmail(...) })`. `RESEND_API_KEY`/`RESEND_FROM_EMAIL` sudah ada di `.env.example` dari setup sebelumnya, sekarang baru benar-benar dipakai. Kalau env var belum diisi, action mengembalikan error yang jelas alih-alih crash.
+   - `apps/studio/app/contact/ContactForm.tsx` — client form, pola sama dengan `OrderForm.tsx` (react-hook-form + zodResolver, panggil server action langsung, bukan lewat `<form action>`).
+   - `apps/studio/app/contact/page.tsx` — page shell, pola sama dengan `services/page.tsx`.
+   - **Dependency baru ditambahkan**: `resend` (`^4.0.0`) dan `@nimia/email` di `apps/studio/package.json` — **tolong jalankan `npm install` di root repo setelah menarik perubahan ini**, supaya `node_modules`/`package-lock.json` ke-update. Saya tidak bisa `npm install` versi pasti dari sandbox ini (akses registry diblokir di sini), jadi cek juga versi `resend` terbaru saat install — kalau ada versi lebih baru dari `^4.0.0`, boleh disesuaikan.
+   - **Belum bisa saya verifikasi langsung** (sandbox tidak ada akses Resend API asli/tidak bisa jalankan build Next.js beneran) — tolong test kirim pesan dari `/contact` setelah di-push, dan konfirmasi email masuk ke `contact@nimiagames.com` dengan benar (termasuk Reply-To ke alamat pengirim).
+
+3. **`/why-nimia` dan `/portfolio` — halaman placeholder jujur ("coming soon"), BUKAN konten fiktif**:
+   - `apps/studio/app/why-nimia/page.tsx` — copy netral yang bilang halaman ini sedang ditulis, tanpa klaim/alasan yang dikarang. Menunggu poin-poin dari user.
+   - `apps/studio/app/portfolio/page.tsx` — copy netral yang bilang karya baru sedang disiapkan. **Sengaja TIDAK** memakai ulang video/gambar Recent Work yang sudah dihapus, sesuai pilihan eksplisit user.
+   - Keduanya punya CTA "Get in touch in the meantime" yang mengarah ke `/contact`.
+
+4. **`apps/studio/app/page.tsx`** — tombol hero "View Our Work" yang sebelumnya SEMENTARA mengarah ke `/services` (karena belum ada halaman work/portfolio) sekarang diarahkan ke `/portfolio` yang baru dibangun. Komentar-komentar terkait di file ini diperbarui supaya tidak lagi menyebut halaman ini "belum dibangun".
+
+### Masih menunggu dari user
+
+- **Poin-poin "Why Nimia"** — belum dikirim. Kirim 3-5 poin (atau lebih) tentang apa yang bikin Nimia Games layak dipilih, nanti langsung saya tulis jadi halaman aslinya.
+- **Karya untuk "Portfolio"** — belum dikirim. Kirim kapan pun sudah siap (gambar/video/link), saya bangun galeri/showcase-nya.
+- **Verifikasi Resend** — tolong test form `/contact` di production setelah `npm install` + push, pastikan email benar-benar sampai.
+
+File yang berubah/ditambah: `apps/studio/app/components/PublicNavbar.tsx`, `apps/studio/app/page.tsx`, `apps/studio/app/contact/{page.tsx,ContactForm.tsx,actions.ts}` (baru), `apps/studio/app/why-nimia/page.tsx` (baru), `apps/studio/app/portfolio/page.tsx` (baru), `apps/studio/package.json`, `packages/validators/src/{contact.ts,index.ts}`, `packages/email/src/{index.ts,templates/ContactMessageEmail.tsx}` (template baru).

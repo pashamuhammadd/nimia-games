@@ -78,12 +78,11 @@ export default async function StudioHomePage() {
                   feedback). "View Our Work" gets a stronger border than
                   the default outline variant for the same reason as the
                   navbar's Log in button — see PublicNavbar.tsx.
-                  href is temporarily "/services": the Recent Work section
-                  this used to scroll to was removed from the home page
-                  (29 Juli 2026, moving to its own page reachable from the
-                  navbar per user request) and that page doesn't exist
-                  yet. Repoint this to the real work/portfolio page once
-                  it's built — flag its route when you're ready for it. */}
+                  href now points at "/portfolio" (29 Juli 2026) — that
+                  route now exists (part of the 5-item navbar expansion)
+                  as a minimal "coming soon" page, since real portfolio
+                  content is still pending from the user. Swap in specific
+                  work later if you'd rather deep-link somewhere else. */}
               <div className="mt-6 flex flex-wrap items-center gap-3">
                 {/* bg/text/hover repeated here on top of buttonVariants()
                     as a safety net (29 Juli 2026) — see the @source note
@@ -99,7 +98,7 @@ export default async function StudioHomePage() {
                   Start a Project
                 </Link>
                 <Link
-                  href="/services"
+                  href="/portfolio"
                   className={cn(
                     buttonVariants({ variant: "outline", size: "lg" }),
                     "gap-2 border-[var(--foreground)]/30 hover:border-[var(--nimia-pink)]/70 hover:bg-[var(--nimia-surface-hover)]",
@@ -170,12 +169,14 @@ export default async function StudioHomePage() {
         </section>
 
         {/* Recent Work and the Services teaser were removed from the home
-            page (29 Juli 2026, per user request) — that content is moving
-            to its own page reachable from the navbar. /services already
-            exists as a full listing (see app/services/page.tsx) so the
-            navbar's "Services" link still works; a dedicated
-            work/portfolio page still needs to be built and linked from
-            the navbar once you're ready for that. */}
+            page (29 Juli 2026, per user request) — that content moved off
+            the home page into the navbar instead: /services already
+            existed as a full listing (see app/services/page.tsx), and
+            /why-nimia, /portfolio, /contact were added the same day as
+            part of the 5-item navbar expansion. /why-nimia and /portfolio
+            are still minimal "coming soon" placeholders pending real
+            content from the user (see those files' own comments) —
+            /contact is fully functional (sends via Resend). */}
       </main>
     </div>
   );

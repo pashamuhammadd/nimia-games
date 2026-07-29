@@ -4,3 +4,4 @@
 
 export { orderFormSchema, type OrderFormValues } from "./order";
 export { signInSchema, type SignInValues, signUpSchema, type SignUpValues } from "./auth";
+export { contactFormSchema, type ContactFormValues } from "./contact";

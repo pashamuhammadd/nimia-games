@@ -7,17 +7,20 @@ import { Menu, X } from "lucide-react";
 import { Button, buttonVariants, cn } from "@nimia/ui";
 import { LoginModal } from "./LoginModal";
 
-// "Work" (scroll-to-section on the landing page) was removed 29 Juli 2026:
-// the Recent Work section it pointed at was pulled off the home page and
-// is moving to its own dedicated page per user request, but that page
-// doesn't exist yet — add it back here, pointed at the new route, once
-// it's built. "Process" and "About" (shown in the reference design) are
-// deliberately left out for the same reason: there's no actual
-// page/section behind them yet — a real nav link that fails on load is
-// worse than one fewer nav item; ask if you want those built out.
+// Expanded from 2 to 5 items (29 Juli 2026, per user request) — Why
+// Nimia, Portfolio, and Contact are new destinations built alongside this
+// change. Why Nimia and Portfolio are intentionally minimal "coming soon"
+// pages for now (see their page.tsx files) since the real content for
+// each is still pending from the user (Why Nimia: their own bullet
+// points; Portfolio: new/real work, NOT the old removed Recent Work
+// videos) — the links are live so the navbar itself doesn't need to
+// change again once that content arrives.
 const NAV_LINKS = [
   { href: "/", label: "Home" },
+  { href: "/why-nimia", label: "Why Nimia" },
   { href: "/services", label: "Services" },
+  { href: "/portfolio", label: "Portfolio" },
+  { href: "/contact", label: "Contact" },
 ];
 
 // Public navbar for the unauthenticated/marketing side of studio.nimiagames.com
