@@ -65,7 +65,7 @@ export default async function DashboardOverviewPage() {
           <CardHeader>
             <CardTitle>Submit a new order</CardTitle>
             <CardDescription>
-              Start a new project — 3D animation, game trailer, and more.
+              Start a new project like 3D animation, a game trailer, and more.
             </CardDescription>
           </CardHeader>
           <CardContent>

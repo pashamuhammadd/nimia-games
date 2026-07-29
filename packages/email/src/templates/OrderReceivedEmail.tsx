@@ -50,7 +50,7 @@ export function OrderReceivedEmail({
       <Text style={textStyle}>
         Thanks for submitting your order for <strong>{serviceName}</strong>.
         The Nimia Games team will review the details you sent and get back
-        to you with a quote and timeline estimate within 1&ndash;2 business
+        to you with a quote and timeline estimate within 1-2 business
         days.
       </Text>
 
@@ -88,8 +88,8 @@ export function OrderReceivedEmail({
       <Hr style={{ borderColor: BRAND.border, margin: "24px 0" }} />
 
       <Text style={{ ...textStyle, fontSize: 12, color: BRAND.muted, margin: 0 }}>
-        There&apos;s no charge at this stage &mdash; we&apos;ll send a quote
-        first before starting any work.
+        There&apos;s no charge at this stage. We&apos;ll send a quote first
+        before starting any work.
       </Text>
     </EmailLayout>
   );

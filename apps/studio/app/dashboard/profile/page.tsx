@@ -23,11 +23,11 @@ export default async function ProfilePage() {
     .single();
 
   const rows: { label: string; value: string }[] = [
-    { label: "Full name", value: profile?.full_name || "—" },
-    { label: "Email", value: user?.email ?? "—" },
-    { label: "Company", value: client?.company_name || "—" },
-    { label: "WhatsApp", value: client?.whatsapp || "—" },
-    { label: "Country", value: client?.country || "—" },
+    { label: "Full name", value: profile?.full_name || "Not set" },
+    { label: "Email", value: user?.email ?? "Not set" },
+    { label: "Company", value: client?.company_name || "Not set" },
+    { label: "WhatsApp", value: client?.whatsapp || "Not set" },
+    { label: "Country", value: client?.country || "Not set" },
   ];
 
   return (
@@ -37,7 +37,7 @@ export default async function ProfilePage() {
         <CardHeader>
           <CardTitle>Account information</CardTitle>
           <CardDescription>
-            Profile editing will be available in a future phase — for now,
+            Profile editing will be available in a future phase. For now,
             contact admin if any information needs updating.
           </CardDescription>
         </CardHeader>

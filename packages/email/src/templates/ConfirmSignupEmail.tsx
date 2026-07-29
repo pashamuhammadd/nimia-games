@@ -30,7 +30,7 @@ export function ConfirmSignupEmail({ confirmationUrl, email }: ConfirmSignupEmai
   return (
     <EmailLayout previewText="Confirm your email to activate your Nimia Games account">
       <Heading style={{ color: BRAND.maroon, fontSize: 20, margin: "0 0 16px" }}>
-        One more step &mdash; confirm your email
+        One more step to confirm your email
       </Heading>
 
       <Text style={textStyle}>Hi there,</Text>
@@ -56,8 +56,8 @@ export function ConfirmSignupEmail({ confirmationUrl, email }: ConfirmSignupEmai
       <Hr style={{ borderColor: BRAND.border, margin: "24px 0" }} />
 
       <Text style={{ ...textStyle, fontSize: 12, color: BRAND.muted, margin: 0 }}>
-        Didn&apos;t sign up for this? Just ignore this email &mdash; the
-        account won&apos;t be activated without confirmation.
+        Didn&apos;t sign up for this? Just ignore this email. The account
+        won&apos;t be activated without confirmation.
       </Text>
     </EmailLayout>
   );

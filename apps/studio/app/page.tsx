@@ -19,8 +19,8 @@ export default async function StudioHomePage() {
       <div>
         <h1 className="text-3xl font-black tracking-tight">Nimia Studio</h1>
         <p className="mx-auto mt-2 max-w-md text-[var(--nimia-muted)]">
-          Nimia Games&apos; client portal — submit orders, track project
-          progress, and manage invoices, all in one place.
+          Nimia Games&apos; client portal, where you can submit orders, track
+          project progress, and manage invoices, all in one place.
         </p>
       </div>
       <div className="flex gap-3">
