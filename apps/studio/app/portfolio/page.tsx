@@ -1,19 +1,22 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
-import { buttonVariants, cn } from "@nimia/ui";
 import { PublicNavbar } from "../components/PublicNavbar";
+import { PortfolioExperience } from "./PortfolioExperience";
 
-export const metadata: Metadata = { title: "Portfolio" };
+export const metadata: Metadata = {
+  title: "Portfolio",
+  description:
+    "A curated preview of animations, games, and digital experiences crafted by Nimia Studio. Visit the full portfolio for the complete collection.",
+};
 
-// Placeholder page (29 Juli 2026) — added as part of the 5-item navbar
-// expansion (Home, Why Nimia, Services, Portfolio, Contact). The user
-// explicitly chose to wait for new/real work before populating this page
-// rather than reusing the old "Recent Work" showcase videos/Lifetopia
-// preview that were removed from the home page earlier in this session —
-// do NOT bring that content back here. Replace this section once real
-// portfolio pieces are sent.
+// Rebuilt as a "Portfolio Preview" teaser (30 Juli 2026 brief), replacing
+// the earlier placeholder that was waiting on real work to show. This page
+// is intentionally NOT the full portfolio — the complete collection lives
+// on its own subdomain, portfolio.nimiagames.com (planned in the
+// 3-subdomain architecture described in docs/ARCHITECTURE.md, not built
+// yet as of this session). Every CTA on this page points there already;
+// see PortfolioExperience.tsx and data.ts.
 export default async function PortfolioPage() {
   const supabase = createServerClient(await cookies());
   const {
@@ -23,25 +26,7 @@ export default async function PortfolioPage() {
   return (
     <div className="nimia-dark">
       <PublicNavbar isAuthenticated={!!user} />
-
-      <main className="mx-auto max-w-3xl px-4 py-20 text-center sm:px-6">
-        <h1 className="nimia-font-display text-3xl font-bold tracking-tight">Portfolio</h1>
-        <p className="mx-auto mt-4 max-w-lg text-[var(--nimia-muted)]">
-          We&apos;re putting together a fresh set of work to show here. Check
-          back soon, or get in touch and we can share examples directly.
-        </p>
-        <div className="mt-8">
-          <Link
-            href="/contact"
-            className={cn(
-              buttonVariants({ size: "lg" }),
-              "bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",
-            )}
-          >
-            Get in touch in the meantime
-          </Link>
-        </div>
-      </main>
+      <PortfolioExperience />
     </div>
   );
 }

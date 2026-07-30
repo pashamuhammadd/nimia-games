@@ -125,6 +125,68 @@
   }
 }
 
+/* Portfolio Preview page ticker marquees (studio.nimiagames.com/portfolio,
+   30 Juli 2026). Two rows, opposite directions, each row's content
+   duplicated once in TickerRow.tsx so a translateX loop between 0 and
+   -50% repeats seamlessly forever — same technique apps/www uses for its
+   gallery ticker (components/gallery/GalleryTicker.tsx), reimplemented
+   here since apps/studio doesn't share that app's globals.css.
+   --nimia-ticker-duration is set inline per row by TickerRow.tsx so both
+   rows can use these two classes at different speeds (row 1 ~25s, row 2
+   slightly slower). Hover-to-pause targets the row/track element itself,
+   which also fires while hovering any child video since CSS :hover on a
+   parent matches for the whole box, not just direct pointer contact. */
+.nimia-ticker-right {
+  animation: nimia-ticker-move-right var(--nimia-ticker-duration, 25s) linear infinite;
+}
+
+.nimia-ticker-left {
+  animation: nimia-ticker-move-left var(--nimia-ticker-duration, 30s) linear infinite;
+}
+
+.nimia-ticker-right:hover,
+.nimia-ticker-left:hover {
+  animation-play-state: paused;
+}
+
+@keyframes nimia-ticker-move-right {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes nimia-ticker-move-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nimia-ticker-right,
+  .nimia-ticker-left {
+    animation: none;
+  }
+}
+
+/* Keyframes for the homepage Services section's abstract card visuals
+   (app/components/services/visuals.tsx, 29 Juli 2026). All three are only
+   ever applied through Tailwind's `motion-safe:` variant at the call site,
+   which already wraps them in `@media (prefers-reduced-motion: no-preference)`
+   — so no separate `@media (prefers-reduced-motion: reduce)` override is
+   needed here, unlike `.nimia-hero-mark` / `.nimia-cta-gradient` above. */
+@keyframes nimia-drift-slow {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(6px, -10px, 0) scale(1.08); }
+}
+
+@keyframes nimia-particle-float {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50% { transform: translateY(-10px); opacity: 1; }
+}
+
+@keyframes nimia-grid-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.9; }
+}
+
 * {
   box-sizing: border-box;
 }
