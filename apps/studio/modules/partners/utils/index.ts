@@ -11,3 +11,4 @@ export {
   calculateLevelProgress,
   type LevelProgress,
 } from "./level-calculator";
+export { deriveReferralStatus } from "./derive-referral-status";

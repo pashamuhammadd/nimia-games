@@ -1,6 +1,6 @@
 # Cara apply migration ini
 
-Ditulis untuk **Supabase (Postgres)**. Jalankan file `.sql` di folder ini **berurutan sesuai nomornya** (0001 → 0006) — jangan diacak, karena tiap file bergantung pada tabel/fungsi dari file sebelumnya.
+Ditulis untuk **Supabase (Postgres)**. Jalankan file `.sql` di folder ini **berurutan sesuai nomornya** (0001 → 0016 dan seterusnya) — jangan diacak, karena tiap file bergantung pada tabel/fungsi dari file sebelumnya. `0011` dan `0012` masing-masing HARUS di-Run sendiri (terpisah dari file lain) karena menambah value enum baru — lihat komentar di dalam file itu.
 
 ## Opsi A — Supabase SQL Editor (paling gampang, tanpa install apa-apa)
 
@@ -28,6 +28,13 @@ CLI akan otomatis jalankan semua file di `migrations/` sesuai urutan nama file, 
 | `0004` | `messages`, `project_files`, `notifications`, `email_logs` |
 | `0005` | `invoices`, `invoice_items`, `payments`, `receipts` + nomor otomatis `INV-YYYYMMDD-####` / `RCT-YYYYMMDD-####` |
 | `0006` | Trigger auto-buat profil `users` saat signup, **aktifkan Row Level Security + semua policy** di semua tabel |
+| `0007` | Trigger signup di atas diperluas: auto-buat juga row `clients` |
+| `0008`–`0010` | Seed & perbaikan data katalog `services` |
+| `0011` | Tambah role `staff`/`founder` (jalankan SENDIRI) |
+| `0012` | Tambah value `order_status` baru untuk alur negosiasi/pembayaran (jalankan SENDIRI) |
+| `0013` | Negosiasi harga, wallet crypto, kolom pembayaran di `orders`, + Ambassador Program lama (`ambassador_applications`/`ambassadors`/`referrals`/`commissions`) — **program ini SUDAH digabung ke Partner Program oleh `0016`, tabelnya di-rename jadi `*_legacy`** |
+| `0014`–`0015` | Tambah network TON, konfigurasi wallet & currency |
+| `0016` | **Nimia Partner Program** — tabel `partners`/`partner_referrals`/`partner_rewards`, generator kode referral, reward otomatis (trigger saat order `paid` + saat project `completed`), auto-provision partner row saat signup (extend trigger `handle_new_auth_user`), backfill user lama, MERGE data Ambassador Program (`0013`) ke sini. Prasyarat: `0011`–`0015` harus sudah jalan duluan. |
 
 Jangan skip `0006` — tanpa itu, RLS tidak aktif dan semua data bisa diakses siapa saja yang punya API key (anon key publik). Ini yang bikin client A tidak bisa lihat data client B.
 

@@ -1,23 +1,21 @@
 // Nimia Partner Program — core Partner entity types.
 //
-// This module is intentionally front-end/UI first (30 Juli 2026 brief:
-// "JANGAN implementasikan semua logic sekarang. Cukup siapkan struktur dan
-// type yang rapi."). Every shape here is designed to map 1:1 onto a future
-// `partners` table (see repository/partner.repository.ts for the exact
-// column-shaped comments) without needing to change any component or
-// service signature later — only the repository's implementation swaps
-// from mock data to real Supabase queries.
+// Shipped UI-first with a mock repository (30 Juli 2026), then wired to a
+// real `partners` table the same day (migration
+// packages/db/migrations/0016_partner_program.sql) — see
+// repository/partner.repository.ts for the real Supabase queries. Every
+// shape here maps 1:1 onto that table (+ the get_partner_metrics RPC for
+// the derived counters).
 //
-// NOTE: this is a DIFFERENT system from the existing `ambassadors` /
-// `referrals` / `commissions` tables added in
-// packages/db/migrations/0013_negotiation_payments_ambassadors.sql. That
-// migration models an application-based "Ambassador Program" (apply ->
-// admin approval -> ambassador row). The Nimia Partner Program described in
-// this brief is self-serve: EVERY client account gets a referral code
-// automatically, no application/approval step. The two are kept separate
-// on purpose here — reconciling them (or deciding Partners supersedes
-// Ambassadors) is a Tahap 5+ backend decision, not something to guess at
-// while building the UI layer.
+// HISTORY: this used to be explicitly separate from the older
+// application-based "Ambassador Program"
+// (ambassador_applications/ambassadors/referrals/commissions, from
+// packages/db/migrations/0013_negotiation_payments_ambassadors.sql).
+// Migration 0016 MERGED the two per the user's decision: existing
+// ambassador rows were migrated into `partners`/`partner_referrals`/
+// `partner_rewards`, and the old tables were renamed to `*_legacy` (kept
+// for audit, no longer read by the app). There is now only ONE referral
+// system — this one, self-serve, every account gets a code automatically.
 
 /** The four partner tiers, ordered lowest to highest. */
 export type PartnerLevel = "bronze" | "silver" | "gold" | "platinum";

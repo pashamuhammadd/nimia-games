@@ -29,7 +29,7 @@ export default async function PartnersPage() {
 
   // Defense in depth, same as app/dashboard/layout.tsx — middleware.ts
   // already keeps signed-out visitors out of /dashboard/*.
-  const overview = await getPartnerOverview(user!.id);
+  const overview = await getPartnerOverview(supabase, user!.id);
 
   return (
     <div className="flex flex-col gap-6">
