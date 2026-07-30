@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
-import { Handshake, Package, Ticket, Wallet } from "lucide-react";
 import { GreetingHeader } from "../components/dashboard/GreetingHeader";
 import { StatCard } from "../components/dashboard/StatCard";
 import { ActiveOrdersSection, type ActiveOrderItem } from "../components/dashboard/ActiveOrdersSection";
@@ -118,7 +117,7 @@ export default async function DashboardOverviewPage() {
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <StatCard
               index={0}
-              icon={Package}
+              icon="package"
               label="Active Orders"
               value={activeOrdersCount}
               href={PROJECTS_HREF}
@@ -127,7 +126,7 @@ export default async function DashboardOverviewPage() {
             />
             <StatCard
               index={1}
-              icon={Handshake}
+              icon="handshake"
               label="Pending Negotiations"
               value={negotiationsCount}
               href="/dashboard/negotiations"
@@ -136,7 +135,7 @@ export default async function DashboardOverviewPage() {
             />
             <StatCard
               index={2}
-              icon={Wallet}
+              icon="wallet"
               label="Pending Payment"
               value={pendingPaymentCount}
               href="/dashboard/invoices"
@@ -145,7 +144,7 @@ export default async function DashboardOverviewPage() {
             />
             <StatCard
               index={3}
-              icon={Ticket}
+              icon="ticket"
               label="Available Voucher"
               value={0}
               href={VOUCHERS_HREF}

@@ -2,11 +2,28 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ChevronRight, type LucideIcon } from "lucide-react";
+import { ChevronRight, Package, Handshake, Wallet, Ticket, type LucideIcon } from "lucide-react";
 import { cn } from "@nimia/ui";
 
+// Icon is resolved from a string key, NOT passed in as a component
+// reference (30 Juli 2026, hotfix). page.tsx is a Server Component and
+// StatCard is a Client Component ("use client" above) — passing a
+// lucide-react icon (a forwardRef object with a `render` function) as a
+// prop across that boundary fails with "Only plain objects can be passed
+// to Client Components from Server Components", because the icon isn't a
+// plain serializable value. Passing a plain string and resolving the
+// actual component here, entirely inside client code, sidesteps that.
+export type StatIconKey = "package" | "handshake" | "wallet" | "ticket";
+
+const STAT_ICONS: Record<StatIconKey, LucideIcon> = {
+  package: Package,
+  handshake: Handshake,
+  wallet: Wallet,
+  ticket: Ticket,
+};
+
 export function StatCard({
-  icon: Icon,
+  icon,
   label,
   value,
   href,
@@ -14,7 +31,7 @@ export function StatCard({
   accent,
   index = 0,
 }: {
-  icon: LucideIcon;
+  icon: StatIconKey;
   label: string;
   value: React.ReactNode;
   href: string;
@@ -37,6 +54,7 @@ export function StatCard({
     emerald: { badge: "bg-emerald-400/15", icon: "text-emerald-400", footer: "text-emerald-400" },
   };
   const colors = accentClasses[accent];
+  const Icon = STAT_ICONS[icon];
 
   return (
     <motion.div
