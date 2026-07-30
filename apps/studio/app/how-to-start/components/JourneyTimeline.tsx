@@ -1,6 +1,7 @@
 "use client";
 
-import { motion, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
+import { useRef } from "react";
+import { motion, AnimatePresence, useReducedMotion, useInView, type Variants } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@nimia/ui";
 import { JOURNEY_STEPS } from "../data";
@@ -18,21 +19,34 @@ import { useStoryAutoplay } from "./useStoryAutoplay";
 // badge, flow diagram, checklist, chips) exactly as before, just inside a
 // single large centered card instead of a small grid tile.
 //
-// Autoplay: 5s per step, loops forever, pauses on hover over the whole
-// tour region (roadmap + card + controls), and any manual navigation
-// (roadmap circle / dot / prev / next) restarts the 5s timer for the step
-// it lands on rather than stopping autoplay outright — see
-// useStoryAutoplay.ts for the timing implementation.
+// Autoplay: 5s per step, loops forever, pauses on hover OR keyboard focus
+// anywhere in the tour region (roadmap + card + controls), and any manual
+// navigation (roadmap circle / dot / prev / next) restarts the 5s timer for
+// the step it lands on rather than stopping autoplay outright — see
+// useStoryAutoplay.ts for the timing implementation. Fixed 30 Juli 2026
+// (audit, third session): autoplay used to start ticking the instant the
+// page mounted, so a visitor who spent a few seconds on the Hero would
+// scroll down to find the tour already several steps in. It's now gated by
+// `useInView` below and only starts once this section has actually
+// scrolled into the viewport at least once.
 export function JourneyTimeline() {
   const shouldReduceMotion = useReducedMotion();
   const stepCount = JOURNEY_STEPS.length;
 
+  const sectionRef = useRef<HTMLElement>(null);
+  // `once: true` matches the `viewport={{ once: true }}` convention already
+  // used by the other whileInView sections on this site — the tour starts
+  // playing the first time it's seen and keeps running after that, it
+  // doesn't re-pause every time the visitor scrolls past it again.
+  const isInView = useInView(sectionRef, { once: true });
+
   // Autoplay is disabled outright (not just slowed) when the visitor
   // prefers reduced motion — a self-advancing carousel is exactly the kind
   // of motion that preference exists to suppress. Manual prev/next/dot
-  // navigation still works either way.
+  // navigation still works either way. It's also held off until the
+  // section has scrolled into view (see isInView above).
   const { activeIndex, progress, isPaused, setIsPaused, direction, goNext, goPrev, goToIndex } =
-    useStoryAutoplay(stepCount, !shouldReduceMotion);
+    useStoryAutoplay(stepCount, !shouldReduceMotion && isInView);
 
   const activeStep = JOURNEY_STEPS[activeIndex];
 
@@ -51,7 +65,7 @@ export function JourneyTimeline() {
   };
 
   return (
-    <section className="relative overflow-hidden px-4 py-20 sm:px-6 sm:py-28">
+    <section ref={sectionRef} className="relative overflow-hidden px-4 py-20 sm:px-6 sm:py-28">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute left-1/2 top-0 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-[var(--nimia-crimson)]/15 blur-[140px]"
@@ -69,13 +83,25 @@ export function JourneyTimeline() {
         </p>
       </div>
 
-      {/* Hover anywhere in this region (roadmap, active card, or the
-          prev/next/dot controls) pauses autoplay; leaving resumes it from
-          exactly where it left off. */}
+      {/* Hovering OR keyboard-focusing anywhere in this region (roadmap,
+          active card, or the prev/next/dot controls) pauses autoplay;
+          leaving/blurring resumes it from exactly where it left off. The
+          focus handling matters for keyboard-only visitors: without it,
+          tabbing onto Previous/Next/a roadmap step would still get yanked
+          to the next step mid-interaction every 5 seconds (WCAG 2.2.2,
+          Pause/Stop/Hide — hover alone isn't a sufficient pause mechanism).
+          onBlur checks relatedTarget so moving focus between two controls
+          inside this same region doesn't cause a resume/pause flicker. */}
       <div
         className="relative mx-auto mt-14 max-w-5xl sm:mt-16"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
+        onFocus={() => setIsPaused(true)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            setIsPaused(false);
+          }
+        }}
       >
         <StoryProgressBar count={stepCount} activeIndex={activeIndex} progress={progress} />
 

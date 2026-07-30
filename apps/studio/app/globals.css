@@ -205,9 +205,21 @@
   box-sizing: border-box;
 }
 
-html {
-  scroll-behavior: smooth;
-}
+/* `html { scroll-behavior: smooth; }` used to live here and was removed
+   (30 Juli 2026, audit) — it silently hijacked Next.js App Router's
+   built-in scroll-to-top on <Link> navigation (a plain scrollTo(0, 0) with
+   no explicit behavior, so it inherited this CSS default), turning it into
+   an animated scroll. That animation could get cut short by layout shift
+   happening at the same moment the new page mounts (next/font's
+   display:"swap" swapping in Sora/Rajdhani, Framer Motion's Hero mount
+   animations), so navigating via the navbar sometimes landed a little
+   below the true top of the page instead of right at it. The two places on
+   this site that DO want smooth scrolling (PortfolioHeader.tsx's "View
+   Full Portfolio" -> #explore-portfolio, and RoadmapNav.tsx's mobile
+   auto-scroll-into-view) already call scrollIntoView({ behavior: "smooth" })
+   explicitly in JS, so removing this global default doesn't affect them —
+   only Next.js's own unscoped scroll reset, which now jumps straight to 0
+   as intended. */
 
 body {
   margin: 0;

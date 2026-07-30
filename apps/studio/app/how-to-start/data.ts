@@ -40,11 +40,13 @@ export interface JourneyStep {
   // exact step name/description stays completely unabridged inside the
   // active step card. No information from the original 7-step version was
   // removed; this field is purely an ADDITIONAL compact label for the
-  // roadmap UI, mapped to stay accurate to what each step's card actually
-  // says (e.g. Step 6 is still fully "Payment Verification" in the card —
-  // "Production" here is just the roadmap's shorthand, matching the user's
-  // own brief wording, since that step's description ends with the project
-  // moving into Production).
+  // roadmap UI. Fixed 30 Juli 2026 (audit, third session): Step 6's
+  // shortLabel used to say "Production" while its card title is "Payment
+  // Verification" and Step 7 is titled "Production & Delivery" — the
+  // roadmap strip ended up showing "Production" one step before the stage
+  // that's actually about production, which read as misleading at a
+  // glance. Step 6 now uses "Verification" so the roadmap strip matches
+  // its own card title exactly.
   shortLabel: string;
   title: string;
   description: string;
@@ -121,7 +123,7 @@ export const JOURNEY_STEPS: JourneyStep[] = [
   },
   {
     number: "06",
-    shortLabel: "Production",
+    shortLabel: "Verification",
     title: "Payment Verification",
     description:
       "Our team verifies your transaction directly on the blockchain. Once confirmed, you'll receive a notification and your project status will automatically change to Production.",

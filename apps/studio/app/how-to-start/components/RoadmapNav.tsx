@@ -15,6 +15,19 @@ import type { JourneyStep } from "../data";
 // horizontal dan dapat di-scroll secara halus") with the active step
 // auto-scrolled into view so autoplay doesn't drift the current step off
 // screen while the visitor isn't touching it.
+//
+// Fixed 30 Juli 2026 (bug report: opening /how-to-start landed scrolled
+// past the Hero straight into this section instead of at the top of the
+// page). The old implementation called `button.scrollIntoView({ block:
+// "nearest", inline: "center" })` — scrollIntoView walks up EVERY
+// scrollable ancestor, not just the intended horizontal mobile strip, so
+// on first mount (roadmap still below the fold) it also dragged the whole
+// page/window down to satisfy `block: "nearest"` for the vertical axis.
+// This now scrolls ONLY the horizontal strip's own scroll container
+// (`containerRef`, computed via getBoundingClientRect deltas so it never
+// touches window/document scroll), so selecting or autoplaying to a step
+// can, at most, shift the roadmap sideways — it can no longer move the
+// page vertically.
 export function RoadmapNav({
   steps,
   activeIndex,
@@ -24,18 +37,29 @@ export function RoadmapNav({
   activeIndex: number;
   onSelect: (index: number) => void;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   useEffect(() => {
-    buttonRefs.current[activeIndex]?.scrollIntoView({
-      behavior: "smooth",
-      inline: "center",
-      block: "nearest",
-    });
+    const container = containerRef.current;
+    const button = buttonRefs.current[activeIndex];
+    if (!container || !button) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const buttonRect = button.getBoundingClientRect();
+    const delta =
+      buttonRect.left + buttonRect.width / 2 - (containerRect.left + containerRect.width / 2);
+    const maxScrollLeft = Math.max(container.scrollWidth - container.clientWidth, 0);
+    const targetScrollLeft = Math.min(Math.max(container.scrollLeft + delta, 0), maxScrollLeft);
+
+    container.scrollTo({ left: targetScrollLeft, behavior: "smooth" });
   }, [activeIndex]);
 
   return (
-    <div className="nimia-no-scrollbar -mx-4 overflow-x-auto px-4 sm:mx-0 sm:overflow-visible sm:px-0">
+    <div
+      ref={containerRef}
+      className="nimia-no-scrollbar -mx-4 overflow-x-auto px-4 sm:mx-0 sm:overflow-visible sm:px-0"
+    >
       <div className="mx-auto flex min-w-max items-start sm:min-w-0 sm:max-w-5xl">
         {steps.map((step, i) => {
           const isDone = i < activeIndex;
