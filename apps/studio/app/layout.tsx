@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
-import { Sora, Plus_Jakarta_Sans } from "next/font/google";
+import { Sora, Rajdhani } from "next/font/google";
 import "./globals.css";
 
-// Sora (body) + Plus Jakarta Sans (headings) for the public/marketing
-// pages (navbar, landing hero, /services, /login, /register). Only
-// opted into by public-page components explicitly (see PublicNavbar.tsx
-// / page.tsx); the dashboard keeps its own plain system-font stack from
-// globals.css untouched, since it's a working tool, not a marketing
-// surface.
+// Sora (body) + Rajdhani (headings) — matches apps/www/app/layout.tsx
+// exactly (same fonts, same weights, same variable names), so the
+// public/marketing pages here (navbar, landing hero, /services, /login,
+// /register) read as the same brand as www instead of drifting.
 //
-// Swapped Rajdhani -> Plus Jakarta Sans for headings (29 Juli 2026, per
-// user feedback: Rajdhani's condensed all-caps-leaning letterforms read
-// as too "kaku"/rigid for a friendly brand). Plus Jakarta Sans keeps a
-// bold, confident display weight while staying warm and easy to read,
-// closer in spirit to Sora so headings and body don't clash.
+// Note: this briefly used Plus Jakarta Sans instead of Rajdhani (29 Juli
+// 2026, per feedback that Rajdhani felt too "kaku"/rigid) — reverted the
+// same day (per user request) once www and studio were compared side by
+// side and www's Rajdhani look was preferred. Only opted into by
+// public-page components explicitly (see PublicNavbar.tsx / page.tsx);
+// the dashboard keeps its own plain system-font stack from globals.css
+// untouched, since it's a working tool, not a marketing surface.
 const sora = Sora({
   subsets: ["latin"],
   variable: "--font-sora",
@@ -21,10 +21,10 @@ const sora = Sora({
   display: "swap",
 });
 
-const jakarta = Plus_Jakarta_Sans({
+const rajdhani = Rajdhani({
   subsets: ["latin"],
-  variable: "--font-jakarta",
-  weight: ["600", "700", "800"],
+  variable: "--font-rajdhani",
+  weight: ["500", "600", "700"],
   display: "swap",
 });
 
@@ -48,7 +48,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${sora.variable} ${jakarta.variable}`}>
+    <html lang="en" className={`${sora.variable} ${rajdhani.variable}`}>
       <body>{children}</body>
     </html>
   );

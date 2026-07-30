@@ -8,19 +8,24 @@ import { Button, buttonVariants, cn } from "@nimia/ui";
 import { LoginModal } from "./LoginModal";
 
 // Expanded from 2 to 5 items (29 Juli 2026, per user request) — Why
-// Nimia, Portfolio, and Contact are new destinations built alongside this
+// Nimia, Portfolio, and Contact were new destinations built alongside that
 // change. Why Nimia and Portfolio are intentionally minimal "coming soon"
 // pages for now (see their page.tsx files) since the real content for
 // each is still pending from the user (Why Nimia: their own bullet
 // points; Portfolio: new/real work, NOT the old removed Recent Work
 // videos) — the links are live so the navbar itself doesn't need to
 // change again once that content arrives.
+//
+// Contact -> How to Start (30 Juli 2026, per user request): the old
+// /contact page (a contact form) was removed entirely, not just relabeled.
+// /how-to-start is a full guide to Nimia Studio's order/negotiate/pay/
+// verify/deliver process — see app/how-to-start/page.tsx.
 const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/why-nimia", label: "Why Nimia" },
   { href: "/services", label: "Services" },
   { href: "/portfolio", label: "Portfolio" },
-  { href: "/contact", label: "Contact" },
+  { href: "/how-to-start", label: "How to Start" },
 ];
 
 // Public navbar for the unauthenticated/marketing side of studio.nimiagames.com

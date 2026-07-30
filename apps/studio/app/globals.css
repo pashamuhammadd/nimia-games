@@ -187,6 +187,20 @@
   50% { opacity: 0.9; }
 }
 
+/* Hides the scrollbar on the /how-to-start "Your Journey with Nimia"
+   roadmap strip (RoadmapNav.tsx) when it overflows horizontally on mobile
+   (30 Juli 2026) — the strip is still fully scrollable by touch/drag,
+   this only hides the OS/browser scrollbar chrome so it reads as a clean
+   product-tour rail instead of a scroll pane. */
+.nimia-no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.nimia-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 * {
   box-sizing: border-box;
 }
