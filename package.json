@@ -11,9 +11,11 @@
     "dev": "turbo run dev",
     "dev:www": "turbo run dev --filter=www",
     "dev:studio": "turbo run dev --filter=studio",
+    "dev:admin": "turbo run dev --filter=admin",
     "build": "turbo run build",
     "build:www": "turbo run build --filter=www",
     "build:studio": "turbo run build --filter=studio",
+    "build:admin": "turbo run build --filter=admin",
     "lint": "turbo run lint"
   },
   "devDependencies": {
