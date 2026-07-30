@@ -59,6 +59,15 @@ export const config = {
   matcher: [
     // Run on everything except static assets/images/favicon, so the
     // session cookie stays fresh across the whole app.
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    //
+    // api/video excluded too (30 Juli 2026, portfolio video-security
+    // brief): that route proxies Cloudinary video bytes and gets hit with
+    // many range requests per clip (seeking, preload="metadata" probes,
+    // chunked playback). Without this exclusion, every one of those
+    // requests would also run a full Supabase getUser()/cookie-refresh
+    // round trip here for no reason — nothing under /api/video needs auth
+    // — adding latency to exactly the thing this brief was trying to keep
+    // fast.
+    "/((?!_next/static|_next/image|favicon.ico|api/video|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

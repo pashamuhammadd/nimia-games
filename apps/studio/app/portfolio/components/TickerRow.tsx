@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 import { useInView } from "framer-motion";
 import type { TickerVideo } from "../data";
 
@@ -30,6 +30,20 @@ interface TickerRowProps {
 // the page's near-black background both read as an unwanted "black box"
 // behind the videos, so both were removed. Each clip is just the video
 // itself inside a bordered, rounded frame.
+//
+// Video-security pass (30 Juli 2026, separate brief): `clip.src` now points
+// at our own /api/video/<id> proxy (see data.ts) instead of a raw
+// Cloudinary URL, right-click is disabled on every clip, and the browser's
+// own download/PiP/remote-playback affordances are turned off via
+// controlsList/disablePictureInPicture/disableRemotePlayback. None of this
+// makes a clip literally undownloadable (impossible for anything a browser
+// plays) — it just removes the one-click paths a casual visitor would
+// otherwise have. Autoplay/muted/loop/playsInline/no-controls behavior is
+// unchanged from before.
+function preventContextMenu(event: MouseEvent<HTMLVideoElement>) {
+  event.preventDefault();
+}
+
 export function TickerRow({ items, direction, durationSeconds, aspect }: TickerRowProps) {
   const rowRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(rowRef, { amount: 0.15 });
@@ -75,6 +89,10 @@ export function TickerRow({ items, direction, durationSeconds, aspect }: TickerR
               loop
               playsInline
               preload="metadata"
+              controlsList="nodownload noplaybackrate noremoteplayback"
+              disablePictureInPicture
+              disableRemotePlayback
+              onContextMenu={preventContextMenu}
               aria-hidden="true"
             />
           </div>

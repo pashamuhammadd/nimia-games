@@ -18,96 +18,46 @@ import {
 // points there already, so nothing here needs to change once it ships.
 export const FULL_PORTFOLIO_URL = "https://portfolio.nimiagames.com";
 
+// Video-security pass (30 Juli 2026 brief): every clip on this page used to
+// point straight at a res.cloudinary.com URL, which meant the real
+// Cloudinary origin/hash/filename shipped in the client JS bundle and page
+// source for anyone to read or right-click "copy address" on. Now every
+// `src`/`poster` below is just `/api/video/<id>` (optionally `?poster=1`) —
+// our own Next.js route (app/api/video/[id]/route.ts) resolves the id to
+// the actual Cloudinary URL SERVER-SIDE (see that route's sources.ts, which
+// this file never imports) and proxies the bytes through our own origin.
+// This isn't "undownloadable" (nothing served to a <video> tag can be), but
+// it removes the trivial paths: no visible Cloudinary link anywhere in the
+// page, and no filename/asset-id leak via the poster URL either.
+function proxiedVideo(id: string): string {
+  return `/api/video/${id}`;
+}
+
+function proxiedPoster(id: string): string {
+  return `/api/video/${id}?poster=1`;
+}
+
 export interface TickerVideo {
   id: string;
   src: string;
 }
 
-// Every source below is a Cloudinary /video/upload/ delivery URL, so it's
-// safe to blindly insert f_auto,q_auto (format + quality auto-negotiation)
-// right after /video/upload/ for all of them, per the brief.
-function optimizeCloudinaryUrl(url: string): string {
-  return url.replace("/video/upload/", "/video/upload/f_auto,q_auto/");
-}
-
-// Cloudinary can derive a still-frame JPG straight from a video resource:
-// keep the same /video/upload/ path, add so_0 (grab the frame at 0s) plus
-// f_auto,q_auto, and swap the file extension for .jpg. Used for the
-// Featured Showcase's click-to-play poster images (30 Juli 2026 correction
-// — that section no longer autoplays, so each video needs a real thumbnail
-// instead of showing a black frame until the user clicks play).
-function cloudinaryPosterUrl(url: string): string {
-  return url
-    .replace("/video/upload/", "/video/upload/so_0,f_auto,q_auto/")
-    .replace(/\.mp4$/i, ".jpg");
-}
-
 // TICKER ROW 1 — 1:1 clips, scrolls right, ~25s loop.
 export const TICKER_ROW_1: TickerVideo[] = [
-  {
-    id: "ticker-1-a",
-    src: optimizeCloudinaryUrl(
-      "https://res.cloudinary.com/wudw6mex/video/upload/v1785258898/VID_20250617_003641_288_ks1kzf.mp4",
-    ),
-  },
-  {
-    id: "ticker-1-b",
-    src: optimizeCloudinaryUrl(
-      "https://res.cloudinary.com/wudw6mex/video/upload/v1785258890/jeet_sacrifice_ritual_V1_q1hv7g.mp4",
-    ),
-  },
-  {
-    id: "ticker-1-c",
-    src: optimizeCloudinaryUrl(
-      "https://res.cloudinary.com/wudw6mex/video/upload/v1785258901/VID_20250918_144032_442.mp4_nwezsu.mp4",
-    ),
-  },
-  {
-    id: "ticker-1-d",
-    src: optimizeCloudinaryUrl(
-      "https://res.cloudinary.com/wudw6mex/video/upload/v1785258898/VID_20250521_185254_752_ef0myz.mp4",
-    ),
-  },
-  {
-    id: "ticker-1-e",
-    src: optimizeCloudinaryUrl(
-      "https://res.cloudinary.com/wudw6mex/video/upload/v1785258895/VID_20250508_182212_817_hcz6zi.mp4",
-    ),
-  },
+  { id: "ticker-1-a", src: proxiedVideo("ticker-1-a") },
+  { id: "ticker-1-b", src: proxiedVideo("ticker-1-b") },
+  { id: "ticker-1-c", src: proxiedVideo("ticker-1-c") },
+  { id: "ticker-1-d", src: proxiedVideo("ticker-1-d") },
+  { id: "ticker-1-e", src: proxiedVideo("ticker-1-e") },
 ];
 
 // TICKER ROW 2 — 16:9 clips, scrolls left, slightly slower loop than row 1.
 export const TICKER_ROW_2: TickerVideo[] = [
-  {
-    id: "ticker-2-a",
-    src: optimizeCloudinaryUrl(
-      "https://res.cloudinary.com/wudw6mex/video/upload/v1785385121/Apustaja_In_Bedroom_1_dlznsb.mp4",
-    ),
-  },
-  {
-    id: "ticker-2-b",
-    src: optimizeCloudinaryUrl(
-      "https://res.cloudinary.com/wudw6mex/video/upload/v1785385121/Peepo_Smoke_qsyen6.mp4",
-    ),
-  },
-  {
-    id: "ticker-2-c",
-    src: optimizeCloudinaryUrl(
-      "https://res.cloudinary.com/wudw6mex/video/upload/v1785385122/VID-20250516-WA0000_hi06rs.mp4",
-    ),
-  },
-  {
-    id: "ticker-2-d",
-    src: optimizeCloudinaryUrl(
-      "https://res.cloudinary.com/wudw6mex/video/upload/v1785385122/Apustaja_hk8cru.mp4",
-    ),
-  },
-  {
-    id: "ticker-2-e",
-    src: optimizeCloudinaryUrl(
-      "https://res.cloudinary.com/wudw6mex/video/upload/v1785385124/VID-20250524-WA0000_aqvkgj.mp4",
-    ),
-  },
+  { id: "ticker-2-a", src: proxiedVideo("ticker-2-a") },
+  { id: "ticker-2-b", src: proxiedVideo("ticker-2-b") },
+  { id: "ticker-2-c", src: proxiedVideo("ticker-2-c") },
+  { id: "ticker-2-d", src: proxiedVideo("ticker-2-d") },
+  { id: "ticker-2-e", src: proxiedVideo("ticker-2-e") },
 ];
 
 export interface ShowcaseItem {
@@ -128,32 +78,20 @@ export interface ShowcaseItem {
 export const FEATURED_SHOWCASE: ShowcaseItem[] = [
   {
     id: "showcase-1",
-    src: optimizeCloudinaryUrl(
-      "https://res.cloudinary.com/wudw6mex/video/upload/v1785385218/VID-20240926-WA0000_ilapsv.mp4",
-    ),
-    poster: cloudinaryPosterUrl(
-      "https://res.cloudinary.com/wudw6mex/video/upload/v1785385218/VID-20240926-WA0000_ilapsv.mp4",
-    ),
+    src: proxiedVideo("showcase-1"),
+    poster: proxiedPoster("showcase-1"),
     label: "Animation",
   },
   {
     id: "showcase-2",
-    src: optimizeCloudinaryUrl(
-      "https://res.cloudinary.com/wudw6mex/video/upload/v1785385217/Mouse_Zombie_yutlhv.mp4",
-    ),
-    poster: cloudinaryPosterUrl(
-      "https://res.cloudinary.com/wudw6mex/video/upload/v1785385217/Mouse_Zombie_yutlhv.mp4",
-    ),
+    src: proxiedVideo("showcase-2"),
+    poster: proxiedPoster("showcase-2"),
     label: "Motion Graphics",
   },
   {
     id: "showcase-3",
-    src: optimizeCloudinaryUrl(
-      "https://res.cloudinary.com/wudw6mex/video/upload/v1785385223/To_the_Moon_or_Not_-1_j8ctpi.mp4",
-    ),
-    poster: cloudinaryPosterUrl(
-      "https://res.cloudinary.com/wudw6mex/video/upload/v1785385223/To_the_Moon_or_Not_-1_j8ctpi.mp4",
-    ),
+    src: proxiedVideo("showcase-3"),
+    poster: proxiedPoster("showcase-3"),
     label: "Game Trailer",
   },
 ];
