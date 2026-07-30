@@ -10,16 +10,23 @@ import {
   Gift,
   Ticket,
   Target,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@nimia/ui";
 
 // Rebuilt for the Client Dashboard redesign (30 Juli 2026, per user brief +
-// reference mockup). Exactly the 6 items the brief asks for — no more, no
-// less ("JANGAN tambahkan menu lain"): Dashboard, Orders, Negotiations,
-// Deliveries, Vouchers, Quests. Settings/Invoices/Messages/Profile are
-// deliberately NOT here anymore (they moved to the avatar dropdown or are
-// reachable directly by URL for now) — see Topbar.tsx's account menu.
+// reference mockup). Originally exactly the 6 items that brief asked for
+// ("Dashboard, Orders, Negotiations, Deliveries, Vouchers, Quests" —
+// "JANGAN tambahkan menu lain"); a 7th, "Partners", was added later the
+// same day for the Nimia Partner Program feature — its own brief
+// explicitly asks for this exact item, in this exact position (last, after
+// Quests). Settings/Invoices/Messages/Profile are still deliberately NOT
+// here (they moved to the avatar dropdown or are reachable directly by URL
+// for now) — see Topbar.tsx's account menu. Partners' icon is `Users`
+// rather than a literal handshake — `Handshake` is already used for
+// Negotiations above, and reusing it here would make two different
+// sidebar items look identical at a glance.
 export const DASHBOARD_NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/orders", label: "Orders", icon: Package },
@@ -27,6 +34,7 @@ export const DASHBOARD_NAV_ITEMS: { href: string; label: string; icon: LucideIco
   { href: "/dashboard/deliveries", label: "Deliveries", icon: Gift },
   { href: "/dashboard/vouchers", label: "Vouchers", icon: Ticket },
   { href: "/dashboard/quests", label: "Quests", icon: Target },
+  { href: "/dashboard/partners", label: "Partners", icon: Users },
 ];
 
 // Shared by Sidebar.tsx (desktop rail), MobileNavDrawer.tsx, and Topbar.tsx
