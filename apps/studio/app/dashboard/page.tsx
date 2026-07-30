@@ -1,16 +1,19 @@
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  buttonVariants,
-} from "@nimia/ui";
+import { Handshake, Package, Ticket, Wallet } from "lucide-react";
+import { GreetingHeader } from "../components/dashboard/GreetingHeader";
+import { StatCard } from "../components/dashboard/StatCard";
+import { ActiveOrdersSection, type ActiveOrderItem } from "../components/dashboard/ActiveOrdersSection";
+import { RecentActivityTimeline, type ActivityItem } from "../components/dashboard/RecentActivityTimeline";
+import { EmptyDashboardState } from "../components/dashboard/EmptyDashboardState";
+import { projectStatusMeta, projectActivityLabel } from "../lib/projectStatus";
+import { formatRelativeTime } from "../lib/relativeTime";
 
-export const metadata = { title: "Overview" };
+export const metadata = { title: "Dashboard" };
+
+const START_PROJECT_HREF = "/dashboard/orders";
+const PROJECTS_HREF = "/dashboard/projects";
+const VOUCHERS_HREF = "/dashboard/vouchers";
 
 export default async function DashboardOverviewPage() {
   const supabase = createServerClient(await cookies());
@@ -23,67 +26,148 @@ export default async function DashboardOverviewPage() {
     .select("full_name")
     .eq("id", user!.id)
     .single();
+  const firstName = profile?.full_name?.trim().split(/\s+/)[0] ?? "";
 
   const { data: client } = await supabase
     .from("clients")
-    .select("id, company_name")
+    .select("id")
     .eq("user_id", user!.id)
     .single();
 
-  let orderCount = 0;
+  let hasAnyEngagement = false;
+  let activeOrdersCount = 0;
+  let negotiationsCount = 0;
+  let pendingPaymentCount = 0;
+  let activeOrders: ActiveOrderItem[] = [];
+  let recentActivity: ActivityItem[] = [];
+
   if (client) {
-    const { count } = await supabase
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .eq("client_id", client.id);
-    orderCount = count ?? 0;
+    const [{ count: ordersEverCount }, { data: projects }, { count: negotiationCount }, { count: paymentCount }] =
+      await Promise.all([
+        supabase.from("orders").select("id", { count: "exact", head: true }).eq("client_id", client.id),
+        supabase
+          .from("projects")
+          .select("id, title, status, progress, updated_at")
+          .eq("client_id", client.id)
+          .order("updated_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .eq("client_id", client.id)
+          .eq("status", "quotation_sent"),
+        supabase
+          .from("invoices")
+          .select("id", { count: "exact", head: true })
+          .eq("client_id", client.id)
+          .in("status", ["unpaid", "partially_paid", "overdue"]),
+      ]);
+
+    const allProjects = projects ?? [];
+    hasAnyEngagement = (ordersEverCount ?? 0) > 0 || allProjects.length > 0;
+    negotiationsCount = negotiationCount ?? 0;
+    pendingPaymentCount = paymentCount ?? 0;
+    activeOrdersCount = allProjects.filter((p) => !["completed", "cancelled"].includes(p.status)).length;
+
+    activeOrders = allProjects.slice(0, 3).map((p) => {
+      const meta = projectStatusMeta(p.status);
+      return {
+        id: p.id,
+        title: p.title,
+        statusLabel: meta.label,
+        dotClass: meta.dotClass,
+        progress: p.progress,
+        updatedLabel: formatRelativeTime(p.updated_at),
+      };
+    });
+
+    if (allProjects.length > 0) {
+      const idToTitle = new Map(allProjects.map((p) => [p.id, p.title]));
+      const { data: updates } = await supabase
+        .from("project_updates")
+        .select("id, project_id, to_status, created_at")
+        .in("project_id", allProjects.map((p) => p.id))
+        .order("created_at", { ascending: false })
+        .limit(4);
+
+      recentActivity = (updates ?? []).map((u) => ({
+        id: u.id,
+        title: projectActivityLabel(u.to_status),
+        subtitle: idToTitle.get(u.project_id) ?? "Project",
+        timeLabel: formatRelativeTime(u.created_at),
+        tone:
+          u.to_status === "completed" || u.to_status === "paid"
+            ? "success"
+            : u.to_status === "waiting_payment"
+              ? "payment"
+              : u.to_status === "revision" || u.to_status === "final_review"
+                ? "upload"
+                : u.to_status === "cancelled"
+                  ? "cancelled"
+                  : "neutral",
+      }));
+    }
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold">
-          Hi{profile?.full_name ? `, ${profile.full_name}` : ""} 👋
-        </h1>
-        <p className="mt-1 text-[var(--nimia-muted)]">
-          {client?.company_name ?? user?.email}
-        </p>
-      </div>
+      <GreetingHeader name={firstName} ctaHref={START_PROJECT_HREF} />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Total orders</CardTitle>
-            <CardDescription>All orders you&apos;ve ever submitted.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <span className="text-3xl font-black">{orderCount}</span>
-          </CardContent>
-        </Card>
+      {hasAnyEngagement ? (
+        <>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <StatCard
+              index={0}
+              icon={Package}
+              label="Active Orders"
+              value={activeOrdersCount}
+              href={PROJECTS_HREF}
+              footerLabel="View all orders"
+              accent="crimson"
+            />
+            <StatCard
+              index={1}
+              icon={Handshake}
+              label="Pending Negotiations"
+              value={negotiationsCount}
+              href="/dashboard/negotiations"
+              footerLabel="View all negotiations"
+              accent="amber"
+            />
+            <StatCard
+              index={2}
+              icon={Wallet}
+              label="Pending Payment"
+              value={pendingPaymentCount}
+              href="/dashboard/invoices"
+              footerLabel="View all invoices"
+              accent="purple"
+            />
+            <StatCard
+              index={3}
+              icon={Ticket}
+              label="Available Voucher"
+              value={0}
+              href={VOUCHERS_HREF}
+              footerLabel="View all vouchers"
+              accent="emerald"
+            />
+          </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Submit a new order</CardTitle>
-            <CardDescription>
-              Start a new project like 3D animation, a game trailer, and more.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link href="/dashboard/orders" className={buttonVariants({ size: "sm" })}>
-              New order
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Projects &amp; invoices</CardTitle>
-            <CardDescription>
-              Project tracking and invoicing are coming in Phase 5.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <ActiveOrdersSection
+                orders={activeOrders}
+                viewAllHref={PROJECTS_HREF}
+                detailHref={PROJECTS_HREF}
+              />
+            </div>
+            <RecentActivityTimeline activities={recentActivity} viewAllHref={PROJECTS_HREF} />
+          </div>
+        </>
+      ) : (
+        <EmptyDashboardState ctaHref={START_PROJECT_HREF} />
+      )}
     </div>
   );
 }
