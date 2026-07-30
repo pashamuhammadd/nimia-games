@@ -7,7 +7,15 @@ import { AdminNav } from "../AdminNav";
 
 // Mobile slide-in drawer — same pattern as
 // apps/studio/app/components/dashboard/MobileNavDrawer.tsx.
-export function MobileNavDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function MobileNavDrawer({
+  role,
+  open,
+  onClose,
+}: {
+  role: string;
+  open: boolean;
+  onClose: () => void;
+}) {
   return (
     <AnimatePresence>
       {open ? (
@@ -46,7 +54,7 @@ export function MobileNavDrawer({ open, onClose }: { open: boolean; onClose: () 
               </button>
             </div>
             <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-5">
-              <AdminNav variant="mobile" onNavigate={onClose} />
+              <AdminNav variant="mobile" role={role} onNavigate={onClose} />
             </nav>
           </motion.div>
         </div>

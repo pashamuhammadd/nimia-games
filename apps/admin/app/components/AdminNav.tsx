@@ -10,21 +10,25 @@ import {
   FolderKanban,
   Receipt,
   Boxes,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@nimia/ui";
+import { isFounderRole } from "../lib/roles";
 
-// Exactly the 6 sections agreed for v1: Overview (fully live), Orders
-// (fully live — approve/reject/convert), and Clients/Projects/Invoices/
-// Services as "Coming Soon" placeholders until their own backend lands —
-// same staged approach apps/studio's DashboardNav used for its redesign.
-export const ADMIN_NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
+// The full set of possible sections — Finance is included here (not just
+// conditionally appended) so getActiveNavItem can still resolve the page
+// title correctly for whoever's actually allowed to be on /finance.
+// `founderOnly` items are filtered OUT for non-founders in AdminNav below;
+// they are NOT removed from this list.
+export const ADMIN_NAV_ITEMS: { href: string; label: string; icon: LucideIcon; founderOnly?: boolean }[] = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/orders", label: "Orders", icon: Package },
   { href: "/clients", label: "Clients", icon: Users },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/invoices", label: "Invoices", icon: Receipt },
   { href: "/services", label: "Services", icon: Boxes },
+  { href: "/finance", label: "Finance", icon: Wallet, founderOnly: true },
 ];
 
 export function getActiveNavItem(pathname: string | null) {
@@ -36,17 +40,24 @@ export function getActiveNavItem(pathname: string | null) {
 
 export function AdminNav({
   variant = "sidebar",
+  role,
   onNavigate,
 }: {
   variant?: "sidebar" | "rail" | "mobile";
+  // Role decides whether "Finance" shows at all — see docs/ARCHITECTURE.md
+  // section 1/3: "staff lihat 'Admin Orders' tapi tidak 'Finance', founder
+  // lihat semua".
+  role: string;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const active = getActiveNavItem(pathname);
+  const isFounder = isFounderRole(role);
+  const items = ADMIN_NAV_ITEMS.filter((item) => !item.founderOnly || isFounder);
 
   return (
     <>
-      {ADMIN_NAV_ITEMS.map((item) => {
+      {items.map((item) => {
         const isActive = active?.href === item.href;
         const Icon = item.icon;
         return (

@@ -9,24 +9,29 @@ import { Topbar } from "./Topbar";
 // App Router renders — split from (protected)/layout.tsx (which stays a
 // Server Component so the auth + role check never round-trips to the
 // browser first) same as apps/studio's DashboardShell/dashboard/layout.tsx
-// split.
+// split. `role` is threaded down to Sidebar/MobileNavDrawer purely to
+// decide whether the Finance nav item shows — /finance itself is ALSO
+// hard-gated server-side in its own page (defense in depth), so hiding
+// the link here is a UX nicety, not the security boundary.
 export function AdminShell({
   children,
   userName,
   userEmail,
+  role,
   signOutAction,
 }: {
   children: React.ReactNode;
   userName: string;
   userEmail: string;
+  role: string;
   signOutAction: () => void | Promise<void>;
 }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   return (
     <div className="flex min-h-screen bg-[var(--background)]">
-      <Sidebar />
-      <MobileNavDrawer open={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <Sidebar role={role} />
+      <MobileNavDrawer role={role} open={mobileOpen} onClose={() => setMobileOpen(false)} />
 
       <div className="flex min-h-screen flex-1 flex-col">
         <Topbar

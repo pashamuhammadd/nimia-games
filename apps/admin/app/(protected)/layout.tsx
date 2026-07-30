@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@nimia/db";
 import { signOutAction } from "../actions";
 import { AdminShell } from "../components/dashboard/AdminShell";
+import { isAdminTierRole } from "../lib/roles";
 
 export default async function ProtectedLayout({
   children,
@@ -26,9 +27,11 @@ export default async function ProtectedLayout({
 
   // Second defense-in-depth layer, this time for ROLE rather than just
   // session presence — signInAction already checks this at sign-in time,
-  // but an account demoted from admin to client after signing in should be
-  // bounced out on its very next request, not just its next login.
-  if (!profile || profile.role !== "admin") {
+  // but an account demoted after signing in should be bounced out on its
+  // very next request, not just its next login. Checks the shared
+  // ADMIN_TIER_ROLES set (admin/staff/founder) added in migration 0011 —
+  // NOT just 'admin' — so staff and founder accounts can actually get in.
+  if (!isAdminTierRole(profile?.role)) {
     await supabase.auth.signOut();
     redirect("/login?error=not_admin");
   }
@@ -37,6 +40,7 @@ export default async function ProtectedLayout({
     <AdminShell
       userName={profile.full_name ?? ""}
       userEmail={user.email ?? ""}
+      role={profile.role}
       signOutAction={signOutAction}
     >
       {children}

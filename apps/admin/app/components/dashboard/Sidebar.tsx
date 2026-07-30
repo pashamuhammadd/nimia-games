@@ -6,7 +6,7 @@ import { AdminNav } from "../AdminNav";
 // lg+, icon-only "rail" at md-lg, hidden below md — MobileNavDrawer.tsx
 // covers that breakpoint). Rendered as a plain Server Component; active-item
 // highlighting lives in AdminNav, the only client piece here.
-export function Sidebar() {
+export function Sidebar({ role }: { role: string }) {
   return (
     <aside className="sticky top-0 hidden h-screen shrink-0 flex-col border-r border-white/[0.07] bg-[#0a0508]/95 md:flex md:w-[84px] lg:w-64">
       <Link
@@ -27,10 +27,10 @@ export function Sidebar() {
           Menu
         </span>
         <div className="hidden flex-col gap-1 lg:flex">
-          <AdminNav variant="sidebar" />
+          <AdminNav variant="sidebar" role={role} />
         </div>
         <div className="flex flex-col gap-1 lg:hidden">
-          <AdminNav variant="rail" />
+          <AdminNav variant="rail" role={role} />
         </div>
       </nav>
     </aside>

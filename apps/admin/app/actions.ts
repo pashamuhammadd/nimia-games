@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@nimia/db";
+import { isAdminTierRole } from "./lib/roles";
 
 export type ActionState = { error?: string } | null;
 
@@ -43,7 +44,7 @@ export async function signInAction(
     .eq("id", data.user.id)
     .single();
 
-  if (!profile || profile.role !== "admin") {
+  if (!isAdminTierRole(profile?.role)) {
     await supabase.auth.signOut();
     return { error: "This account doesn't have admin access." };
   }
