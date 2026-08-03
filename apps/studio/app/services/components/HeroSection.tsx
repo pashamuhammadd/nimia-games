@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 
@@ -8,9 +9,14 @@ import { ArrowRight } from "lucide-react";
 // faint grid texture) so this page reads as the same site, not a bolted-on
 // template. Per the 29 Juli 2026 brief this page is NOT a pricing or
 // portfolio page, so the hero stays intentionally short: headline,
-// subheadline, one CTA that smooth-scrolls straight into Core Services
-// (id="core-services", scroll-behavior: smooth is already global via
-// globals.css) rather than linking away from the page immediately.
+// subheadline, one CTA.
+//
+// The CTA used to smooth-scroll to Core Services (id="core-services")
+// instead of leaving the page. Changed (per explicit user instruction) so
+// every "Start Your Project" / "Start a Project" CTA across apps/studio
+// goes straight to /order, the Project Configurator — this one included,
+// even though it means a visitor no longer gets nudged to browse Core
+// Services first before landing in the wizard.
 export function HeroSection() {
   const shouldReduceMotion = useReducedMotion();
 
@@ -81,8 +87,8 @@ export function HeroSection() {
         </motion.p>
 
         <motion.div variants={item} className="mt-10">
-          <a
-            href="#core-services"
+          <Link
+            href="/order"
             className="nimia-cta-gradient group inline-flex items-center gap-2 rounded-lg px-8 py-4 text-base font-semibold text-white shadow-[0_20px_60px_-15px_rgba(193,18,77,0.55)] transition-transform hover:scale-[1.03]"
           >
             Start Your Project
@@ -90,7 +96,7 @@ export function HeroSection() {
               className="h-4 w-4 transition-transform group-hover:translate-x-1"
               aria-hidden="true"
             />
-          </a>
+          </Link>
         </motion.div>
       </motion.div>
     </section>

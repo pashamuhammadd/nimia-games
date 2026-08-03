@@ -89,7 +89,7 @@ export default async function StudioHomePage() {
                     in globals.css for why the "primary" variant's OWN
                     classes were silently not rendering in production. */}
                 <Link
-                  href="/services"
+                  href="/order"
                   className={cn(
                     buttonVariants({ size: "lg" }),
                     "bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",

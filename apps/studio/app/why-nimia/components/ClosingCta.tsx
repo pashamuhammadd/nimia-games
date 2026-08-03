@@ -38,7 +38,7 @@ export function ClosingCta() {
         </p>
         <div className="mt-9">
           <Link
-            href="/services"
+            href="/order"
             className="nimia-cta-gradient group inline-flex items-center gap-2 rounded-lg px-8 py-4 text-base font-semibold text-white shadow-[0_20px_60px_-15px_rgba(193,18,77,0.55)] transition-transform hover:scale-[1.03]"
           >
             Start Your Project

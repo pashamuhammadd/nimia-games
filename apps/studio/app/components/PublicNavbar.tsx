@@ -95,7 +95,9 @@ export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: bo
                 {/* Login is the only auth-labeled CTA in the navbar (per
                     user instruction) — "Sign up" isn't shown as its own
                     button; it's still reachable via the login modal's
-                    "Sign up" link or via Start a Project -> /services.
+                    "Sign up" link or via Start a Project -> /order (the
+                    Project Configurator — see modules/order; this used to
+                    point at /services before that page existed).
                     Border strengthened past the default outline variant
                     (29 Juli 2026, per user feedback: --nimia-border at
                     9% white was nearly invisible against the dark
@@ -114,7 +116,7 @@ export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: bo
                     safety net (29 Juli 2026) — see the @source note in
                     globals.css for why. */}
                 <Link
-                  href="/services"
+                  href="/order"
                   className={cn(
                     buttonVariants({ size: "sm" }),
                     "bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",
@@ -183,7 +185,7 @@ export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: bo
                     Log in
                   </Button>
                   <Link
-                    href="/services"
+                    href="/order"
                     onClick={() => setMobileOpen(false)}
                     className={cn(
                       buttonVariants({ size: "sm" }),
