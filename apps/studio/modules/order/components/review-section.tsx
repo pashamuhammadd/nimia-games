@@ -19,6 +19,8 @@ export interface ReviewSectionProps {
   onAgreedToTermsChange: (agreed: boolean) => void;
   onEditStep: (step: StepId) => void;
   submitError: string | null;
+  negotiationOffer: string;
+  onNegotiationOfferChange: (value: string) => void;
 }
 
 function formatBytes(bytes: number): string {
@@ -42,6 +44,8 @@ export function ReviewSection({
   onAgreedToTermsChange,
   onEditStep,
   submitError,
+  negotiationOffer,
+  onNegotiationOfferChange,
 }: ReviewSectionProps) {
   if (!service) return null;
 
@@ -110,6 +114,35 @@ export function ReviewSection({
           ))}
         </div>
       ) : null}
+
+      {/* Negotiation offer (3 Agustus 2026, per user request — a second
+          "Negotiate Price" CTA next to Submit Order). Optional unless the
+          Negotiate button is actually clicked — useOrderWizard#submit only
+          validates this field when intent === "negotiate", so leaving it
+          blank and clicking Submit Order works exactly as before. */}
+      <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+        <label htmlFor="negotiation-offer" className="text-sm font-semibold text-white">
+          Not the right price? Propose your own
+        </label>
+        <p className="mt-1 text-sm text-white/50">
+          Enter what you&apos;d like to pay instead of the estimate above, then use the
+          &quot;Negotiate Price&quot; button below. Our team will review it and either approve it or
+          send a counter offer.
+        </p>
+        <div className="mt-3 flex max-w-xs items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
+          <span className="text-sm font-semibold text-white/50">$</span>
+          <input
+            id="negotiation-offer"
+            type="number"
+            min={1}
+            inputMode="decimal"
+            placeholder={`e.g. ${estimate.totalPrice}`}
+            value={negotiationOffer}
+            onChange={(event) => onNegotiationOfferChange(event.target.value)}
+            className="w-full bg-transparent text-sm text-white placeholder:text-white/30 focus:outline-none"
+          />
+        </div>
+      </div>
 
       <button
         type="button"

@@ -39,11 +39,12 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
             <PartyPopper className="h-8 w-8 text-[var(--nimia-pink)]" aria-hidden="true" />
           </span>
           <h1 className="nimia-font-display mt-6 text-3xl font-bold text-white">
-            Order submitted!
+            {wizard.submittedIntent === "negotiate" ? "Offer submitted!" : "Order submitted!"}
           </h1>
           <p className="mt-3 text-white/60">
-            Thanks for configuring your project with Nimia Studio. Our team will review it and
-            follow up with a final quotation shortly.
+            {wizard.submittedIntent === "negotiate"
+              ? "Thanks for configuring your project with Nimia Studio. Our team will review your offer and either approve it or send a counter offer — you can follow the negotiation from your dashboard."
+              : "Thanks for configuring your project with Nimia Studio. Our team will review it and follow up with a final quotation shortly."}
           </p>
           <div className="mt-8 flex gap-3">
             <Button onClick={() => wizard.startOver()} variant="outline">
@@ -145,6 +146,8 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
                   onAgreedToTermsChange={wizard.setAgreedToTerms}
                   onEditStep={wizard.goToStep}
                   submitError={wizard.submitError}
+                  negotiationOffer={wizard.state.negotiationOffer}
+                  onNegotiationOfferChange={wizard.updateNegotiationOffer}
                 />
               ) : null}
             </motion.div>
@@ -158,7 +161,8 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
               isSubmitting={wizard.isSubmitting}
               onBack={wizard.goBack}
               onNext={wizard.goNext}
-              onSubmit={wizard.submit}
+              onSubmit={() => wizard.submit("submit")}
+              onNegotiate={() => wizard.submit("negotiate")}
             />
           </div>
         </div>

@@ -52,6 +52,14 @@ export interface OrderWizardState {
   brief: ProjectBrief;
   files: UploadedFileMeta[];
   agreedToTerms: boolean;
+  /** Kept as a raw string (not a number) so the Review step's input can
+   * hold an empty string, a partially-typed value, or invalid text without
+   * fighting a controlled numeric input — parsed/validated only at submit
+   * time (see useOrderWizard#submit). Round-trips through localStorage
+   * just like `brief` does, so an offer typed before the login redirect
+   * (Submit Order -> not authenticated -> /login -> back to Review) isn't
+   * lost. */
+  negotiationOffer: string;
   /** Highest step index ever reached — lets ProgressIndicator allow jumping
    * back to any visited step without allowing a forward skip. */
   maxStepIndexReached: number;
@@ -66,5 +74,6 @@ export const INITIAL_ORDER_STATE: OrderWizardState = {
   brief: EMPTY_BRIEF,
   files: [],
   agreedToTerms: false,
+  negotiationOffer: "",
   maxStepIndexReached: 0,
 };

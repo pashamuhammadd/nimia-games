@@ -59,6 +59,13 @@ function sanitizeRestoredState(raw: unknown): OrderWizardState {
   };
 }
 
+/** Which of the Review step's two buttons was used — "submit" accepts the
+ * calculated estimate as-is, "negotiate" attaches the client's own counter
+ * offer (see ReviewSection's negotiation offer input) for the team to
+ * review instead. Drives both what `submit()` validates and which message
+ * OrderWizard's success screen shows afterward. */
+export type SubmitIntent = "submit" | "negotiate";
+
 export interface UseOrderWizardResult {
   state: OrderWizardState;
   category: CategoryDefinition | null;
@@ -71,11 +78,13 @@ export interface UseOrderWizardResult {
   isSubmitting: boolean;
   submitError: string | null;
   submitted: boolean;
+  submittedIntent: SubmitIntent | null;
   selectCategory: (categoryId: string) => void;
   selectService: (serviceId: string) => void;
   selectPackage: (packageId: string) => void;
   updateConfigValue: (fieldId: string, value: string | boolean | string[]) => void;
   updateBrief: (patch: Partial<ProjectBrief>) => void;
+  updateNegotiationOffer: (value: string) => void;
   addFiles: (files: File[]) => void;
   removeFile: (id: string) => void;
   getFile: (id: string) => File | undefined;
@@ -83,7 +92,7 @@ export interface UseOrderWizardResult {
   goToStep: (step: StepId) => void;
   goNext: () => void;
   goBack: () => void;
-  submit: () => void;
+  submit: (intent: SubmitIntent) => void;
   startOver: () => void;
 }
 
@@ -95,6 +104,7 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [submitted, setSubmitted] = React.useState(false);
+  const [submittedIntent, setSubmittedIntent] = React.useState<SubmitIntent | null>(null);
 
   // Restore a previous session (including one interrupted by the login
   // redirect) exactly once, after mount — reading localStorage during
@@ -164,6 +174,10 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
 
   const updateBrief = React.useCallback((patch: Partial<ProjectBrief>) => {
     setState((prev) => ({ ...prev, brief: { ...prev.brief, ...patch } }));
+  }, []);
+
+  const updateNegotiationOffer = React.useCallback((value: string) => {
+    setState((prev) => ({ ...prev, negotiationOffer: value }));
   }, []);
 
   const addFiles = React.useCallback((files: File[]) => {
@@ -238,42 +252,65 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     return true;
   }, [state.step, state.brief.projectTitle, state.brief.projectDescription]);
 
-  const submit = React.useCallback(() => {
-    if (!state.agreedToTerms) {
-      setSubmitError("Please confirm the checklist above before submitting.");
-      return;
-    }
-    setSubmitError(null);
+  const submit = React.useCallback(
+    (intent: SubmitIntent) => {
+      if (!state.agreedToTerms) {
+        setSubmitError("Please confirm the checklist above before submitting.");
+        return;
+      }
 
-    if (!isAuthenticated) {
-      // The order draft (everything except attached files) is already kept
-      // in sync with localStorage by the effect above, and `state.step` is
-      // already "review" at this point — so once signInAction (see
-      // app/actions.ts) redirects back to redirectedFrom, this same hook
-      // restores straight onto the Review step with everything intact.
-      router.push(`/login?redirectedFrom=${encodeURIComponent("/order")}`);
-      return;
-    }
+      // Negotiating requires an actual number to send the team — "Submit
+      // Order" alone (accepting the calculated estimate) has no such
+      // requirement.
+      if (intent === "negotiate") {
+        const parsedOffer = Number(state.negotiationOffer.trim());
+        if (!state.negotiationOffer.trim() || Number.isNaN(parsedOffer) || parsedOffer <= 0) {
+          setSubmitError("Enter the price you'd like to offer before submitting for negotiation.");
+          return;
+        }
+      }
 
-    // Local-only confirmation for now — this configurator doesn't write to
-    // `orders` yet (no service/package here has a matching row in the
-    // Supabase `services` table the way app/dashboard/orders does). Wiring
-    // a real submit action is the next phase once the catalog above is
-    // moved server-side, per the brief ("Nanti akan dipindahkan ke
-    // database"). Clearing the draft here means a returning visitor starts
-    // a fresh configuration instead of seeing a stale finished one.
-    setIsSubmitting(true);
-    window.setTimeout(() => {
-      setIsSubmitting(false);
-      setSubmitted(true);
-      clearOrderState();
-    }, 500);
-  }, [isAuthenticated, router, state.agreedToTerms]);
+      setSubmitError(null);
+
+      if (!isAuthenticated) {
+        // The order draft (everything except attached files) is already kept
+        // in sync with localStorage by the effect above, and `state.step` is
+        // already "review" at this point — so once signInAction (see
+        // app/actions.ts) redirects back to redirectedFrom, this same hook
+        // restores straight onto the Review step with everything intact,
+        // including whatever offer was typed into the negotiation field.
+        // The visitor clicks Submit/Negotiate again themselves once back —
+        // this redirect doesn't remember which of the two they'd clicked.
+        router.push(`/login?redirectedFrom=${encodeURIComponent("/order")}`);
+        return;
+      }
+
+      // Local-only confirmation for now — this configurator doesn't write to
+      // `orders` yet (no service/package here has a matching row in the
+      // Supabase `services` table the way app/dashboard/orders does). Wiring
+      // a real submit action (an "submit" -> orders.status = 'pending_review'
+      // vs "negotiate" -> orders.status = 'negotiating' +
+      // order_negotiations row, per packages/db/migrations/0012 and 0013) is
+      // the next phase once the catalog above is moved server-side, per the
+      // brief ("Nanti akan dipindahkan ke database"). Clearing the draft
+      // here means a returning visitor starts a fresh configuration instead
+      // of seeing a stale finished one.
+      setIsSubmitting(true);
+      window.setTimeout(() => {
+        setIsSubmitting(false);
+        setSubmitted(true);
+        setSubmittedIntent(intent);
+        clearOrderState();
+      }, 500);
+    },
+    [isAuthenticated, router, state.agreedToTerms, state.negotiationOffer],
+  );
 
   const startOver = React.useCallback(() => {
     clearOrderState();
     setFileBlobs({});
     setSubmitted(false);
+    setSubmittedIntent(null);
     setSubmitError(null);
     setState(INITIAL_ORDER_STATE);
   }, []);
@@ -290,11 +327,13 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     isSubmitting,
     submitError,
     submitted,
+    submittedIntent,
     selectCategory,
     selectService,
     selectPackage,
     updateConfigValue,
     updateBrief,
+    updateNegotiationOffer,
     addFiles,
     removeFile,
     getFile,

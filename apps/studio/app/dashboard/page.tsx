@@ -10,7 +10,11 @@ import { formatRelativeTime } from "../lib/relativeTime";
 
 export const metadata = { title: "Dashboard" };
 
-const START_PROJECT_HREF = "/dashboard/orders";
+// Points at /order, the Project Configurator (3 Agustus 2026, per user
+// request — was "/dashboard/orders", the old generic order form; that page
+// itself was rewritten the same day to list existing orders instead of a
+// submission form, so it's no longer where a NEW project should start).
+const START_PROJECT_HREF = "/order";
 const PROJECTS_HREF = "/dashboard/projects";
 const VOUCHERS_HREF = "/dashboard/vouchers";
 
