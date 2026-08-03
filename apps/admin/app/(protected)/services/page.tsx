@@ -8,7 +8,7 @@ export default function ServicesPage() {
     <ComingSoonState
       icon={Boxes}
       title="Service Catalog"
-      description="Managing the services shown on the public Order form — pricing, categories, active/inactive — is coming in a later stage."
+      description="Managing the services shown on the public Order form: pricing, categories, active/inactive. Coming in a later stage."
     />
   );
 }

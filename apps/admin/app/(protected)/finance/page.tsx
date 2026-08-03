@@ -114,7 +114,7 @@ export default async function FinancePage() {
       <div>
         <h1 className="text-2xl font-bold text-white">Finance</h1>
         <p className="mt-1 text-sm text-white/45">
-          Founder-only — revenue, outstanding invoices, and ambassador commissions across the whole
+          Founder-only: revenue, outstanding invoices, and ambassador commissions across the whole
           studio.
         </p>
       </div>
@@ -128,7 +128,7 @@ export default async function FinancePage() {
               using a placeholder address.
             </p>
             <p className="mt-1 text-amber-100/70">
-              {placeholderWallets.map((w: any) => w.network).join(", ")} —{" "}
+              {placeholderWallets.map((w: any) => w.network).join(", ")}:{" "}
               {placeholderWallets.length === 1 ? "it needs" : "they need"} your real company wallet
               address before any buyer can actually pay. Update it directly in the{" "}
               <code className="rounded bg-black/20 px-1 py-0.5">payment_wallets</code> table via SQL
@@ -202,7 +202,7 @@ export default async function FinancePage() {
           <h2 className="mb-4 text-base font-semibold text-white">Recent Commissions</h2>
           {(recentCommissions ?? []).length === 0 ? (
             <p className="py-6 text-center text-sm text-white/35">
-              No ambassador commissions yet — these appear automatically once a referred order is
+              No ambassador commissions yet. These appear automatically once a referred order is
               marked paid.
             </p>
           ) : (
@@ -255,7 +255,7 @@ export default async function FinancePage() {
                             ? "bg-purple-400/15 text-purple-300"
                             : "bg-white/[0.06] text-white/55"
                         }`}
-                        title={chip.live ? "Native coin — converted at live USD rate" : "USD stablecoin — face value"}
+                        title={chip.live ? "Native coin, converted at live USD rate" : "USD stablecoin, face value"}
                       >
                         {chip.label}
                         {chip.live ? " · live rate" : ""}

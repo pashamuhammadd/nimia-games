@@ -7,6 +7,7 @@ import {
   INITIAL_ORDER_STATE,
   type CategoryDefinition,
   type ConfigSelections,
+  type OrderType,
   type OrderWizardState,
   type ProjectBrief,
   type ServiceDefinition,
@@ -43,6 +44,11 @@ function sanitizeRestoredState(raw: unknown): OrderWizardState {
   if (candidate.serviceId && !service) {
     return {
       ...INITIAL_ORDER_STATE,
+      // Preserve orderType here too (added 3 Agustus 2026) — without it, a
+      // returning Project Builder visitor whose chosen service no longer
+      // exists would get bounced all the way back to Step 0 instead of
+      // just back to Choose Service.
+      orderType: candidate.orderType ?? null,
       categoryId: candidate.categoryId ?? null,
       step: "service",
       maxStepIndexReached: 1,
@@ -80,6 +86,13 @@ export interface UseOrderWizardResult {
   submitError: string | null;
   submitted: boolean;
   submittedIntent: SubmitIntent | null;
+  /** Step 0's answer (added 3 Agustus 2026, per user request) — null until
+   * chosen, see OrderTypeSelector/order-wizard.tsx's render branch. */
+  orderType: OrderType | null;
+  selectOrderType: (type: OrderType) => void;
+  /** Returns to Step 0 (the "← Back to order type" link on the Packages/
+   * Custom Order placeholders, and available from Category too). */
+  resetOrderType: () => void;
   selectCategory: (categoryId: string) => void;
   selectService: (serviceId: string) => void;
   selectPackage: (packageId: string) => void;
@@ -128,6 +141,14 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
   const steps = getStepsForService(service);
   const currentStepIndex = Math.max(0, steps.indexOf(state.step));
   const estimate = calculateEstimate(service, state.packageId, state.configSelections);
+
+  const selectOrderType = React.useCallback((type: OrderType) => {
+    setState((prev) => ({ ...prev, orderType: type }));
+  }, []);
+
+  const resetOrderType = React.useCallback(() => {
+    setState((prev) => ({ ...prev, orderType: null }));
+  }, []);
 
   const selectCategory = React.useCallback((categoryId: string) => {
     setState((prev) => {
@@ -355,6 +376,9 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     submitError,
     submitted,
     submittedIntent,
+    orderType: state.orderType,
+    selectOrderType,
+    resetOrderType,
     selectCategory,
     selectService,
     selectPackage,

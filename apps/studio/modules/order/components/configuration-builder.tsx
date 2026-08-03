@@ -36,7 +36,7 @@ export function ConfigurationBuilder({ service, selections, onChange }: Configur
       <h2 className="nimia-font-display text-2xl font-bold text-white sm:text-3xl">
         Configure your project
       </h2>
-      <p className="mt-2 text-white/55">{service.name} — tune the details below.</p>
+      <p className="mt-2 text-white/55">{service.name}: tune the details below.</p>
 
       <motion.div variants={container} initial="hidden" animate="visible" className="mt-8 flex flex-col gap-4">
         {service.configFields.map((field) => (

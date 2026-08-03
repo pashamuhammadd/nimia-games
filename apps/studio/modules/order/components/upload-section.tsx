@@ -50,7 +50,7 @@ export function UploadSection({ files, onAddFiles, onRemoveFile }: UploadSection
         Upload reference files
       </h2>
       <p className="mt-2 text-white/55">
-        Share references, briefs, or existing assets — images, video, audio, PDF, or ZIP.
+        Share references, briefs, or existing assets: images, video, audio, PDF, or ZIP.
       </p>
 
       <label
@@ -86,7 +86,7 @@ export function UploadSection({ files, onAddFiles, onRemoveFile }: UploadSection
         <p className="text-sm font-semibold text-white">
           Drag & drop files here, or click to browse
         </p>
-        <p className="text-xs text-white/40">Images, video, audio, PDF, ZIP — any number of files</p>
+        <p className="text-xs text-white/40">Images, video, audio, PDF, ZIP: any number of files</p>
       </label>
 
       {files.length > 0 ? (
@@ -122,7 +122,7 @@ export function UploadSection({ files, onAddFiles, onRemoveFile }: UploadSection
       ) : null}
 
       <p className="mt-4 text-xs text-white/35">
-        Note: attached files stay on this page only — if you're redirected to log in before
+        Note: attached files stay on this page only. If you're redirected to log in before
         submitting, please re-attach them once you're back.
       </p>
     </div>

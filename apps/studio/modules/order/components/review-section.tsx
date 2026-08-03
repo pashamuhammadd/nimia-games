@@ -55,12 +55,12 @@ export function ReviewSection({
   }));
 
   const briefRows = [
-    { label: "Title", value: brief.projectTitle || "—" },
-    { label: "Description", value: brief.projectDescription || "—" },
-    { label: "Target Platform", value: brief.targetPlatform || "—" },
-    { label: "Deadline", value: brief.deadline || "—" },
-    { label: "Reference Link", value: brief.referenceLink || "—" },
-    { label: "Additional Notes", value: brief.additionalNotes || "—" },
+    { label: "Title", value: brief.projectTitle || "-" },
+    { label: "Description", value: brief.projectDescription || "-" },
+    { label: "Target Platform", value: brief.targetPlatform || "-" },
+    { label: "Deadline", value: brief.deadline || "-" },
+    { label: "Reference Link", value: brief.referenceLink || "-" },
+    { label: "Additional Notes", value: brief.additionalNotes || "-" },
   ];
 
   return (
@@ -75,7 +75,7 @@ export function ReviewSection({
           title="Category & Service"
           onEdit={() => onEditStep("service")}
           rows={[
-            { label: "Category", value: category?.name ?? "—" },
+            { label: "Category", value: category?.name ?? "-" },
             { label: "Service", value: service.name },
             ...(packageName ? [{ label: "Package", value: packageName }] : []),
           ]}
@@ -158,7 +158,7 @@ export function ReviewSection({
           {agreedToTerms ? <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} aria-hidden="true" /> : null}
         </span>
         <span className="text-sm text-white/70">
-          I confirm the details above are correct and agree to Nimia Studio's project terms — a
+          I confirm the details above are correct and agree to Nimia Studio's project terms. A
           final quotation may be negotiated with the team before production begins.
         </span>
       </button>

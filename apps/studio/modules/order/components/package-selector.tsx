@@ -32,7 +32,7 @@ export function PackageSelector({ service, selectedPackageId, onSelect }: Packag
       <h2 className="nimia-font-display text-2xl font-bold text-white sm:text-3xl">
         Choose a package
       </h2>
-      <p className="mt-2 text-white/55">{service.name} — pick the tier that fits your scope.</p>
+      <p className="mt-2 text-white/55">{service.name}: pick the tier that fits your scope.</p>
 
       <motion.div
         variants={container}

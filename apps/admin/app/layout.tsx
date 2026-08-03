@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     template: "%s | Nimia Admin",
   },
   description:
-    "Internal admin panel for Nimia Games — orders, clients, projects, invoices, and services.",
+    "Internal admin panel for Nimia Games: orders, clients, projects, invoices, and services.",
   robots: {
     // Internal, staff-only tool — never meant to be indexed.
     index: false,

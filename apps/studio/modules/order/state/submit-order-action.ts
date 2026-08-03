@@ -46,7 +46,7 @@ function buildDescription(params: {
   const { categoryName, serviceName, packageLabel, brief, selections } = params;
   const lines: string[] = [
     `Project: ${brief.projectTitle.trim()}`,
-    `Category / Service: ${categoryName} — ${serviceName}${packageLabel ? ` (${packageLabel})` : ""}`,
+    `Category / Service: ${categoryName}, ${serviceName}${packageLabel ? ` (${packageLabel})` : ""}`,
   ];
   if (brief.targetPlatform.trim()) lines.push(`Target Platform: ${brief.targetPlatform.trim()}`);
   lines.push("", "Description:", brief.projectDescription.trim());
@@ -130,7 +130,7 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
   const description = buildDescription({
     categoryName: category.name,
     serviceName: service.name,
-    packageLabel: selectedPackage ? `${selectedPackage.name} — ${selectedPackage.quantityLabel}` : null,
+    packageLabel: selectedPackage ? `${selectedPackage.name}, ${selectedPackage.quantityLabel}` : null,
     brief: input.brief,
     selections,
   });

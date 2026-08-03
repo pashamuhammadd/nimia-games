@@ -13,7 +13,7 @@ const STATUS_DOT_CLASS: Record<ReferralStatus, string> = {
 };
 
 function formatUsd(amount: number): string {
-  return amount > 0 ? `$${amount.toLocaleString("en-US")}` : "—";
+  return amount > 0 ? `$${amount.toLocaleString("en-US")}` : "-";
 }
 
 export function ReferralActivityTable({ referrals }: { referrals: Referral[] }) {
@@ -23,7 +23,7 @@ export function ReferralActivityTable({ referrals }: { referrals: Referral[] }) 
 
       {referrals.length === 0 ? (
         <p className="py-6 text-center text-sm text-white/35">
-          No referrals yet — share your link to start inviting clients.
+          No referrals yet. Share your link to start inviting clients.
         </p>
       ) : (
         <div className="overflow-x-auto">

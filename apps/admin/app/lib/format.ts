@@ -5,7 +5,7 @@
 // dalam USD"). The Finance page shows both, so both formatters live here.
 
 export function formatIDR(amount: number | null | undefined): string {
-  if (amount === null || amount === undefined) return "—";
+  if (amount === null || amount === undefined) return "-";
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
@@ -14,7 +14,7 @@ export function formatIDR(amount: number | null | undefined): string {
 }
 
 export function formatUSD(amount: number | null | undefined): string {
-  if (amount === null || amount === undefined) return "—";
+  if (amount === null || amount === undefined) return "-";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",

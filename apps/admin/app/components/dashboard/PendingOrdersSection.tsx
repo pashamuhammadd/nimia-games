@@ -37,7 +37,7 @@ export function PendingOrdersSection({
       </div>
 
       {orders.length === 0 ? (
-        <p className="py-6 text-center text-sm text-white/35">Nothing waiting on review — nice work.</p>
+        <p className="py-6 text-center text-sm text-white/35">Nothing waiting on review, nice work.</p>
       ) : (
         <div className="flex flex-col gap-3">
           {orders.map((order, index) => (

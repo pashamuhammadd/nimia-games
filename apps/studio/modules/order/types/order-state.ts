@@ -43,7 +43,20 @@ export const ORDER_STEPS = [
 
 export type StepId = (typeof ORDER_STEPS)[number];
 
+/** Which entry path a visitor picked on /order's new Step 0 ("Choose Order
+ * Type", added 3 Agustus 2026, per user request). Deliberately NOT part of
+ * ORDER_STEPS/StepId: only "project-builder" hands off into the existing
+ * step machine below (category -> service -> ... -> review) exactly as it
+ * worked before this change. "packages" and "custom" render their own
+ * placeholder screens instead (see components/order-type-selector.tsx and
+ * components/order-wizard.tsx's render branch) — kept out of the step
+ * machine so Packages/Custom Order can grow into real flows later without
+ * touching Project Builder's architecture at all. */
+export type OrderType = "project-builder" | "packages" | "custom";
+
 export interface OrderWizardState {
+  /** null until Step 0 is answered — see OrderType above. */
+  orderType: OrderType | null;
   step: StepId;
   categoryId: string | null;
   serviceId: string | null;
@@ -66,6 +79,7 @@ export interface OrderWizardState {
 }
 
 export const INITIAL_ORDER_STATE: OrderWizardState = {
+  orderType: null,
   step: "category",
   categoryId: null,
   serviceId: null,

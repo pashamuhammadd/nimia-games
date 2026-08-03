@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, ChevronDown, LogOut, Menu, Settings, MessageCircle } from "lucide-react";
 import { getActiveNavItem } from "../DashboardNav";
-import { Avatar } from "./Avatar";
 
 // Nimia Studio's Discord — replace with the real invite link once one
 // exists; this is a placeholder so the UI has somewhere to point today
@@ -37,17 +36,16 @@ export function Topbar({
   onMenuClick,
   userName,
   userEmail,
-  userAvatarUrl,
   onSignOut,
 }: {
   onMenuClick: () => void;
   userName: string;
   userEmail: string;
-  userAvatarUrl?: string | null;
   onSignOut: () => void;
 }) {
   const pathname = usePathname();
   const pageTitle = getActiveNavItem(pathname)?.label ?? "Dashboard";
+  const initial = (userName || userEmail || "?").trim().charAt(0).toUpperCase();
 
   const [bellOpen, setBellOpen] = React.useState(false);
   const [avatarOpen, setAvatarOpen] = React.useState(false);
@@ -89,7 +87,7 @@ export function Topbar({
             >
               <div className="px-3.5 pb-2 pt-3 text-sm font-semibold text-white">Notifications</div>
               <div className="px-3.5 pb-4 pt-1 text-sm text-white/45">
-                You&apos;re all caught up — nothing new right now.
+                You&apos;re all caught up, nothing new right now.
               </div>
             </div>
           ) : null}
@@ -105,7 +103,9 @@ export function Topbar({
             aria-expanded={avatarOpen}
             className="flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 transition-colors hover:bg-white/[0.06]"
           >
-            <Avatar avatarUrl={userAvatarUrl} name={userName || userEmail} size="sm" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[var(--nimia-crimson)] to-[var(--nimia-pink)] text-sm font-semibold text-white">
+              {initial}
+            </span>
             <span className="hidden max-w-[9rem] truncate text-sm font-medium text-white/90 sm:inline">
               {userName || userEmail}
             </span>

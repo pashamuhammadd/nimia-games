@@ -8,7 +8,7 @@ export default function ClientsPage() {
     <ComingSoonState
       icon={Users}
       title="Client Directory"
-      description="A searchable list of every client — company info, contact details, and their full order/project history — is coming in a later stage."
+      description="A searchable list of every client: company info, contact details, and their full order/project history. Coming in a later stage."
     />
   );
 }

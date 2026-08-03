@@ -1,5 +1,8 @@
 export { OrderWizard } from "./order-wizard";
 export { OrderHeader } from "./order-header";
+export { OrderTypeSelector } from "./order-type-selector";
+export { PackagesPlaceholder } from "./packages-placeholder";
+export { CustomOrderPlaceholder } from "./custom-order-placeholder";
 export { ProgressIndicator } from "./progress-indicator";
 export { StepNavigation } from "./step-navigation";
 export { CategorySelector } from "./category-selector";

@@ -124,12 +124,12 @@ export function RegisterForm({ initialReferralCode = "" }: { initialReferralCode
             ) : applied ? (
               <p className="mt-1.5 flex items-center gap-1 text-xs text-emerald-400">
                 <Check className="h-3 w-3" aria-hidden="true" />
-                Referral code applied — you can still change it before creating your account.
+                Referral code applied. You can still change it before creating your account.
               </p>
             ) : (
               <p className="mt-1.5 flex items-center gap-1 text-xs text-[var(--nimia-muted)]">
                 <Pencil className="h-3 w-3" aria-hidden="true" />
-                Have a partner's link or code? Enter it here — this can't be changed once your account is created.
+                Have a partner's link or code? Enter it here: this can't be changed once your account is created.
               </p>
             )}
           </div>

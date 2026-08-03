@@ -98,7 +98,7 @@ export function Topbar({
             >
               <div className="px-3.5 pb-2 pt-3 text-sm font-semibold text-white">Notifications</div>
               <div className="px-3.5 pb-4 pt-1 text-sm text-white/45">
-                You&apos;re all caught up — nothing new right now.
+                You&apos;re all caught up, nothing new right now.
               </div>
             </div>
           ) : null}

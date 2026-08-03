@@ -6,6 +6,9 @@ import { PartyPopper } from "lucide-react";
 import { Button, buttonVariants, cn } from "@nimia/ui";
 import { useOrderWizard } from "../state/use-order-wizard";
 import { OrderHeader } from "./order-header";
+import { OrderTypeSelector } from "./order-type-selector";
+import { PackagesPlaceholder } from "./packages-placeholder";
+import { CustomOrderPlaceholder } from "./custom-order-placeholder";
 import { ProgressIndicator } from "./progress-indicator";
 import { StepNavigation } from "./step-navigation";
 import { CategorySelector } from "./category-selector";
@@ -43,7 +46,7 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
           </h1>
           <p className="mt-3 text-white/60">
             {wizard.submittedIntent === "negotiate"
-              ? "Thanks for configuring your project with Nimia Studio. Our team will review your offer and either approve it or send a counter offer — you can follow the negotiation from your dashboard."
+              ? "Thanks for configuring your project with Nimia Studio. Our team will review your offer and either approve it or send a counter offer. You can follow the negotiation from your dashboard."
               : "Thanks for configuring your project with Nimia Studio. Our team will review it and follow up with a final quotation shortly."}
           </p>
           <div className="mt-8 flex gap-3">
@@ -60,6 +63,46 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
               Go to dashboard
             </Link>
           </div>
+        </main>
+      </div>
+    );
+  }
+
+  // STEP 0 — added 3 Agustus 2026, per user request. Nothing below this
+  // point (ProgressIndicator, the step machine, StepNavigation, submit())
+  // changed at all: "project-builder" is the only orderType that reaches
+  // it, exactly the same wizard that existed before this addition.
+  // "packages" and "custom" render their own placeholder screens instead —
+  // see components/order-type-selector.tsx's comment for why this lives
+  // outside ORDER_STEPS/StepId entirely.
+  if (!wizard.orderType) {
+    return (
+      <div className="nimia-dark min-h-screen">
+        <OrderHeader isAuthenticated={isAuthenticated} />
+        <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+          <OrderTypeSelector onSelect={wizard.selectOrderType} />
+        </main>
+      </div>
+    );
+  }
+
+  if (wizard.orderType === "packages") {
+    return (
+      <div className="nimia-dark min-h-screen">
+        <OrderHeader isAuthenticated={isAuthenticated} />
+        <main className="mx-auto max-w-5xl px-4 sm:px-6">
+          <PackagesPlaceholder onBack={wizard.resetOrderType} />
+        </main>
+      </div>
+    );
+  }
+
+  if (wizard.orderType === "custom") {
+    return (
+      <div className="nimia-dark min-h-screen">
+        <OrderHeader isAuthenticated={isAuthenticated} />
+        <main className="mx-auto max-w-5xl px-4 sm:px-6">
+          <CustomOrderPlaceholder onBack={wizard.resetOrderType} />
         </main>
       </div>
     );
@@ -91,10 +134,19 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
             >
               {wizard.state.step === "category" ? (
-                <CategorySelector
-                  selectedCategoryId={wizard.state.categoryId}
-                  onSelect={wizard.selectCategory}
-                />
+                <div>
+                  <button
+                    type="button"
+                    onClick={wizard.resetOrderType}
+                    className="mb-4 text-sm font-medium text-white/45 transition-colors hover:text-white"
+                  >
+                    ← Change order type
+                  </button>
+                  <CategorySelector
+                    selectedCategoryId={wizard.state.categoryId}
+                    onSelect={wizard.selectCategory}
+                  />
+                </div>
               ) : null}
 
               {wizard.state.step === "service" ? (

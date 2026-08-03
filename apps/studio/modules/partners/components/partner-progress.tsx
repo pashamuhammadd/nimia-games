@@ -41,7 +41,7 @@ export function PartnerProgress({ progress }: { progress: LevelProgress }) {
 
       <p className="mt-2.5 text-sm text-white/50">
         {isMaxLevel
-          ? `${progress.paidClientsCount} Paid Clients — you've reached the highest partner level.`
+          ? `${progress.paidClientsCount} Paid Clients, you've reached the highest partner level.`
           : `${progress.paidClientsCount} / ${progress.targetPaidClients} Paid Clients`}
       </p>
     </motion.section>
