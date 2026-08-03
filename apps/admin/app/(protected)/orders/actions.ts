@@ -83,3 +83,83 @@ export async function convertToProjectAction(orderId: string): Promise<OrderActi
   revalidatePath("/projects");
   return { success: true };
 }
+
+// ------------------------------------------------------------------
+// Negotiation actions (3 Agustus 2026, per user request — "kok gaada list
+// yang nego sih"). An order lands in status 'negotiating' when a client
+// uses /order's "Negotiate Price" button (see
+// apps/studio/modules/order/state/submit-order-action.ts); until now this
+// app had no way to see the offer or respond to it. Mirrors the
+// client-facing thread in
+// apps/studio/app/dashboard/negotiations/NegotiationThreadList.tsx — same
+// order_negotiations rows, opposite side of the conversation.
+// ------------------------------------------------------------------
+
+// Accepts an offer as-is: records it as the agreed price and moves the
+// order to 'awaiting_payment' (the next stage in the crypto-payment flow,
+// see packages/db/migrations/0012/0013) so the client can be sent a wallet
+// address to pay. Deliberately does NOT insert a new order_negotiations
+// row — accepting isn't a new offer, it's agreeing to the existing one.
+export async function acceptNegotiationOfferAction(
+  orderId: string,
+  amountUsd: number,
+): Promise<OrderActionResult> {
+  const supabase = createServerClient(await cookies());
+  const { error } = await supabase
+    .from("orders")
+    .update({ status: "awaiting_payment", final_price_usd: amountUsd })
+    .eq("id", orderId);
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/orders");
+  revalidatePath("/");
+  return { success: true };
+}
+
+// Sends a counter offer: a new order_negotiations row from 'staff' — same
+// shape as the client's own offer, just the other side of the thread. The
+// order stays in 'negotiating' until either side accepts (or rejects).
+export async function sendCounterOfferAction(
+  orderId: string,
+  amountUsd: number,
+  message?: string,
+): Promise<OrderActionResult> {
+  if (!Number.isFinite(amountUsd) || amountUsd <= 0) {
+    return { success: false, error: "Enter a valid counter offer amount." };
+  }
+
+  const supabase = createServerClient(await cookies());
+
+  // Defense in depth alongside order_negotiations_insert_own_or_admin's RLS
+  // check — this also makes sure the order is actually still negotiating
+  // rather than silently attaching an offer to an already-closed order.
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .select("status")
+    .eq("id", orderId)
+    .single();
+  if (orderError || !order) {
+    return { success: false, error: orderError?.message ?? "Order not found." };
+  }
+  if ((order as any).status !== "negotiating") {
+    return { success: false, error: "This order is no longer under negotiation." };
+  }
+
+  const { error } = await supabase.from("order_negotiations").insert({
+    order_id: orderId,
+    proposed_by: "staff",
+    amount_usd: amountUsd,
+    message: message?.trim() || null,
+  });
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/orders");
+  revalidatePath("/");
+  return { success: true };
+}
+
+// Ends a negotiation without agreeing to a price — same terminal state as
+// rejecting a fresh order, just reachable from 'negotiating' too.
+export async function rejectNegotiationAction(orderId: string): Promise<OrderActionResult> {
+  return rejectOrderAction(orderId);
+}

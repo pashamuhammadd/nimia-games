@@ -6,6 +6,14 @@ import { orderStatusMeta } from "../../lib/orderStatus";
 import { formatRelativeTime } from "../../lib/relativeTime";
 import { OrderDetailPanel } from "./OrderDetailPanel";
 
+export type NegotiationOfferRow = {
+  id: string;
+  proposed_by: string;
+  amount_usd: number;
+  message: string | null;
+  created_at: string;
+};
+
 export type OrderListItem = {
   id: string;
   full_name: string;
@@ -18,10 +26,19 @@ export type OrderListItem = {
   description: string;
   reference_link: string | null;
   status: string;
+  // Added 3 Agustus 2026, per user request ("kok gaada list yang nego
+  // sih") — proposed_price_usd is the client's/system's asking price,
+  // final_price_usd is set once staff accepts an offer (see
+  // acceptNegotiationOfferAction in ./actions.ts), and order_negotiations
+  // is the full back-and-forth offer history rendered in
+  // OrderDetailPanel.
+  proposed_price_usd: number | null;
+  final_price_usd: number | null;
   created_at: string;
   services: { name: string } | null;
   clients: { company_name: string | null } | null;
   order_files: { id: string; file_name: string; file_url: string }[];
+  order_negotiations: NegotiationOfferRow[];
 };
 
 // Deterministic per-client accent, same trick as
@@ -67,6 +84,16 @@ export function OrdersList({ orders }: { orders: OrderListItem[] }) {
         {orders.map((order) => {
           const clientLabel = order.clients?.company_name || order.company_name || order.full_name;
           const meta = orderStatusMeta(order.status);
+          // Latest offer in the thread (client's or staff's) — surfaced
+          // right in the list row so a negotiating order's asking price is
+          // visible at a glance, not just after opening the detail panel.
+          // PostgREST doesn't guarantee embed array order, so this picks by
+          // created_at rather than assuming array position.
+          const latestOffer = order.order_negotiations.reduce<NegotiationOfferRow | null>(
+            (latest, offer) =>
+              !latest || offer.created_at > latest.created_at ? offer : latest,
+            null,
+          );
           return (
             <button
               key={order.id}
@@ -92,9 +119,15 @@ export function OrdersList({ orders }: { orders: OrderListItem[] }) {
                   {order.services?.name ?? "Custom Project"}
                   {order.budget ? ` · ${order.budget}` : ""}
                 </p>
-                <div className="mt-2 flex items-center gap-1.5">
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className={`h-1.5 w-1.5 rounded-full ${meta.dotClass}`} aria-hidden="true" />
                   <span className="text-xs font-medium text-white/50">{meta.label}</span>
+                  {latestOffer ? (
+                    <span className="text-xs text-white/35">
+                      · {latestOffer.proposed_by === "client" ? "Client offered" : "You offered"} $
+                      {latestOffer.amount_usd.toLocaleString("en-US")}
+                    </span>
+                  ) : null}
                 </div>
               </div>
 

@@ -17,7 +17,12 @@ export default async function OrdersPage({
   let query = supabase
     .from("orders")
     .select(
-      "id, full_name, company_name, email, whatsapp, country, budget, deadline, description, reference_link, status, created_at, services(name), clients(company_name), order_files(id, file_name, file_url)",
+      // proposed_price_usd/final_price_usd + the order_negotiations embed
+      // (3 Agustus 2026, per user request — "kok gaada list yang nego
+      // sih") let OrderDetailPanel show the actual offer thread for a
+      // negotiating order, same data shape as
+      // apps/studio/app/dashboard/negotiations/page.tsx already reads.
+      "id, full_name, company_name, email, whatsapp, country, budget, deadline, description, reference_link, status, proposed_price_usd, final_price_usd, created_at, services(name), clients(company_name), order_files(id, file_name, file_url), order_negotiations(id, proposed_by, amount_usd, message, created_at)",
     )
     .order("created_at", { ascending: false });
 
