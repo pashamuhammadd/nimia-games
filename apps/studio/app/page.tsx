@@ -6,6 +6,7 @@ import { buttonVariants, cn } from "@nimia/ui";
 import { Play, Rocket, Smile, Wrench, Headphones } from "lucide-react";
 import { PublicNavbar } from "./components/PublicNavbar";
 import { StartProjectButton } from "./components/StartProjectButton";
+import { TypedHeroHeadline } from "./components/TypedHeroHeadline";
 
 // Placeholder numbers (confirmed with the user 29 Juli 2026 — these are
 // the reference design's example figures, not verified Nimia Games data
@@ -13,7 +14,7 @@ import { StartProjectButton } from "./components/StartProjectButton";
 const STATS = [
   { icon: Rocket, value: "100+", label: "Projects Completed" },
   { icon: Smile, value: "50+", label: "Happy Clients" },
-  { icon: Wrench, value: "5+", label: "Years Experience" },
+  { icon: Wrench, value: "7+", label: "Years Experience" },
   { icon: Headphones, value: "24/7", label: "Support" },
 ];
 
@@ -63,9 +64,10 @@ export default async function StudioHomePage() {
                 Digital Assets &bull; Animation &bull; Game Development
               </span>
 
-              <h1 className="nimia-font-display mt-4 text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
-                <span className="nimia-gradient-text">Digital Assets</span> That Bring Ideas to Life
-              </h1>
+              {/* Typing animation (3 Agustus 2026, per user request — the
+                  static headline felt passive) — see
+                  components/TypedHeroHeadline.tsx. */}
+              <TypedHeroHeadline />
 
               <p className="mt-4 max-w-lg text-lg text-[var(--nimia-muted)]">
                 Nimia Games Studio is a creative production studio specializing

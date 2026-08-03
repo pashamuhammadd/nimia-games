@@ -41,7 +41,12 @@ export function Modal({ open, onClose, children, className, ariaLabel }: ModalPr
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4 py-8"
+      // Darkened from bg-black/40 (3 Agustus 2026, per user request — the
+      // page behind the modal needs to read as clearly dimmed so the modal
+      // itself stands out). Matches MobileNavDrawer's own overlay exactly
+      // (apps/studio/app/components/dashboard/MobileNavDrawer.tsx) so every
+      // overlay on the site now dims the backdrop the same amount.
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
       role="presentation"
       onClick={onClose}
     >

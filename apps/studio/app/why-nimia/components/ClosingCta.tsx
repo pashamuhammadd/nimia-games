@@ -44,7 +44,7 @@ export function ClosingCta({ isAuthenticated }: { isAuthenticated: boolean }) {
             isAuthenticated={isAuthenticated}
             className="nimia-cta-gradient group inline-flex items-center gap-2 rounded-lg px-8 py-4 text-base font-semibold text-white shadow-[0_20px_60px_-15px_rgba(193,18,77,0.55)] transition-transform hover:scale-[1.03]"
           >
-            Start Your Project
+            Start a Project
             <ArrowRight
               className="h-4 w-4 transition-transform group-hover:translate-x-1"
               aria-hidden="true"

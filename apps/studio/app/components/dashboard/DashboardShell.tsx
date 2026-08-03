@@ -15,11 +15,13 @@ export function DashboardShell({
   children,
   userName,
   userEmail,
+  userAvatarUrl,
   signOutAction,
 }: {
   children: React.ReactNode;
   userName: string;
   userEmail: string;
+  userAvatarUrl?: string | null;
   signOutAction: () => void | Promise<void>;
 }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -41,6 +43,7 @@ export function DashboardShell({
           onMenuClick={() => setMobileOpen(true)}
           userName={userName}
           userEmail={userEmail}
+          userAvatarUrl={userAvatarUrl}
           onSignOut={() => void signOutAction()}
         />
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>

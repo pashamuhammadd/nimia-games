@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Label } from "@nimia/ui";
+import { Avatar } from "../../components/dashboard/Avatar";
 
 export const metadata = { title: "Profile" };
 
@@ -12,7 +13,7 @@ export default async function ProfilePage() {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("full_name")
+    .select("full_name, avatar_url")
     .eq("id", user!.id)
     .single();
 
@@ -35,11 +36,20 @@ export default async function ProfilePage() {
       <h1 className="text-2xl font-bold">Profile</h1>
       <Card className="max-w-md">
         <CardHeader>
-          <CardTitle>Account information</CardTitle>
-          <CardDescription>
-            Profile editing will be available in a future phase. For now,
-            contact admin if any information needs updating.
-          </CardDescription>
+          <div className="flex items-center gap-4">
+            {/* Default avatar (3 Agustus 2026, per user request) — see
+                components/dashboard/Avatar.tsx: shows profile.avatar_url
+                once a real photo exists, otherwise a Nimia-colored generic
+                person silhouette instead of a plain initial letter. */}
+            <Avatar avatarUrl={profile?.avatar_url} name={profile?.full_name ?? undefined} size="md" />
+            <div>
+              <CardTitle>Account information</CardTitle>
+              <CardDescription>
+                Profile editing (including uploading a real photo) will be available in a future
+                phase. For now, contact admin if any information needs updating.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {rows.map((row) => (

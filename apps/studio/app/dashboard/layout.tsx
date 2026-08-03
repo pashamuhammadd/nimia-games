@@ -21,9 +21,11 @@ export default async function DashboardLayout({
 
   // Just for the topbar's avatar (name/initial + email) — every other page
   // under /dashboard/* still does its own, more specific data fetching.
+  // avatar_url (3 Agustus 2026) is read here too so Topbar can show a real
+  // photo the moment one exists — see components/dashboard/Avatar.tsx.
   const { data: profile } = await supabase
     .from("users")
-    .select("full_name")
+    .select("full_name, avatar_url")
     .eq("id", user.id)
     .single();
 
@@ -31,6 +33,7 @@ export default async function DashboardLayout({
     <DashboardShell
       userName={profile?.full_name ?? ""}
       userEmail={user.email ?? ""}
+      userAvatarUrl={profile?.avatar_url ?? null}
       signOutAction={signOutAction}
     >
       {children}

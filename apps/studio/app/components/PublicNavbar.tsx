@@ -45,9 +45,11 @@ const NAV_LINKS = [
 //
 // Single CTA (per explicit user instruction, replacing the previous
 // Log in + Start a Project / Go to dashboard pair): the navbar now only
-// ever shows one button, "Start Your Project" — its destination is what
-// changes based on auth state, not the button itself. Signed in, it goes
-// straight to /order, the Project Configurator (see modules/order).
+// ever shows one button, "Start a Project" (3 Agustus 2026: unified from
+// "Start Your Project" — every such CTA sitewide now uses the exact same
+// label) — its destination is what changes based on auth state, not the
+// button itself. Signed in, it goes straight to /order, the Project
+// Configurator (see modules/order).
 //
 // Signed out (rewritten 3 Agustus 2026, per user request — modal login
 // sitewide, not just here): it no longer navigates to the full /login page.
@@ -101,7 +103,7 @@ export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: bo
               "bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",
             )}
           >
-            Start Your Project
+            Start a Project
           </StartProjectButton>
         </div>
 
@@ -144,7 +146,7 @@ export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: bo
                 "justify-center bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",
               )}
             >
-              Start Your Project
+              Start a Project
             </StartProjectButton>
           </div>
         </div>
