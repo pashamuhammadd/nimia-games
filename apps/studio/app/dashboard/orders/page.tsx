@@ -5,6 +5,7 @@ import { buttonVariants, cn } from "@nimia/ui";
 import { Plus } from "lucide-react";
 import { OrdersList, type OrderListItem } from "./OrdersList";
 import { EmptyOrdersState } from "./EmptyOrdersState";
+import type { PaymentWalletOption } from "./PaymentPanel";
 
 export const metadata = { title: "Orders" };
 
@@ -42,7 +43,11 @@ export default async function OrdersPage() {
     const { data } = await supabase
       .from("orders")
       .select(
-        "id, description, status, budget, final_price_usd, proposed_price_usd, created_at, services(name)",
+        // payment_* columns added (3 Agustus 2026, per user request —
+        // "kenapa belum bisa bayar") so OrderDetail/PaymentPanel can show
+        // what's already been submitted for an order, not just its status.
+        // See packages/db/migrations/0013_negotiation_payments_ambassadors.sql.
+        "id, description, status, budget, final_price_usd, proposed_price_usd, created_at, services(name), payment_network, payment_token, payment_wallet_address, payment_expected_amount, payment_tx_hash, payment_submitted_at, payment_verified_at, payment_underpaid_note",
       )
       .eq("client_id", client.id)
       .order("created_at", { ascending: false });
@@ -63,9 +68,37 @@ export default async function OrdersPage() {
         finalPriceUsd: o.final_price_usd,
         proposedPriceUsd: o.proposed_price_usd,
         createdAt: o.created_at,
+        paymentNetwork: o.payment_network,
+        paymentToken: o.payment_token,
+        paymentWalletAddress: o.payment_wallet_address,
+        paymentExpectedAmount: o.payment_expected_amount,
+        paymentTxHash: o.payment_tx_hash,
+        paymentSubmittedAt: o.payment_submitted_at,
+        paymentVerifiedAt: o.payment_verified_at,
+        paymentUnderpaidNote: o.payment_underpaid_note,
       };
     });
   }
+
+  // payment_wallets metadata (network + accepted currencies, NOT the
+  // address itself — that's only revealed via getPaymentQuoteAction once a
+  // client actually picks a network/currency, see PaymentPanel.tsx) so the
+  // network/currency selects have something to populate without an extra
+  // round trip per order. Public-readable for active rows regardless of
+  // order status (payment_wallets_public_read_active, 0013), so this is
+  // safe to fetch unconditionally.
+  const { data: walletRows } = await supabase
+    .from("payment_wallets")
+    .select("network, stablecoin_symbols, native_symbol, allow_native")
+    .eq("is_active", true)
+    .order("network", { ascending: true });
+
+  const walletOptions: PaymentWalletOption[] = (walletRows ?? []).map((w: any) => ({
+    network: w.network,
+    stablecoinSymbols: w.stablecoin_symbols ?? [],
+    nativeSymbol: w.native_symbol,
+    allowNative: w.allow_native,
+  }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -82,7 +115,11 @@ export default async function OrdersPage() {
         </Link>
       </div>
 
-      {orders.length > 0 ? <OrdersList orders={orders} /> : <EmptyOrdersState ctaHref={NEW_ORDER_HREF} />}
+      {orders.length > 0 ? (
+        <OrdersList orders={orders} walletOptions={walletOptions} />
+      ) : (
+        <EmptyOrdersState ctaHref={NEW_ORDER_HREF} />
+      )}
     </div>
   );
 }

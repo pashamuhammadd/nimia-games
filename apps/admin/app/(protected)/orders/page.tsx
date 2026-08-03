@@ -22,7 +22,12 @@ export default async function OrdersPage({
       // sih") let OrderDetailPanel show the actual offer thread for a
       // negotiating order, same data shape as
       // apps/studio/app/dashboard/negotiations/page.tsx already reads.
-      "id, full_name, company_name, email, whatsapp, country, budget, deadline, description, reference_link, status, proposed_price_usd, final_price_usd, created_at, services(name), clients(company_name), order_files(id, file_name, file_url), order_negotiations(id, proposed_by, amount_usd, message, created_at)",
+      // payment_* columns added (3 Agustus 2026, second pass, per user
+      // request — "kenapa belum bisa bayar/kirim pembayaran") so
+      // OrderDetailPanel can show what the client actually submitted and
+      // let staff verify or flag it. See
+      // packages/db/migrations/0013_negotiation_payments_ambassadors.sql.
+      "id, full_name, company_name, email, whatsapp, country, budget, deadline, description, reference_link, status, proposed_price_usd, final_price_usd, created_at, services(name), clients(company_name), order_files(id, file_name, file_url), order_negotiations(id, proposed_by, amount_usd, message, created_at), payment_network, payment_token, payment_wallet_address, payment_expected_amount, payment_tx_hash, payment_submitted_at, payment_verified_at, payment_underpaid_note",
     )
     .order("created_at", { ascending: false });
 

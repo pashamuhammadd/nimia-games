@@ -11,6 +11,8 @@ import {
   Link as LinkIcon,
   Paperclip,
   Handshake,
+  ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@nimia/ui";
 import { orderStatusMeta } from "../../lib/orderStatus";
@@ -22,9 +24,28 @@ import {
   acceptNegotiationOfferAction,
   sendCounterOfferAction,
   rejectNegotiationAction,
+  verifyPaymentAction,
+  flagUnderpaidPaymentAction,
   type OrderActionResult,
 } from "./actions";
 import type { OrderListItem } from "./OrdersList";
+
+// Display labels for public.crypto_network (packages/db/migrations/0013,
+// extended with 'ton' in 0014) — mirrors
+// apps/studio/app/dashboard/orders/PaymentPanel.tsx's own copy so the same
+// network reads the same in both apps.
+const NETWORK_LABELS: Record<string, string> = {
+  ethereum: "Ethereum",
+  bsc: "BNB Smart Chain (BSC)",
+  tron: "Tron",
+  solana: "Solana",
+  cardano: "Cardano",
+  ton: "TON",
+};
+
+function formatCryptoAmount(amount: number, symbol: string) {
+  return `${amount.toLocaleString("en-US", { maximumFractionDigits: 6 })} ${symbol}`;
+}
 
 export function OrderDetailPanel({
   order,
@@ -38,6 +59,7 @@ export function OrderDetailPanel({
   const [error, setError] = React.useState<string | null>(null);
   const [actionTaken, setActionTaken] = React.useState<string | null>(null);
   const [counterOffer, setCounterOffer] = React.useState("");
+  const [underpaidNote, setUnderpaidNote] = React.useState("");
   const meta = orderStatusMeta(order.status);
   const clientLabel = order.clients?.company_name || order.company_name || order.full_name;
 
@@ -175,6 +197,61 @@ export function OrderDetailPanel({
         </div>
       ) : null}
 
+      {/* Payment details (3 Agustus 2026, second pass, per user request —
+          "kenapa belum bisa bayar/kirim pembayaran"). Only shows once the
+          client has actually submitted something — payment_submitted_at is
+          null while just waiting on them at 'awaiting_payment'. */}
+      {order.payment_submitted_at ? (
+        <div>
+          <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/35">
+            <Wallet className="h-3.5 w-3.5" aria-hidden="true" />
+            Payment
+          </span>
+          <div className="mt-2 flex flex-col gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 text-sm">
+            {order.payment_network ? (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-white/40">Network</span>
+                <span className="text-white/80">
+                  {NETWORK_LABELS[order.payment_network] ?? order.payment_network}
+                </span>
+              </div>
+            ) : null}
+            {order.payment_expected_amount != null && order.payment_token ? (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-white/40">Amount</span>
+                <span className="text-white/80">
+                  {formatCryptoAmount(order.payment_expected_amount, order.payment_token)}
+                </span>
+              </div>
+            ) : null}
+            {order.payment_wallet_address ? (
+              <div className="flex items-center justify-between gap-3">
+                <span className="shrink-0 text-xs text-white/40">To address</span>
+                <span className="truncate font-mono text-xs text-white/80">
+                  {order.payment_wallet_address}
+                </span>
+              </div>
+            ) : null}
+            {order.payment_tx_hash ? (
+              <div className="flex items-center justify-between gap-3">
+                <span className="shrink-0 text-xs text-white/40">Tx hash</span>
+                <span className="truncate font-mono text-xs text-white/80">{order.payment_tx_hash}</span>
+              </div>
+            ) : null}
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs text-white/40">Submitted</span>
+              <span className="text-white/80">{formatRelativeTime(order.payment_submitted_at)}</span>
+            </div>
+            {order.payment_verified_at ? (
+              <div className="flex items-center gap-2 text-emerald-300">
+                <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span className="text-xs">Verified {formatRelativeTime(order.payment_verified_at)}</span>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {order.order_files.length > 0 ? (
         <div>
           <span className="text-xs font-semibold uppercase tracking-wider text-white/35">Attachments</span>
@@ -303,12 +380,61 @@ export function OrderDetailPanel({
             </div>
           ) : null}
 
+          {order.status === "payment_submitted" ? (
+            <div className="flex w-full flex-col gap-3">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() =>
+                  run(() => verifyPaymentAction(order.id), "Payment verified. Order marked as Paid.")
+                }
+                className="self-start rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-600 disabled:opacity-50"
+              >
+                Verify Payment
+              </button>
+
+              <div className="flex flex-col gap-2 rounded-lg border border-amber-400/20 bg-amber-400/5 p-3">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  Something off with this payment?
+                </div>
+                <textarea
+                  placeholder="Explain what's wrong (shown to the client on their Orders page)"
+                  value={underpaidNote}
+                  onChange={(event) => setUnderpaidNote(event.target.value)}
+                  rows={2}
+                  className="w-full resize-none rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={isPending || !underpaidNote.trim()}
+                  onClick={() => {
+                    if (!underpaidNote.trim()) {
+                      setError("Explain what's wrong with the payment for the client to see.");
+                      return;
+                    }
+                    run(
+                      () => flagUnderpaidPaymentAction(order.id, underpaidNote),
+                      "Client asked to resubmit payment.",
+                    );
+                  }}
+                  className="self-start rounded-lg border border-amber-400/30 px-3 py-1.5 text-sm font-semibold text-amber-300 transition-colors hover:bg-amber-400/10 disabled:opacity-40"
+                >
+                  Flag as Underpaid / Ask to Resubmit
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           {order.status === "rejected" ||
           order.status === "converted" ||
           order.status === "awaiting_payment" ||
-          order.status === "payment_submitted" ||
           order.status === "paid" ? (
-            <p className="text-sm text-white/40">No further actions available for this order.</p>
+            <p className="text-sm text-white/40">
+              {order.status === "awaiting_payment"
+                ? "Waiting for the client to submit a payment."
+                : "No further actions available for this order."}
+            </p>
           ) : null}
         </div>
       ) : (

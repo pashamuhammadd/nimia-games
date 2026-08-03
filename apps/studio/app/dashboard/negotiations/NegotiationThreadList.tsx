@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { cn } from "@nimia/ui";
 import { orderStatusMeta } from "../../lib/orderStatus";
@@ -54,6 +55,11 @@ function NegotiationThreadCard({ thread, index }: { thread: NegotiationThread; i
   const [isPending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
   const [actionTaken, setActionTaken] = React.useState<string | null>(null);
+  // Tracked separately from `actionTaken`'s message text (3 Agustus 2026,
+  // second pass, per user request — "kenapa belum bisa bayar") so the
+  // "go pay now" link below only shows for the Accept action specifically,
+  // not Reject/counter-offer, without parsing the message string.
+  const [accepted, setAccepted] = React.useState(false);
   const [counterOffer, setCounterOffer] = React.useState("");
 
   const meta = orderStatusMeta(thread.status);
@@ -63,7 +69,7 @@ function NegotiationThreadCard({ thread, index }: { thread: NegotiationThread; i
   // client made the last move, they're waiting on a response, not owed one.
   const canRespond = thread.status === "negotiating" && latestOffer?.proposedBy === "staff";
 
-  function run(action: () => Promise<NegotiationActionResult>, doneMessage: string) {
+  function run(action: () => Promise<NegotiationActionResult>, doneMessage: string, wasAccept = false) {
     setError(null);
     startTransition(async () => {
       const result = await action();
@@ -72,6 +78,7 @@ function NegotiationThreadCard({ thread, index }: { thread: NegotiationThread; i
         return;
       }
       setActionTaken(doneMessage);
+      if (wasAccept) setAccepted(true);
       router.refresh();
     });
   }
@@ -130,6 +137,14 @@ function NegotiationThreadCard({ thread, index }: { thread: NegotiationThread; i
 
       {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
       {actionTaken ? <p className="mt-3 text-sm text-emerald-400">{actionTaken}</p> : null}
+      {accepted ? (
+        <Link
+          href="/dashboard/orders"
+          className="mt-2 inline-block text-sm font-semibold text-[var(--nimia-pink)] underline-offset-2 hover:underline"
+        >
+          Go to Orders to complete payment →
+        </Link>
+      ) : null}
 
       {/* Respond to Nimia Studio's counter offer (3 Agustus 2026, per user
           request — "klien hanya bisa melihat harga tawaran dari tim nimia
@@ -147,7 +162,8 @@ function NegotiationThreadCard({ thread, index }: { thread: NegotiationThread; i
               onClick={() =>
                 run(
                   () => acceptNegotiationOfferAction(thread.orderId),
-                  `Accepted at $${latestOffer!.amountUsd.toLocaleString("en-US")}. Waiting on payment details next.`,
+                  `Accepted at $${latestOffer!.amountUsd.toLocaleString("en-US")}. Head to your Orders page to pay.`,
+                  true,
                 )
               }
               className="rounded-lg bg-[var(--nimia-crimson)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--nimia-crimson-hover)] disabled:opacity-50"

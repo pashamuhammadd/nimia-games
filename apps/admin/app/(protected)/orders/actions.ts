@@ -163,3 +163,99 @@ export async function sendCounterOfferAction(
 export async function rejectNegotiationAction(orderId: string): Promise<OrderActionResult> {
   return rejectOrderAction(orderId);
 }
+
+// ------------------------------------------------------------------
+// Payment verification actions (3 Agustus 2026, second pass, per user
+// request — "kenapa belum bisa bayar/kirim pembayaran"). Once a client
+// submits a tx hash via apps/studio's PaymentPanel (see
+// apps/studio/app/dashboard/orders/payment-actions.ts), the order sits at
+// 'payment_submitted' with payment_network/token/wallet_address/
+// expected_amount/tx_hash filled in (packages/db/migrations/0013) — until
+// now nothing here ever read those columns or moved the order past that
+// point.
+// ------------------------------------------------------------------
+
+// Confirms the submitted tx actually matches (checked manually against a
+// block explorer — this app has no on-chain verification of its own) and
+// marks the order 'paid'. payment_verified_by/payment_verified_at (0013)
+// record who/when, same idea as payment_verified_by on the legacy
+// IDR-invoice flow's `payments` table (0005).
+export async function verifyPaymentAction(orderId: string): Promise<OrderActionResult> {
+  const supabase = createServerClient(await cookies());
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, error: "Your session has expired, please log in again." };
+  }
+
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .select("status")
+    .eq("id", orderId)
+    .single();
+  if (orderError || !order) {
+    return { success: false, error: orderError?.message ?? "Order not found." };
+  }
+  if ((order as any).status !== "payment_submitted") {
+    return { success: false, error: "Only orders with a submitted payment can be verified." };
+  }
+
+  const { error } = await supabase
+    .from("orders")
+    .update({
+      status: "paid",
+      payment_verified_by: user.id,
+      payment_verified_at: new Date().toISOString(),
+    })
+    .eq("id", orderId);
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/orders");
+  revalidatePath("/");
+  return { success: true };
+}
+
+// The submitted tx didn't check out (wrong amount, wrong network, not
+// found, etc.) — sent back to 'awaiting_payment' (rather than left on
+// 'payment_submitted') because orders_update_own_payment_submission (0013)
+// only lets the client move FROM 'awaiting_payment', so that's the only
+// status PaymentPanel's network/currency picker renders for. The note is
+// shown to the client on their next visit (see PaymentPanel.tsx's
+// `underpaidNote` banner) so they know what to fix before resending.
+export async function flagUnderpaidPaymentAction(
+  orderId: string,
+  note: string,
+): Promise<OrderActionResult> {
+  const trimmedNote = note.trim();
+  if (!trimmedNote) {
+    return { success: false, error: "Explain what's wrong with the payment for the client to see." };
+  }
+
+  const supabase = createServerClient(await cookies());
+
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .select("status")
+    .eq("id", orderId)
+    .single();
+  if (orderError || !order) {
+    return { success: false, error: orderError?.message ?? "Order not found." };
+  }
+  if ((order as any).status !== "payment_submitted") {
+    return { success: false, error: "Only orders with a submitted payment can be flagged." };
+  }
+
+  const { error } = await supabase
+    .from("orders")
+    .update({
+      status: "awaiting_payment",
+      payment_underpaid_note: trimmedNote,
+    })
+    .eq("id", orderId);
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/orders");
+  revalidatePath("/");
+  return { success: true };
+}

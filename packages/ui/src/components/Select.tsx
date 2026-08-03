@@ -9,7 +9,7 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, invalid, children, ...props }, ref) => {
+  ({ className, invalid, children, style, ...props }, ref) => {
     return (
       <select
         ref={ref}
@@ -21,6 +21,19 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           className,
         )}
         aria-invalid={invalid || undefined}
+        // color-scheme set directly on the element itself (3 Agustus 2026,
+        // fourth pass, per user report — the open dropdown list stayed
+        // white even after color-scheme: dark was added to the surrounding
+        // .nimia-dark/.nimia-dark-vars scope in globals.css). That should
+        // have been enough on its own since color-scheme inherits — this
+        // inline style is a belt-and-suspenders fix so the native popup is
+        // guaranteed dark no matter what's (or isn't) applied up the DOM
+        // tree above it, since every current caller of this shared
+        // component (apps/admin entirely, apps/studio's dashboard/modal
+        // usage) is dark-only anyway. Merged after `style` so a future
+        // caller could still override it explicitly if a light-themed
+        // Select is ever needed.
+        style={{ colorScheme: "dark", ...style }}
         {...props}
       >
         {children}

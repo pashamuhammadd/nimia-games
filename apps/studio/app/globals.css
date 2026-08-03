@@ -34,6 +34,16 @@
   --nimia-surface: #ffffff;
   --nimia-surface-hover: #fdf1f5;
   --nimia-muted: #7a6870;
+
+  /* Solid (near-opaque) popover background for floating panels that sit ON
+     TOP of other content — e.g. Listbox.tsx's open option list (3 Agustus
+     2026, sixth pass, per user report — the option list used
+     --nimia-surface-hover, which is only 8% white on dark scopes, so text
+     from whatever was underneath it in the DOM read straight through and
+     visually collided with the options). --nimia-surface/-hover stay
+     translucent on purpose for cards that sit flush against the page
+     background; a popover instead needs to fully occlude the page below it. */
+  --nimia-popover: rgba(255, 255, 255, 0.98);
 }
 
 @theme inline {
@@ -58,9 +68,73 @@
   --nimia-surface: rgba(255, 255, 255, 0.04);
   --nimia-surface-hover: rgba(255, 255, 255, 0.08);
   --nimia-muted: #b3a2aa;
+  /* Solid dark maroon-black, ~97% opaque — see :root's --nimia-popover
+     comment above. Deliberately a manually-picked static hex rather than a
+     color-mix()/opacity-modifier expression on var(--nimia-maroon) — this
+     codebase avoids relying on those resolving consistently across
+     Tailwind/browser versions (see Listbox.tsx's own note on the same
+     tradeoff for its option-row hover color). */
+  --nimia-popover: rgba(23, 6, 15, 0.97);
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sora), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  /* Tells the browser to draw its OWN native chrome (a <select>'s open
+     dropdown list, scrollbars, checkboxes/radios) in dark mode too (3
+     Agustus 2026, third pass, per user report — the <select> popup itself
+     stayed a plain white OS list even after the modal/panel around it went
+     dark). That popup isn't paintable with normal CSS at all — Tailwind's
+     bg-[var(--nimia-surface)] etc. only ever reached the closed <select>
+     box, never the open dropdown, since browsers render that part with
+     native OS/GPU UI outside the page's own paint layer. color-scheme is
+     the one CSS property that native UI DOES read. */
+  color-scheme: dark;
+}
+
+/* NOTE this file's ".nimia-dark" comment above is stale: DashboardShell.tsx
+   actually wraps the whole /dashboard/* shell in "nimia-dark" too (Client
+   Dashboard redesign, 30 Juli 2026) — the dashboard is dark everywhere in
+   practice, not the light theme this file's :root still describes.
+
+   Vars-only variant of .nimia-dark (3 Agustus 2026, second pass, per user
+   report — modal rendered light/unreadable). @nimia/ui's <Modal> renders
+   through a React portal straight onto document.body (see
+   packages/ui/src/components/Modal.tsx), which escapes DashboardShell's
+   "nimia-dark" wrapper entirely — a Modal opened from /dashboard fell back
+   to :root's LIGHT values, and this file's own hardcoded "text-white"
+   dashboard components then rendered invisible white-on-white.
+   .nimia-dark itself can't just be added to the Modal's own panel div to
+   fix this: it ALSO sets `background`/`color` directly (unlayered CSS —
+   see the `a { color }` gotcha further down this file), which would beat
+   the panel's own `bg-[var(--nimia-surface)]` utility (Tailwind-layered)
+   regardless of source order, painting the panel a flat opaque
+   `--background` instead of the intended translucent surface card. This
+   class only redefines the custom properties — same dark values, zero
+   background/color side effect — so `bg-[var(--nimia-surface)]`,
+   `border-[var(--nimia-border)]`, `text-[var(--foreground)]`, etc. on
+   descendants (including @nimia/ui's Select/Input/Label/Button, used by
+   apps/studio/app/dashboard/orders/PaymentPanel.tsx) resolve to the dark
+   values with no fight. Applied via <Modal>'s className, e.g.
+   `<Modal className="nimia-dark-vars ...">`. */
+.nimia-dark-vars {
+  --background: #0a0407;
+  --foreground: #ffffff;
+  --nimia-border: rgba(255, 255, 255, 0.09);
+  --nimia-surface: rgba(255, 255, 255, 0.04);
+  --nimia-surface-hover: rgba(255, 255, 255, 0.08);
+  --nimia-muted: #b3a2aa;
+  /* Same solid popover token as .nimia-dark above — needed here too since
+     PaymentPanel.tsx's Listbox dropdowns open inside a Modal scoped with
+     THIS class, not .nimia-dark (see this class's own header comment on
+     why Modal uses the vars-only variant). */
+  --nimia-popover: rgba(23, 6, 15, 0.97);
+  /* Only non-custom-property line in this class, kept anyway (see
+     .nimia-dark's comment on why it was added) — color-scheme isn't a
+     property any Tailwind utility class in this codebase ever sets, so
+     there's no unlayered-vs-layered fight like the background/color one
+     this class exists to avoid; it's safe here. Fixes the same native
+     <select> dropdown popup issue for Selects opened from inside a Modal
+     (e.g. PaymentPanel.tsx's Network/Currency pickers) specifically. */
+  color-scheme: dark;
 }
 
 .nimia-font-display {

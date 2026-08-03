@@ -39,6 +39,18 @@ export type OrderListItem = {
   clients: { company_name: string | null } | null;
   order_files: { id: string; file_name: string; file_url: string }[];
   order_negotiations: NegotiationOfferRow[];
+  // Payment fields (3 Agustus 2026, second pass, per user request —
+  // "kenapa belum bisa bayar/kirim pembayaran"). Null until the client
+  // submits a payment via apps/studio's PaymentPanel — see
+  // apps/studio/app/dashboard/orders/payment-actions.ts.
+  payment_network: string | null;
+  payment_token: string | null;
+  payment_wallet_address: string | null;
+  payment_expected_amount: number | null;
+  payment_tx_hash: string | null;
+  payment_submitted_at: string | null;
+  payment_verified_at: string | null;
+  payment_underpaid_note: string | null;
 };
 
 // Deterministic per-client accent, same trick as

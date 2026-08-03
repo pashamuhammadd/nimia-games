@@ -34,6 +34,23 @@
   --nimia-surface: rgba(255, 255, 255, 0.04);
   --nimia-surface-hover: rgba(255, 255, 255, 0.08);
   --nimia-muted: #b3a2aa;
+
+  /* Solid (~97% opaque) popover background for floating panels that sit ON
+     TOP of other content, e.g. Listbox.tsx's open option list — added
+     defensively here too (3 Agustus 2026, same fix as apps/studio/app/
+     globals.css after a user report there) even though nothing in this app
+     uses Listbox yet, same reasoning as the color-scheme note below. */
+  --nimia-popover: rgba(23, 6, 15, 0.97);
+
+  /* This whole app is dark at :root already (see this file's own comment
+     above), but native browser chrome — a <select>'s open dropdown list,
+     scrollbars, checkboxes — doesn't follow CSS custom properties or
+     Tailwind utilities at all; it needs this specific property (added 3
+     Agustus 2026, same fix as apps/studio/app/globals.css after a user
+     report there). Set defensively here too even though nothing in this
+     app uses a native <select> yet, so the same bug can't resurface the
+     next time one gets added. */
+  color-scheme: dark;
 }
 
 @theme inline {

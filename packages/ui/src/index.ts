@@ -9,6 +9,7 @@ export { Button, buttonVariants, type ButtonProps } from "./components/Button";
 export { Input, type InputProps } from "./components/Input";
 export { Textarea, type TextareaProps } from "./components/Textarea";
 export { Select, type SelectProps } from "./components/Select";
+export { Listbox, type ListboxProps, type ListboxOption } from "./components/Listbox";
 export { Label, FieldError } from "./components/Label";
 export {
   Card,
