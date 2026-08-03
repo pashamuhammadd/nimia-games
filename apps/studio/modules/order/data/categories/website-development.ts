@@ -58,6 +58,7 @@ export const WEBSITE_DEVELOPMENT_CATEGORY: CategoryDefinition = {
   services: [
     {
       id: "landing-page",
+      dbServiceId: "00000000-0000-4000-8000-000000000014",
       categoryId: "website-development",
       name: "Landing Page",
       tagline: "A single, high-converting page for a launch or campaign.",
@@ -73,6 +74,7 @@ export const WEBSITE_DEVELOPMENT_CATEGORY: CategoryDefinition = {
     },
     {
       id: "company-website",
+      dbServiceId: "00000000-0000-4000-8000-000000000015",
       categoryId: "website-development",
       name: "Company Website",
       tagline: "A complete, professional site for your business.",
@@ -88,6 +90,7 @@ export const WEBSITE_DEVELOPMENT_CATEGORY: CategoryDefinition = {
     },
     {
       id: "dashboard",
+      dbServiceId: "00000000-0000-4000-8000-000000000016",
       categoryId: "website-development",
       name: "Dashboard",
       tagline: "A data dashboard for monitoring and managing operations.",
@@ -103,6 +106,7 @@ export const WEBSITE_DEVELOPMENT_CATEGORY: CategoryDefinition = {
     },
     {
       id: "admin-panel",
+      dbServiceId: "00000000-0000-4000-8000-000000000017",
       categoryId: "website-development",
       name: "Admin Panel",
       tagline: "Internal tooling to manage your product's data and users.",
@@ -118,6 +122,7 @@ export const WEBSITE_DEVELOPMENT_CATEGORY: CategoryDefinition = {
     },
     {
       id: "saas",
+      dbServiceId: "00000000-0000-4000-8000-000000000018",
       categoryId: "website-development",
       name: "SaaS",
       tagline: "A full multi-tenant product, from onboarding to billing.",

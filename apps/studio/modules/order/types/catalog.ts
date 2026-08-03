@@ -18,6 +18,13 @@ export type PricingModel = "packages" | "startingFrom";
 
 export interface ServiceDefinition {
   id: string;
+  /** Real `services.id` row this maps to in Supabase (3 Agustus 2026, per
+   * user request — orders submitted from /order now write a real
+   * `orders.service_id` instead of leaving it null). Fixed uuid, must match
+   * exactly what packages/db/migrations/0018_order_catalog_services_seed.sql
+   * inserts for this same service — the two are kept in lockstep by hand,
+   * there's no codegen linking them. */
+  dbServiceId: string;
   categoryId: string;
   name: string;
   tagline: string;

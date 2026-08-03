@@ -66,6 +66,7 @@ export const ANIMATION_CATEGORY: CategoryDefinition = {
   services: [
     {
       id: "gif-sticker",
+      dbServiceId: "00000000-0000-4000-8000-000000000001",
       categoryId: "animation",
       name: "GIF / Sticker",
       tagline: "Loopable animated GIFs and sticker packs.",
@@ -108,6 +109,7 @@ export const ANIMATION_CATEGORY: CategoryDefinition = {
     },
     {
       id: "character-animation",
+      dbServiceId: "00000000-0000-4000-8000-000000000002",
       categoryId: "animation",
       name: "Character Animation",
       tagline: "Expressive rigged character performance for any scene.",
@@ -126,6 +128,7 @@ export const ANIMATION_CATEGORY: CategoryDefinition = {
     },
     {
       id: "game-animation",
+      dbServiceId: "00000000-0000-4000-8000-000000000003",
       categoryId: "animation",
       name: "Game Animation",
       tagline: "Idle, walk, attack, and combo cycles ready to import.",
@@ -160,6 +163,7 @@ export const ANIMATION_CATEGORY: CategoryDefinition = {
     },
     {
       id: "trailer",
+      dbServiceId: "00000000-0000-4000-8000-000000000004",
       categoryId: "animation",
       name: "Trailer",
       tagline: "Cinematic trailers for games, apps, and launches.",
@@ -195,6 +199,7 @@ export const ANIMATION_CATEGORY: CategoryDefinition = {
     },
     {
       id: "story-animation",
+      dbServiceId: "00000000-0000-4000-8000-000000000005",
       categoryId: "animation",
       name: "Story Animation",
       tagline: "Narrative short-form animation with multiple scenes.",
@@ -212,6 +217,7 @@ export const ANIMATION_CATEGORY: CategoryDefinition = {
     },
     {
       id: "motion-graphic",
+      dbServiceId: "00000000-0000-4000-8000-000000000006",
       categoryId: "animation",
       name: "Motion Graphic",
       tagline: "Kinetic type and graphic motion for ads and intros.",
@@ -237,6 +243,7 @@ export const ANIMATION_CATEGORY: CategoryDefinition = {
     },
     {
       id: "ui-animation",
+      dbServiceId: "00000000-0000-4000-8000-000000000007",
       categoryId: "animation",
       name: "UI Animation",
       tagline: "Micro-interactions and screen transitions for apps.",
@@ -270,6 +277,7 @@ export const ANIMATION_CATEGORY: CategoryDefinition = {
     },
     {
       id: "logo-animation",
+      dbServiceId: "00000000-0000-4000-8000-000000000008",
       categoryId: "animation",
       name: "Logo Animation",
       tagline: "A signature motion reveal for your brand mark.",
@@ -304,6 +312,7 @@ export const ANIMATION_CATEGORY: CategoryDefinition = {
     },
     {
       id: "explainer-animation",
+      dbServiceId: "00000000-0000-4000-8000-000000000009",
       categoryId: "animation",
       name: "Explainer Animation",
       tagline: "Clear, friendly animation that explains your product.",

@@ -23,6 +23,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
   services: [
     {
       id: "game-icons",
+      dbServiceId: "00000000-0000-4000-8000-00000000000a",
       categoryId: "digital-assets",
       name: "Game Icons",
       tagline: "A cohesive icon set for items, skills, or UI.",
@@ -66,6 +67,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
     },
     {
       id: "ui-kit",
+      dbServiceId: "00000000-0000-4000-8000-00000000000b",
       categoryId: "digital-assets",
       name: "UI Kit",
       tagline: "A consistent screen and component library for your app.",
@@ -107,6 +109,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
     },
     {
       id: "sprite-sheet",
+      dbServiceId: "00000000-0000-4000-8000-00000000000c",
       categoryId: "digital-assets",
       name: "Sprite Sheet",
       tagline: "Frame-by-frame sprite sheets ready for any engine.",
@@ -148,6 +151,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
     },
     {
       id: "character-design",
+      dbServiceId: "00000000-0000-4000-8000-00000000000d",
       categoryId: "digital-assets",
       name: "Character Design",
       tagline: "Original character concept art, front to back.",
@@ -187,6 +191,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
     },
     {
       id: "environment-assets",
+      dbServiceId: "00000000-0000-4000-8000-00000000000e",
       categoryId: "digital-assets",
       name: "Environment Assets",
       tagline: "Backgrounds and scene props for games or animation.",
@@ -224,6 +229,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
     },
     {
       id: "tileset",
+      dbServiceId: "00000000-0000-4000-8000-00000000000f",
       categoryId: "digital-assets",
       name: "Tileset",
       tagline: "Seamless tile sets for building your game's world.",
@@ -258,6 +264,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
     },
     {
       id: "nft-artwork",
+      dbServiceId: "00000000-0000-4000-8000-000000000010",
       categoryId: "digital-assets",
       name: "NFT Artwork",
       tagline: "Layered collectible art, ready for generative traits.",
@@ -297,6 +304,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
     },
     {
       id: "illustration",
+      dbServiceId: "00000000-0000-4000-8000-000000000011",
       categoryId: "digital-assets",
       name: "Illustration",
       tagline: "Custom illustrations for covers, scenes, or marketing.",
@@ -340,6 +348,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
     },
     {
       id: "banner",
+      dbServiceId: "00000000-0000-4000-8000-000000000012",
       categoryId: "digital-assets",
       name: "Banner",
       tagline: "Web and store banners sized for every placement.",
@@ -378,6 +387,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
     },
     {
       id: "thumbnail",
+      dbServiceId: "00000000-0000-4000-8000-000000000013",
       categoryId: "digital-assets",
       name: "Thumbnail",
       tagline: "Scroll-stopping thumbnails for video and store listings.",

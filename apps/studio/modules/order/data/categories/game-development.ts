@@ -19,6 +19,7 @@ export const GAME_DEVELOPMENT_CATEGORY: CategoryDefinition = {
   services: [
     {
       id: "prototype",
+      dbServiceId: "00000000-0000-4000-8000-000000000019",
       categoryId: "game-development",
       name: "Prototype",
       tagline: "A playable proof-of-concept to test your core idea.",
@@ -53,6 +54,7 @@ export const GAME_DEVELOPMENT_CATEGORY: CategoryDefinition = {
     },
     {
       id: "mobile-game",
+      dbServiceId: "00000000-0000-4000-8000-00000000001a",
       categoryId: "game-development",
       name: "Mobile Game",
       tagline: "A complete game built for iOS and Android.",
@@ -97,6 +99,7 @@ export const GAME_DEVELOPMENT_CATEGORY: CategoryDefinition = {
     },
     {
       id: "html5-game",
+      dbServiceId: "00000000-0000-4000-8000-00000000001b",
       categoryId: "game-development",
       name: "HTML5 Game",
       tagline: "A lightweight browser game, playable anywhere.",
@@ -123,6 +126,7 @@ export const GAME_DEVELOPMENT_CATEGORY: CategoryDefinition = {
     },
     {
       id: "pc-game",
+      dbServiceId: "00000000-0000-4000-8000-00000000001c",
       categoryId: "game-development",
       name: "PC Game",
       tagline: "A full-scale desktop title built for Windows/macOS.",
@@ -157,6 +161,7 @@ export const GAME_DEVELOPMENT_CATEGORY: CategoryDefinition = {
     },
     {
       id: "web3-game",
+      dbServiceId: "00000000-0000-4000-8000-00000000001d",
       categoryId: "game-development",
       name: "Web3 Game",
       tagline: "A game with on-chain assets and wallet-based ownership.",
@@ -185,6 +190,7 @@ export const GAME_DEVELOPMENT_CATEGORY: CategoryDefinition = {
     },
     {
       id: "backend",
+      dbServiceId: "00000000-0000-4000-8000-00000000001e",
       categoryId: "game-development",
       name: "Backend",
       tagline: "Server infrastructure to power your game's live features.",
@@ -215,6 +221,7 @@ export const GAME_DEVELOPMENT_CATEGORY: CategoryDefinition = {
     },
     {
       id: "liveops",
+      dbServiceId: "00000000-0000-4000-8000-00000000001f",
       categoryId: "game-development",
       name: "LiveOps",
       tagline: "Tools to run, monitor, and tune your game after launch.",
@@ -231,6 +238,7 @@ export const GAME_DEVELOPMENT_CATEGORY: CategoryDefinition = {
     },
     {
       id: "game-optimization",
+      dbServiceId: "00000000-0000-4000-8000-000000000020",
       categoryId: "game-development",
       name: "Game Optimization",
       tagline: "Performance tuning for a smoother, faster-loading game.",

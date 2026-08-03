@@ -18,6 +18,7 @@ import { calculateEstimate, type Estimate } from "../pricing";
 import { getDefaultSelections } from "./default-selections";
 import { getStepsForService } from "./steps";
 import { clearOrderState, loadOrderState, saveOrderState } from "./storage";
+import { submitOrderAction } from "./submit-order-action";
 
 function withStep(state: OrderWizardState, step: StepId, steps: StepId[]): OrderWizardState {
   const index = steps.indexOf(step);
@@ -261,7 +262,8 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
 
       // Negotiating requires an actual number to send the team — "Submit
       // Order" alone (accepting the calculated estimate) has no such
-      // requirement.
+      // requirement. (submitOrderAction re-validates this server-side too —
+      // this is just so a visitor doesn't wait on a round trip to find out.)
       if (intent === "negotiate") {
         const parsedOffer = Number(state.negotiationOffer.trim());
         if (!state.negotiationOffer.trim() || Number.isNaN(parsedOffer) || parsedOffer <= 0) {
@@ -285,25 +287,50 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
         return;
       }
 
-      // Local-only confirmation for now — this configurator doesn't write to
-      // `orders` yet (no service/package here has a matching row in the
-      // Supabase `services` table the way app/dashboard/orders does). Wiring
-      // a real submit action (an "submit" -> orders.status = 'pending_review'
-      // vs "negotiate" -> orders.status = 'negotiating' +
-      // order_negotiations row, per packages/db/migrations/0012 and 0013) is
-      // the next phase once the catalog above is moved server-side, per the
-      // brief ("Nanti akan dipindahkan ke database"). Clearing the draft
-      // here means a returning visitor starts a fresh configuration instead
-      // of seeing a stale finished one.
+      // Real submission (3 Agustus 2026, per user request — this used to be
+      // a window.setTimeout local-only simulation that never wrote to
+      // `orders`/`order_negotiations`, which is why a negotiated order never
+      // showed up under /dashboard's Negotiations menu). See
+      // submit-order-action.ts for the actual insert logic; "submit" ->
+      // orders.status = 'pending_review', "negotiate" ->
+      // orders.status = 'negotiating' + an order_negotiations row (per
+      // packages/db/migrations/0012 and 0013).
       setIsSubmitting(true);
-      window.setTimeout(() => {
-        setIsSubmitting(false);
-        setSubmitted(true);
-        setSubmittedIntent(intent);
-        clearOrderState();
-      }, 500);
+      submitOrderAction({
+        intent,
+        categoryId: state.categoryId,
+        serviceId: state.serviceId,
+        packageId: state.packageId,
+        configSelections: state.configSelections,
+        brief: state.brief,
+        negotiationOffer: state.negotiationOffer,
+      })
+        .then((result) => {
+          setIsSubmitting(false);
+          if (!result.ok) {
+            setSubmitError(result.error);
+            return;
+          }
+          setSubmitted(true);
+          setSubmittedIntent(intent);
+          clearOrderState();
+        })
+        .catch(() => {
+          setIsSubmitting(false);
+          setSubmitError("Something went wrong submitting your order. Please try again.");
+        });
     },
-    [isAuthenticated, router, state.agreedToTerms, state.negotiationOffer],
+    [
+      isAuthenticated,
+      router,
+      state.agreedToTerms,
+      state.negotiationOffer,
+      state.categoryId,
+      state.serviceId,
+      state.packageId,
+      state.configSelections,
+      state.brief,
+    ],
   );
 
   const startOver = React.useCallback(() => {
