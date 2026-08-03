@@ -12,6 +12,19 @@ function str(value: FormDataEntryValue | null): string | undefined {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
 }
 
+// Only ever redirect somewhere INSIDE this app after login — `redirectedFrom`
+// arrives as plain form data (see LoginForm.tsx's hidden field), so it must
+// be treated as untrusted input. A single leading "/" (not "//", which
+// browsers resolve as protocol-relative — an open-redirect vector) is the
+// only shape allowed through; anything else falls back to "/dashboard".
+function safeRedirectTarget(value: FormDataEntryValue | null): string {
+  const target = str(value);
+  if (target && target.startsWith("/") && !target.startsWith("//")) {
+    return target;
+  }
+  return "/dashboard";
+}
+
 export async function signInAction(
   _prevState: ActionState,
   formData: FormData,
@@ -35,7 +48,12 @@ export async function signInAction(
     };
   }
 
-  redirect("/dashboard");
+  // Lets /order's Project Configurator send an unauthenticated visitor here
+  // with `?redirectedFrom=/order` (see modules/order/state/use-order-wizard.ts
+  // #submit) and land them back on Review Order instead of always /dashboard
+  // — same mechanism middleware.ts already sets on protected routes, just
+  // actually consumed here now.
+  redirect(safeRedirectTarget(formData.get("redirectedFrom")));
 }
 
 export async function signUpAction(

@@ -19,13 +19,13 @@ import {
 // data separate from the section components so copy/pricing can be edited
 // in one place without touching layout/animation code.
 //
-// Every "Explore Service" / package CTA points at /dashboard/orders, the
-// existing generic order form (service picked from a dropdown there) —
-// same reasoning as the previous 3-card version of this page: only
-// "2D Animation" has a literal 1:1 row in the Supabase `services` table,
-// so there's no reliable per-category service id to preselect for the
-// others yet. Revisit once dedicated service/package rows exist.
-export const ORDER_HREF = "/dashboard/orders";
+// Every "Explore Service" / package CTA points at /order, the Project
+// Configurator (Steps: Category -> Service -> Package -> Configure -> Brief
+// -> Upload -> Review -> Submit — see modules/order). Previously pointed at
+// /dashboard/orders, the older generic order form; that page still exists
+// but is no longer linked from the public marketing pages now that /order
+// covers the full flow with a real per-service catalog.
+export const ORDER_HREF = "/order";
 
 export interface CoreService {
   id: "animation" | "game-development" | "website-development";

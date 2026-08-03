@@ -24,9 +24,16 @@ import { signInAction, type ActionState } from "../actions";
 export function LoginForm({
   variant = "page",
   onSuccess,
+  redirectedFrom,
 }: {
   variant?: "page" | "modal";
   onSuccess?: () => void;
+  /** Forwarded into signInAction as a hidden field so a successful login
+   * can redirect somewhere other than /dashboard — see app/actions.ts
+   * #signInAction and modules/order's Submit Order flow. Only ever set by
+   * the "page" variant's caller (app/login/page.tsx); the navbar's quick
+   * modal has no redirect target of its own. */
+  redirectedFrom?: string;
 }) {
   const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     signInAction,
@@ -35,6 +42,7 @@ export function LoginForm({
 
   const fields = (
     <>
+      {redirectedFrom ? <input type="hidden" name="redirectedFrom" value={redirectedFrom} /> : null}
       <div>
         <Label htmlFor={variant === "modal" ? "modal-email" : "email"}>Email</Label>
         <Input

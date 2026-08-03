@@ -21,11 +21,12 @@ import {
 
 // Both CTA targets reuse the SAME destinations already used across the
 // rest of the site (/services' ORDER_HREF, the navbar's "Start a Project"
-// link) — /dashboard/orders is the existing generic order form, gated by
-// middleware.ts so an unauthenticated visitor is bounced to /login first.
-// That's intentional here: Step 1 of this very page ("Create Your
-// Account") describes exactly that requirement.
-export const ORDER_HREF = "/dashboard/orders";
+// link) — /order is the Project Configurator (see modules/order). Unlike
+// /dashboard/orders (the older generic form) it does NOT require signing in
+// just to view it — only Step 7's Submit Order does, redirecting to /login
+// and back. Step 1 of this very page ("Create Your Account") still holds:
+// an account is required before an order can actually be submitted.
+export const ORDER_HREF = "/order";
 export const SERVICES_HREF = "/services";
 
 export interface FlowStep {
