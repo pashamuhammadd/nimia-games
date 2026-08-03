@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import { StartProjectButton } from "../../components/StartProjectButton";
 
 // SECTION 1 — Hero. Kept close to the visual language already used by the
 // homepage hero and Why Nimia's HeroHeadline.tsx (ambient glow blobs + a
@@ -17,7 +17,11 @@ import { ArrowRight } from "lucide-react";
 // goes straight to /order, the Project Configurator — this one included,
 // even though it means a visitor no longer gets nudged to browse Core
 // Services first before landing in the wizard.
-export function HeroSection() {
+//
+// Now uses StartProjectButton (3 Agustus 2026, per user request — modal
+// login sitewide) instead of a plain Link, so a signed-out visitor gets
+// the quick LoginModal in place instead of navigating to /login.
+export function HeroSection({ isAuthenticated }: { isAuthenticated: boolean }) {
   const shouldReduceMotion = useReducedMotion();
 
   const container = {
@@ -87,8 +91,8 @@ export function HeroSection() {
         </motion.p>
 
         <motion.div variants={item} className="mt-10">
-          <Link
-            href="/order"
+          <StartProjectButton
+            isAuthenticated={isAuthenticated}
             className="nimia-cta-gradient group inline-flex items-center gap-2 rounded-lg px-8 py-4 text-base font-semibold text-white shadow-[0_20px_60px_-15px_rgba(193,18,77,0.55)] transition-transform hover:scale-[1.03]"
           >
             Start Your Project
@@ -96,7 +100,7 @@ export function HeroSection() {
               className="h-4 w-4 transition-transform group-hover:translate-x-1"
               aria-hidden="true"
             />
-          </Link>
+          </StartProjectButton>
         </motion.div>
       </motion.div>
     </section>

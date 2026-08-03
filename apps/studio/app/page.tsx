@@ -5,6 +5,7 @@ import { createServerClient } from "@nimia/db";
 import { buttonVariants, cn } from "@nimia/ui";
 import { Play, Rocket, Smile, Wrench, Headphones } from "lucide-react";
 import { PublicNavbar } from "./components/PublicNavbar";
+import { StartProjectButton } from "./components/StartProjectButton";
 
 // Placeholder numbers (confirmed with the user 29 Juli 2026 — these are
 // the reference design's example figures, not verified Nimia Games data
@@ -82,21 +83,28 @@ export default async function StudioHomePage() {
                   route now exists (part of the 5-item navbar expansion)
                   as a minimal "coming soon" page, since real portfolio
                   content is still pending from the user. Swap in specific
-                  work later if you'd rather deep-link somewhere else. */}
+                  work later if you'd rather deep-link somewhere else.
+                  "Start a Project" now uses StartProjectButton (3 Agustus
+                  2026, per user request — modal login sitewide): this
+                  branch of the page only ever renders with user === null
+                  (see the redirect("/dashboard") above), so this is always
+                  the signed-out state in practice, but isAuthenticated is
+                  still passed through for correctness if that ever
+                  changes. */}
               <div className="mt-6 flex flex-wrap items-center gap-3">
                 {/* bg/text/hover repeated here on top of buttonVariants()
                     as a safety net (29 Juli 2026) — see the @source note
                     in globals.css for why the "primary" variant's OWN
                     classes were silently not rendering in production. */}
-                <Link
-                  href="/order"
+                <StartProjectButton
+                  isAuthenticated={!!user}
                   className={cn(
                     buttonVariants({ size: "lg" }),
                     "bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",
                   )}
                 >
                   Start a Project
-                </Link>
+                </StartProjectButton>
                 <Link
                   href="/portfolio"
                   className={cn(

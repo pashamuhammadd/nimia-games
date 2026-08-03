@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { buttonVariants, cn } from "@nimia/ui";
+import { StartProjectButton } from "./StartProjectButton";
 
 // Expanded from 2 to 5 items (29 Juli 2026, per user request) — Why
 // Nimia, Portfolio, and Contact were new destinations built alongside that
@@ -45,18 +46,18 @@ const NAV_LINKS = [
 // Single CTA (per explicit user instruction, replacing the previous
 // Log in + Start a Project / Go to dashboard pair): the navbar now only
 // ever shows one button, "Start Your Project" — its destination is what
-// changes based on auth state, not the button itself. Signed out, it goes
-// to /login with a redirectedFrom back to /order (the Project
-// Configurator — see modules/order and app/actions.ts#signInAction), so a
-// visitor logs in first, then lands straight in the wizard instead of the
-// dashboard. Signed in, it skips login entirely and goes straight to
-// /order. There's no separate "Log in" button and no LoginModal anymore —
-// signing in now only happens through the full /login page.
+// changes based on auth state, not the button itself. Signed in, it goes
+// straight to /order, the Project Configurator (see modules/order).
+//
+// Signed out (rewritten 3 Agustus 2026, per user request — modal login
+// sitewide, not just here): it no longer navigates to the full /login page.
+// It opens the same quick LoginModal used elsewhere via the shared
+// StartProjectButton component (app/components/StartProjectButton.tsx),
+// which already knows to pass redirectedFrom="/order" through so a visitor
+// lands straight in the wizard the moment they log in.
 export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: boolean }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = React.useState(false);
-
-  const startProjectHref = isAuthenticated ? "/order" : "/login?redirectedFrom=/order";
 
   return (
     <header className="nimia-dark sticky top-0 z-40 border-b border-[var(--nimia-border)] bg-[var(--background)]/90 backdrop-blur supports-[backdrop-filter]:bg-[var(--background)]/70">
@@ -93,15 +94,15 @@ export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: bo
           {/* bg/text/hover repeated on top of buttonVariants() as a
               safety net (29 Juli 2026) — see the @source note in
               globals.css for why. */}
-          <Link
-            href={startProjectHref}
+          <StartProjectButton
+            isAuthenticated={isAuthenticated}
             className={cn(
               buttonVariants({ size: "sm" }),
               "bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",
             )}
           >
             Start Your Project
-          </Link>
+          </StartProjectButton>
         </div>
 
         <button
@@ -135,8 +136,8 @@ export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: bo
             ))}
           </nav>
           <div className="mt-3 flex flex-col gap-2">
-            <Link
-              href={startProjectHref}
+            <StartProjectButton
+              isAuthenticated={isAuthenticated}
               onClick={() => setMobileOpen(false)}
               className={cn(
                 buttonVariants({ size: "sm" }),
@@ -144,7 +145,7 @@ export function PublicNavbar({ isAuthenticated = false }: { isAuthenticated?: bo
               )}
             >
               Start Your Project
-            </Link>
+            </StartProjectButton>
           </div>
         </div>
       ) : null}

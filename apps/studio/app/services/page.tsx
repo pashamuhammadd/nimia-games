@@ -29,6 +29,11 @@ export const metadata: Metadata = {
 // redesign does still reuse the abstract per-category visuals from
 // app/components/services/visuals.tsx (AnimationVisual / GameDevVisual /
 // WebsiteVisual), so that file stays in use.
+//
+// isAuthenticated is now threaded down into ServicesExperience (3 Agustus
+// 2026, per user request — modal login sitewide) so every "Start Your
+// Project" CTA on this page (Hero, Featured Packages, Closing CTA) can use
+// the shared StartProjectButton instead of a plain link.
 export default async function ServicesPage() {
   const supabase = createServerClient(await cookies());
   const {
@@ -38,7 +43,7 @@ export default async function ServicesPage() {
   return (
     <div className="nimia-dark">
       <PublicNavbar isAuthenticated={!!user} />
-      <ServicesExperience />
+      <ServicesExperience isAuthenticated={!!user} />
     </div>
   );
 }

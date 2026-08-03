@@ -17,7 +17,12 @@ import { ClosingCta } from "./components/ClosingCta";
 // pipeline -> concept-to-product visual -> client dashboard -> closing CTA.
 // Every section frames AI as a tool Nimia uses well, never as something to
 // put down, per explicit instruction.
-export function WhyNimiaExperience() {
+//
+// isAuthenticated (3 Agustus 2026, per user request — modal login
+// sitewide) is only passed to ClosingCta, the one section on this page
+// with a "Start Your Project" CTA — HeroHeadline/ComparisonSection/
+// PipelineSection/ConceptVisual/DashboardMockup carry none.
+export function WhyNimiaExperience({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <main className="relative">
       <HeroHeadline />
@@ -29,7 +34,7 @@ export function WhyNimiaExperience() {
       <ConceptVisual />
       <div className="mx-auto h-px max-w-6xl bg-[var(--nimia-border)]" />
       <DashboardMockup />
-      <ClosingCta />
+      <ClosingCta isAuthenticated={isAuthenticated} />
     </main>
   );
 }

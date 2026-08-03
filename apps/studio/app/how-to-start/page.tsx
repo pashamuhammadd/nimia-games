@@ -20,6 +20,10 @@ export const metadata: Metadata = {
 // /why-nimia, /services, /portfolio: a thin async server component here for
 // auth/metadata, all animated section content lives in
 // HowToStartExperience.tsx.
+//
+// isAuthenticated is now threaded down into HowToStartExperience too
+// (3 Agustus 2026, per user request — modal login sitewide) so this page's
+// Hero and Closing CTA can use the shared StartProjectButton.
 export default async function HowToStartPage() {
   const supabase = createServerClient(await cookies());
   const {
@@ -29,7 +33,7 @@ export default async function HowToStartPage() {
   return (
     <div className="nimia-dark">
       <PublicNavbar isAuthenticated={!!user} />
-      <HowToStartExperience />
+      <HowToStartExperience isAuthenticated={!!user} />
     </div>
   );
 }

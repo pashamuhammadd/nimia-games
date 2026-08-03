@@ -4,7 +4,8 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { buttonVariants, cn } from "@nimia/ui";
-import { ORDER_HREF, SERVICES_HREF } from "../data";
+import { SERVICES_HREF } from "../data";
+import { StartProjectButton } from "../../components/StartProjectButton";
 
 // SECTION 1 — Hero. Same ambient-glow + faint-grid visual language as the
 // other public pages' heroes (HeroSection.tsx on /services, HeroHeadline.tsx
@@ -12,7 +13,12 @@ import { ORDER_HREF, SERVICES_HREF } from "../data";
 // "Start a Project" (primary, matches the navbar's own CTA styling and
 // target) and "View Services" (secondary, sends undecided visitors to
 // /services instead of bouncing them straight to the order form).
-export function HeroSection() {
+//
+// "Start a Project" now uses StartProjectButton (3 Agustus 2026, per user
+// request — modal login sitewide) instead of a plain Link, so a
+// signed-out visitor gets the quick LoginModal in place instead of
+// navigating to /login.
+export function HeroSection({ isAuthenticated }: { isAuthenticated: boolean }) {
   const shouldReduceMotion = useReducedMotion();
 
   const container = {
@@ -82,8 +88,8 @@ export function HeroSection() {
         </motion.p>
 
         <motion.div variants={item} className="mt-10 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href={ORDER_HREF}
+          <StartProjectButton
+            isAuthenticated={isAuthenticated}
             className={cn(
               buttonVariants({ size: "lg" }),
               "group gap-2 bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",
@@ -94,7 +100,7 @@ export function HeroSection() {
               className="h-4 w-4 transition-transform group-hover:translate-x-1"
               aria-hidden="true"
             />
-          </Link>
+          </StartProjectButton>
           <Link
             href={SERVICES_HREF}
             className={cn(

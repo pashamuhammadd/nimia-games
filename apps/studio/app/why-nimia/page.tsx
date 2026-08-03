@@ -16,6 +16,10 @@ export const metadata: Metadata = {
 // (a client component, since it uses Framer Motion) so this file stays a
 // thin server component that only handles auth state for the navbar, same
 // pattern as page.tsx and services/page.tsx.
+//
+// isAuthenticated is now threaded down into WhyNimiaExperience -> ClosingCta
+// too (3 Agustus 2026, per user request — modal login sitewide) so that
+// page's "Start Your Project" CTA can use the shared StartProjectButton.
 export default async function WhyNimiaPage() {
   const supabase = createServerClient(await cookies());
   const {
@@ -25,7 +29,7 @@ export default async function WhyNimiaPage() {
   return (
     <div className="nimia-dark">
       <PublicNavbar isAuthenticated={!!user} />
-      <WhyNimiaExperience />
+      <WhyNimiaExperience isAuthenticated={!!user} />
     </div>
   );
 }

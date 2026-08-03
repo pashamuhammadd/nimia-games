@@ -27,10 +27,17 @@ import { ServicesCta } from "./components/ServicesCta";
 // or a company workflow/pipeline timeline (both already live on
 // /why-nimia) — this page's job is only to explain the services
 // themselves, per explicit instruction.
-export function ServicesExperience() {
+//
+// isAuthenticated (3 Agustus 2026, per user request — modal login
+// sitewide) is only passed down to the three sections that actually carry
+// a "Start Your Project" CTA: HeroSection, PackagesSection, ServicesCta.
+// CoreServicesSection/ExploreServicesSection's "Explore Service" links are
+// in-page anchors, not auth-gated CTAs, and ProjectTypesSection/
+// AddonsSection have no CTA at all, so none of those need the prop.
+export function ServicesExperience({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <main className="relative">
-      <HeroSection />
+      <HeroSection isAuthenticated={isAuthenticated} />
       <div className="mx-auto h-px max-w-6xl bg-[var(--nimia-border)]" />
       <CoreServicesSection />
       <div className="mx-auto h-px max-w-6xl bg-[var(--nimia-border)]" />
@@ -40,8 +47,8 @@ export function ServicesExperience() {
       <div className="mx-auto h-px max-w-6xl bg-[var(--nimia-border)]" />
       <AddonsSection />
       <div className="mx-auto h-px max-w-6xl bg-[var(--nimia-border)]" />
-      <PackagesSection />
-      <ServicesCta />
+      <PackagesSection isAuthenticated={isAuthenticated} />
+      <ServicesCta isAuthenticated={isAuthenticated} />
     </main>
   );
 }

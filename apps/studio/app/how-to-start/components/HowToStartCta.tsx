@@ -4,7 +4,8 @@ import Link from "next/link";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@nimia/ui";
-import { ORDER_HREF, SERVICES_HREF } from "../data";
+import { SERVICES_HREF } from "../data";
+import { StartProjectButton } from "../../components/StartProjectButton";
 
 // SECTION 5 (final) — Closing CTA. Same solid-red treatment as the closing
 // CTA on /services and /portfolio (ServicesCta.tsx / PortfolioCta.tsx) so
@@ -14,7 +15,12 @@ import { ORDER_HREF, SERVICES_HREF } from "../data";
 // no page yet closes with a secondary CTA, but this page's Hero already
 // established the Start a Project / View Services pairing, so the closing
 // section repeats it instead of introducing a third label).
-export function HowToStartCta() {
+//
+// "Start a Project" now uses StartProjectButton (3 Agustus 2026, per user
+// request — modal login sitewide) instead of a plain Link, so a
+// signed-out visitor gets the quick LoginModal in place instead of
+// navigating to /login.
+export function HowToStartCta({ isAuthenticated }: { isAuthenticated: boolean }) {
   const shouldReduceMotion = useReducedMotion();
 
   const fadeUp: Variants = {
@@ -60,8 +66,8 @@ export function HowToStartCta() {
           from our team.
         </p>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href={ORDER_HREF}
+          <StartProjectButton
+            isAuthenticated={isAuthenticated}
             className="group inline-flex items-center gap-2 rounded-lg bg-white px-8 py-4 text-base font-semibold text-[var(--nimia-crimson)] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] transition-transform hover:scale-[1.03]"
           >
             Start a Project
@@ -69,7 +75,7 @@ export function HowToStartCta() {
               className="h-4 w-4 transition-transform group-hover:translate-x-1"
               aria-hidden="true"
             />
-          </Link>
+          </StartProjectButton>
           <Link
             href={SERVICES_HREF}
             className={cn(

@@ -24,17 +24,22 @@ import { HowToStartCta } from "./components/HowToStartCta";
 // deliver flow that already exists in the dashboard (see
 // app/dashboard/orders/OrderForm.tsx), so a prospective client trusts the
 // process before they ever click "Start a Project".
-export function HowToStartExperience() {
+//
+// isAuthenticated (3 Agustus 2026, per user request — modal login
+// sitewide) is only passed to HeroSection and HowToStartCta, the two
+// sections on this page with a "Start a Project" CTA — JourneyTimeline/
+// WhyDifferentSection/FaqSection carry none.
+export function HowToStartExperience({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <main className="relative">
-      <HeroSection />
+      <HeroSection isAuthenticated={isAuthenticated} />
       <div className="mx-auto h-px max-w-6xl bg-[var(--nimia-border)]" />
       <JourneyTimeline />
       <div className="mx-auto h-px max-w-6xl bg-[var(--nimia-border)]" />
       <WhyDifferentSection />
       <div className="mx-auto h-px max-w-6xl bg-[var(--nimia-border)]" />
       <FaqSection />
-      <HowToStartCta />
+      <HowToStartCta isAuthenticated={isAuthenticated} />
     </main>
   );
 }

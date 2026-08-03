@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { ORDER_HREF } from "../data";
+import { StartProjectButton } from "../../components/StartProjectButton";
 
 // SECTION 7 — Closing CTA. Per brief this is the one section on the page
 // with a solid red background (every other section sits on the page's dark
@@ -10,7 +10,12 @@ import { ORDER_HREF } from "../data";
 // the footer. Text/button switch to a light-on-red pairing for contrast
 // instead of reusing the dark-surface button styles used elsewhere on this
 // page.
-export function ServicesCta() {
+//
+// Now uses StartProjectButton (3 Agustus 2026, per user request — modal
+// login sitewide) instead of a plain <a href={ORDER_HREF}>, so a
+// signed-out visitor gets the quick LoginModal in place instead of
+// navigating to /login.
+export function ServicesCta({ isAuthenticated }: { isAuthenticated: boolean }) {
   const shouldReduceMotion = useReducedMotion();
 
   const fadeUp: Variants = {
@@ -59,8 +64,8 @@ export function ServicesCta() {
           life.
         </p>
         <div className="mt-9">
-          <a
-            href={ORDER_HREF}
+          <StartProjectButton
+            isAuthenticated={isAuthenticated}
             className="group inline-flex items-center gap-2 rounded-lg bg-white px-8 py-4 text-base font-semibold text-[var(--nimia-crimson)] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] transition-transform hover:scale-[1.03]"
           >
             Start Your Project
@@ -68,7 +73,7 @@ export function ServicesCta() {
               className="h-4 w-4 transition-transform group-hover:translate-x-1"
               aria-hidden="true"
             />
-          </a>
+          </StartProjectButton>
         </div>
       </motion.div>
     </section>
