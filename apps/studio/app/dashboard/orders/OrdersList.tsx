@@ -6,7 +6,7 @@ import { Modal, cn } from "@nimia/ui";
 import { orderStatusMeta } from "../../lib/orderStatus";
 import { formatRelativeTime } from "../../lib/relativeTime";
 import { OrderDetail } from "./OrderDetail";
-import type { PaymentWalletOption } from "./PaymentPanel";
+import type { PaymentWalletOption, VoucherRedemptionSummary } from "./PaymentPanel";
 
 export interface OrderListItem {
   id: string;
@@ -31,6 +31,11 @@ export interface OrderListItem {
   paymentSubmittedAt: string | null;
   paymentVerifiedAt: string | null;
   paymentUnderpaidNote: string | null;
+  // Voucher applied to this order, if any (4 Agustus 2026, P1 — Vouchers &
+  // Quests). Read from the voucher_redemptions embed in
+  // app/dashboard/orders/page.tsx; null until apply_voucher_to_order()
+  // succeeds for this order (see PaymentPanel.tsx's redeem box).
+  voucherRedemption: VoucherRedemptionSummary;
 }
 
 // Shown once a real quote/price exists (finalPriceUsd, set once staff

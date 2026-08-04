@@ -53,6 +53,7 @@ export function OrderDetail({
             status={order.status}
             finalPriceUsd={order.finalPriceUsd}
             walletOptions={walletOptions}
+            voucherRedemption={order.voucherRedemption}
             payment={{
               network: order.paymentNetwork,
               token: order.paymentToken,

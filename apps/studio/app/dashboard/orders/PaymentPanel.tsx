@@ -2,10 +2,10 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Wallet, Copy, Check, ShieldCheck, AlertTriangle, Clock } from "lucide-react";
+import { Wallet, Copy, Check, ShieldCheck, AlertTriangle, Clock, Ticket } from "lucide-react";
 import { cn, Listbox, Input, Label, Button } from "@nimia/ui";
 import { formatRelativeTime } from "../../lib/relativeTime";
-import { getPaymentQuoteAction, submitPaymentAction, type PaymentQuote } from "./payment-actions";
+import { getPaymentQuoteAction, submitPaymentAction, applyVoucherAction, type PaymentQuote } from "./payment-actions";
 
 // Display labels for public.crypto_network (packages/db/migrations/0013,
 // extended with 'ton' in 0014) — same values as payment_wallets.network,
@@ -26,11 +26,22 @@ export type PaymentWalletOption = {
   allowNative: boolean;
 };
 
+// A voucher already applied to this order (4 Agustus 2026, P1 — Vouchers &
+// Quests), read from voucher_redemptions via OrdersList/OrderDetail. Null
+// until apply_voucher_to_order() has succeeded for this order.
+export type VoucherRedemptionSummary = {
+  code: string;
+  discountPercent: number;
+  originalPriceUsd: number;
+  discountedPriceUsd: number;
+} | null;
+
 export interface PaymentPanelProps {
   orderId: string;
   status: string;
   finalPriceUsd: number | null;
   walletOptions: PaymentWalletOption[];
+  voucherRedemption?: VoucherRedemptionSummary;
   payment: {
     network: string | null;
     token: string | null;
@@ -77,13 +88,89 @@ function CopyableAddress({ address }: { address: string }) {
   );
 }
 
+// "Have a voucher code?" box — only rendered while awaiting_payment and no
+// voucher has been applied to this order yet (a second apply attempt would
+// just fail server-side anyway, see apply_voucher_to_order's own "already
+// applied" check, but hiding it once used keeps the UI honest). Applying
+// re-derives the discount server-side (payment-actions.ts's
+// applyVoucherAction) and triggers router.refresh() so finalPriceUsd/
+// voucherRedemption above flow back down from the Server Component parent.
+function VoucherRedeemBox({ orderId, onApplied }: { orderId: string; onApplied: () => void }) {
+  const [code, setCode] = React.useState("");
+  const [error, setError] = React.useState<string | null>(null);
+  const [isApplying, setIsApplying] = React.useState(false);
+
+  async function handleApply() {
+    if (!code.trim()) return;
+    setIsApplying(true);
+    setError(null);
+    const result = await applyVoucherAction(orderId, code);
+    setIsApplying(false);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+    setCode("");
+    onApplied();
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
+      <Label htmlFor="voucher-code">Have a voucher code?</Label>
+      <div className="flex gap-2">
+        <Input
+          id="voucher-code"
+          placeholder="e.g. QUEST-A1B2C3D4"
+          value={code}
+          onChange={(event) => setCode(event.target.value)}
+          className="flex-1"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={!code.trim() || isApplying}
+          isLoading={isApplying}
+          onClick={handleApply}
+        >
+          Apply
+        </Button>
+      </div>
+      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+    </div>
+  );
+}
+
+function VoucherAppliedBanner({ voucher }: { voucher: NonNullable<VoucherRedemptionSummary> }) {
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3">
+      <Ticket className="h-4 w-4 shrink-0 text-emerald-300" aria-hidden="true" />
+      <div>
+        <p className="text-sm font-semibold text-emerald-300">
+          Voucher {voucher.code} applied — {voucher.discountPercent}% off
+        </p>
+        <p className="text-xs text-white/50">
+          ${voucher.originalPriceUsd.toLocaleString("en-US")} → ${voucher.discountedPriceUsd.toLocaleString("en-US")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // Renders inside a client order's detail modal (see OrderDetail.tsx). Three
 // branches by order status: pick-network-and-pay (awaiting_payment),
 // read-only "under review" (payment_submitted), and a verified confirmation
 // (paid). The network/currency picker never writes to the DB by itself —
 // only the final "I've Sent This Payment" submit does (see
 // payment-actions.ts's comment on why).
-export function PaymentPanel({ orderId, status, finalPriceUsd, walletOptions, payment }: PaymentPanelProps) {
+export function PaymentPanel({
+  orderId,
+  status,
+  finalPriceUsd,
+  walletOptions,
+  voucherRedemption = null,
+  payment,
+}: PaymentPanelProps) {
   const router = useRouter();
   const [network, setNetwork] = React.useState("");
   const [currency, setCurrency] = React.useState("");
@@ -147,6 +234,7 @@ export function PaymentPanel({ orderId, status, finalPriceUsd, walletOptions, pa
             ) : null}
           </div>
         </div>
+        {voucherRedemption ? <VoucherAppliedBanner voucher={voucherRedemption} /> : null}
         {payment.network && payment.token && payment.expectedAmount != null ? (
           <PaymentSummaryRows payment={payment} />
         ) : null}
@@ -164,6 +252,7 @@ export function PaymentPanel({ orderId, status, finalPriceUsd, walletOptions, pa
             <p className="text-xs text-white/50">Nimia Studio will verify it shortly.</p>
           </div>
         </div>
+        {voucherRedemption ? <VoucherAppliedBanner voucher={voucherRedemption} /> : null}
         <PaymentSummaryRows payment={payment} />
       </div>
     );
@@ -191,6 +280,12 @@ export function PaymentPanel({ orderId, status, finalPriceUsd, walletOptions, pa
             Choose a network and currency below to get the wallet address and exact amount to send.
           </p>
         </div>
+
+        {voucherRedemption ? (
+          <VoucherAppliedBanner voucher={voucherRedemption} />
+        ) : (
+          <VoucherRedeemBox orderId={orderId} onApplied={() => router.refresh()} />
+        )}
 
         {walletOptions.length === 0 ? (
           <p className="text-sm text-white/50">

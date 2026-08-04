@@ -10,6 +10,8 @@ import {
   FolderKanban,
   Receipt,
   Boxes,
+  Ticket,
+  Target,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -28,6 +30,10 @@ export const ADMIN_NAV_ITEMS: { href: string; label: string; icon: LucideIcon; f
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/invoices", label: "Invoices", icon: Receipt },
   { href: "/services", label: "Services", icon: Boxes },
+  // Vouchers/Quests (4 Agustus 2026, P1) — not founderOnly, staff manages
+  // these same as Orders/Clients/Projects.
+  { href: "/vouchers", label: "Vouchers", icon: Ticket },
+  { href: "/quests", label: "Quests", icon: Target },
   { href: "/finance", label: "Finance", icon: Wallet, founderOnly: true },
 ];
 

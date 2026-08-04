@@ -11,16 +11,20 @@ import { createServerClient } from "@nimia/db";
 // comment calling this "the buyer-facing payment page (Phase 3, not yet
 // built)". This is that page's server-side half.
 //
-// The owning client can only ever move an order from 'awaiting_payment'
-// straight to 'payment_submitted' in ONE step, with no allowed
-// in-between state — so picking a network/currency and seeing the
-// resulting address+amount is deliberately read-only (getPaymentQuoteAction,
-// no DB write) and only the final "I've sent it" step (submitPaymentAction)
-// actually writes anything. That single write used to be a direct UPDATE
-// under orders_update_own_payment_submission (0013); as of 0020 it goes
-// through the submit_payment_transaction() RPC instead, which re-derives
-// the wallet address/expected amount itself rather than trusting this
-// file's own computed quote — see submitPaymentAction's comment below.
+// orders_update_own_payment_submission (0013) only lets the owning client
+// move an order from 'awaiting_payment' straight to 'payment_submitted' in
+// ONE update, with no allowed in-between state — so picking a
+// network/currency and seeing the resulting address+amount is deliberately
+// read-only (getPaymentQuoteAction, no DB write) and only the final "I've
+// sent it" step (submitPaymentAction) actually writes to `orders`.
+//
+// 4 Agustus 2026: orders_update_own_payment_submission was DROPPED by
+// packages/db/migrations/0020_lock_down_payment_rls.sql (the P0.5 security
+// audit — that raw client-side UPDATE could rewrite final_price_usd/
+// payment_expected_amount/payment_wallet_address, the exact numbers staff's
+// manual verification trusts). submitPaymentAction below now goes through
+// submit_payment_transaction() (SECURITY DEFINER), the RPC 0020 introduced
+// to replace it — see that migration's own comment for the full reasoning.
 
 // A native coin's live USD rate is looked up by its CoinGecko "id" (not the
 // same as its ticker symbol) — see packages/db/migrations/0015's comment:
@@ -71,7 +75,12 @@ type SupabaseClient = ReturnType<typeof createServerClient>;
 // Shared by both actions below so submitPaymentAction NEVER trusts a
 // client-supplied address/amount — it re-derives everything from
 // `payment_wallets` + `orders.final_price_usd` fresh, at submit time, the
-// same way getPaymentQuoteAction does when just previewing.
+// same way getPaymentQuoteAction does when just previewing. (The actual
+// write in submitPaymentAction now happens inside submit_payment_transaction
+// on the DB side, which re-derives the address/amount itself too — this
+// function's result is only used for what's shown to the client and as the
+// live-rate INPUT the DB function needs for native coins, see that
+// function's own comment on why it can't fetch one itself.)
 async function resolveQuote(
   supabase: SupabaseClient,
   orderId: string,
@@ -142,9 +151,7 @@ export type PaymentQuoteResult = { success: true; quote: PaymentQuote } | { succ
 
 // Read-only preview — lets the client see the address + amount for a
 // network/currency combo before they've actually sent anything, without
-// writing to `orders` (which the RLS policy wouldn't allow yet anyway,
-// since it only permits the full awaiting_payment -> payment_submitted
-// jump in one shot).
+// writing to `orders`.
 export async function getPaymentQuoteAction(
   orderId: string,
   network: string,
@@ -161,21 +168,15 @@ export async function getPaymentQuoteAction(
 
 export type SubmitPaymentResult = { success: true } | { success: false; error: string };
 
-// The one write in this file. Used to be a direct UPDATE, permitted by
-// orders_update_own_payment_submission (0013) — that policy only
-// constrained `status`, not any of the payment_* columns in the same
-// call, so a client bypassing this action (a raw Supabase call using
-// their own session, same threat model this repo's RLS comments always
-// call out) could have rewritten payment_expected_amount or
-// payment_wallet_address to whatever they wanted. Fixed at the DB layer
-// in 0020: this now calls submit_payment_transaction(), a SECURITY
-// DEFINER function that re-derives the wallet address and (for
-// stablecoins) the expected amount itself from payment_wallets/
-// final_price_usd, rather than trusting anything computed here. We still
-// call resolveQuote first purely so the UI gets a friendly error early
-// (e.g. "not currently awaiting payment") without a round trip to the RPC,
-// and so we have quote.rateUsd to pass along for native-coin orders (see
-// the RPC's own comment for why it can't fetch that rate itself).
+// The one write in this file. Re-derives the quote fresh (see
+// resolveQuote's comment), then calls submit_payment_transaction() — the
+// SECURITY DEFINER RPC 0020 introduced after dropping
+// orders_update_own_payment_submission — instead of a raw `.update()` on
+// `orders`. That RLS policy no longer exists, so a raw update here would
+// now fail outright; the RPC re-validates ownership/status and re-derives
+// the wallet address/expected amount itself server-side, only accepting
+// quote.rateUsd through as the live-rate INPUT for native coins (see the
+// RPC's own comment on why it can't fetch one itself).
 export async function submitPaymentAction(
   orderId: string,
   network: string,
@@ -209,4 +210,39 @@ export async function submitPaymentAction(
   revalidatePath("/dashboard/orders");
   revalidatePath("/dashboard");
   return { success: true };
+}
+
+// ------------------------------------------------------------------
+// Voucher redemption (4 Agustus 2026, P1 — Vouchers & Quests). The ONLY way
+// a voucher can ever be applied is apply_voucher_to_order() (SECURITY
+// DEFINER, packages/db/migrations/0021_vouchers.sql), which re-validates
+// ownership/status and re-computes the discount itself — this action never
+// trusts a percent/amount from the client, only the code text the client
+// typed in.
+// ------------------------------------------------------------------
+
+export type ApplyVoucherResult =
+  | { success: true; newFinalPriceUsd: number }
+  | { success: false; error: string };
+
+export async function applyVoucherAction(orderId: string, code: string): Promise<ApplyVoucherResult> {
+  const trimmedCode = code.trim();
+  if (!trimmedCode) {
+    return { success: false, error: "Enter a voucher code." };
+  }
+
+  const supabase = createServerClient(await cookies());
+  const { data, error } = await supabase.rpc("apply_voucher_to_order", {
+    p_order_id: orderId,
+    p_code: trimmedCode,
+  });
+
+  if (error) return { success: false, error: error.message };
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const newFinalPriceUsd = Number(row?.new_final_price_usd ?? 0);
+
+  revalidatePath("/dashboard/orders");
+  revalidatePath("/dashboard");
+  return { success: true, newFinalPriceUsd };
 }

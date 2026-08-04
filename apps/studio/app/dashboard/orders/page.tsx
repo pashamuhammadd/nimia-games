@@ -47,7 +47,12 @@ export default async function OrdersPage() {
         // "kenapa belum bisa bayar") so OrderDetail/PaymentPanel can show
         // what's already been submitted for an order, not just its status.
         // See packages/db/migrations/0013_negotiation_payments_ambassadors.sql.
-        "id, description, status, budget, final_price_usd, proposed_price_usd, created_at, services(name), payment_network, payment_token, payment_wallet_address, payment_expected_amount, payment_tx_hash, payment_submitted_at, payment_verified_at, payment_underpaid_note",
+        // voucher_redemptions embed added (4 Agustus 2026, P1 — Vouchers &
+        // Quests) so PaymentPanel can show a voucher already applied to
+        // this order instead of re-offering the redeem box — order_id is
+        // UNIQUE on voucher_redemptions (packages/db/migrations/
+        // 0021_vouchers.sql), so there's at most one row per order.
+        "id, description, status, budget, final_price_usd, proposed_price_usd, created_at, services(name), payment_network, payment_token, payment_wallet_address, payment_expected_amount, payment_tx_hash, payment_submitted_at, payment_verified_at, payment_underpaid_note, voucher_redemptions(discount_percent, original_price_usd, discounted_price_usd, vouchers(code))",
       )
       .eq("client_id", client.id)
       .order("created_at", { ascending: false });
@@ -59,6 +64,13 @@ export default async function OrdersPage() {
       // time, so this normalizes either shape defensively rather than
       // assuming one.
       const service = Array.isArray(o.services) ? o.services[0] : o.services;
+      const redemptionRow = Array.isArray(o.voucher_redemptions) ? o.voucher_redemptions[0] : o.voucher_redemptions;
+      const voucherRow = redemptionRow
+        ? Array.isArray(redemptionRow.vouchers)
+          ? redemptionRow.vouchers[0]
+          : redemptionRow.vouchers
+        : null;
+
       return {
         id: o.id,
         title: service?.name ?? "Custom Project",
@@ -76,6 +88,14 @@ export default async function OrdersPage() {
         paymentSubmittedAt: o.payment_submitted_at,
         paymentVerifiedAt: o.payment_verified_at,
         paymentUnderpaidNote: o.payment_underpaid_note,
+        voucherRedemption: redemptionRow
+          ? {
+              code: voucherRow?.code ?? "",
+              discountPercent: Number(redemptionRow.discount_percent),
+              originalPriceUsd: Number(redemptionRow.original_price_usd),
+              discountedPriceUsd: Number(redemptionRow.discounted_price_usd),
+            }
+          : null,
       };
     });
   }
