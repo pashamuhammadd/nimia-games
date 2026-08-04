@@ -11,12 +11,16 @@ import { createServerClient } from "@nimia/db";
 // comment calling this "the buyer-facing payment page (Phase 3, not yet
 // built)". This is that page's server-side half.
 //
-// orders_update_own_payment_submission (0013) only lets the owning client
-// move an order from 'awaiting_payment' straight to 'payment_submitted' in
-// ONE update, with no allowed in-between state — so picking a
-// network/currency and seeing the resulting address+amount is deliberately
-// read-only (getPaymentQuoteAction, no DB write) and only the final "I've
-// sent it" step (submitPaymentAction) actually writes to `orders`.
+// The owning client can only ever move an order from 'awaiting_payment'
+// straight to 'payment_submitted' in ONE step, with no allowed
+// in-between state — so picking a network/currency and seeing the
+// resulting address+amount is deliberately read-only (getPaymentQuoteAction,
+// no DB write) and only the final "I've sent it" step (submitPaymentAction)
+// actually writes anything. That single write used to be a direct UPDATE
+// under orders_update_own_payment_submission (0013); as of 0020 it goes
+// through the submit_payment_transaction() RPC instead, which re-derives
+// the wallet address/expected amount itself rather than trusting this
+// file's own computed quote — see submitPaymentAction's comment below.
 
 // A native coin's live USD rate is looked up by its CoinGecko "id" (not the
 // same as its ticker symbol) — see packages/db/migrations/0015's comment:
@@ -157,13 +161,21 @@ export async function getPaymentQuoteAction(
 
 export type SubmitPaymentResult = { success: true } | { success: false; error: string };
 
-// The one write in this file. Re-derives the quote fresh (see
-// resolveQuote's comment) rather than accepting an address/amount from the
-// client, then does the single UPDATE that orders_update_own_payment_submission
-// (0013) allows: awaiting_payment -> payment_submitted, with the payment_*
-// columns filled in. Also clears any previous payment_underpaid_note (set
-// by apps/admin's flagUnderpaidPaymentAction) since this is a fresh
-// submission responding to that flag.
+// The one write in this file. Used to be a direct UPDATE, permitted by
+// orders_update_own_payment_submission (0013) — that policy only
+// constrained `status`, not any of the payment_* columns in the same
+// call, so a client bypassing this action (a raw Supabase call using
+// their own session, same threat model this repo's RLS comments always
+// call out) could have rewritten payment_expected_amount or
+// payment_wallet_address to whatever they wanted. Fixed at the DB layer
+// in 0020: this now calls submit_payment_transaction(), a SECURITY
+// DEFINER function that re-derives the wallet address and (for
+// stablecoins) the expected amount itself from payment_wallets/
+// final_price_usd, rather than trusting anything computed here. We still
+// call resolveQuote first purely so the UI gets a friendly error early
+// (e.g. "not currently awaiting payment") without a round trip to the RPC,
+// and so we have quote.rateUsd to pass along for native-coin orders (see
+// the RPC's own comment for why it can't fetch that rate itself).
 export async function submitPaymentAction(
   orderId: string,
   network: string,
@@ -184,19 +196,13 @@ export async function submitPaymentAction(
     return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
   }
 
-  const { error } = await supabase
-    .from("orders")
-    .update({
-      status: "payment_submitted",
-      payment_network: quote.network,
-      payment_token: quote.currency,
-      payment_wallet_address: quote.address,
-      payment_expected_amount: quote.expectedAmount,
-      payment_tx_hash: trimmedTxHash,
-      payment_submitted_at: new Date().toISOString(),
-      payment_underpaid_note: null,
-    })
-    .eq("id", orderId);
+  const { error } = await supabase.rpc("submit_payment_transaction", {
+    p_order_id: orderId,
+    p_network: quote.network,
+    p_currency: quote.currency,
+    p_tx_hash: trimmedTxHash,
+    p_rate_usd: quote.rateUsd,
+  });
 
   if (error) return { success: false, error: error.message };
 
