@@ -7,6 +7,7 @@ import { calculateEstimate } from "../pricing/calculate-estimate";
 import { summarizeSelections } from "../pricing/summarize-selections";
 import type { ConfigSelections, ProjectBrief } from "../types/order-state";
 import type { SubmitIntent } from "./use-order-wizard";
+import { sendOrderReceivedEmail } from "../../../lib/email";
 
 export interface SubmitOrderActionInput {
   intent: SubmitIntent;
@@ -135,12 +136,14 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
     selections,
   });
 
+  const clientName = profile?.full_name ?? "Nimia Client";
+
   const { data: order, error: insertError } = await supabase
     .from("orders")
     .insert({
       client_id: client.id,
       service_id: service.dbServiceId,
-      full_name: profile?.full_name ?? "Nimia Client",
+      full_name: clientName,
       company_name: client.company_name,
       email: user.email ?? "",
       whatsapp: client.whatsapp,
@@ -173,6 +176,24 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
           "Your order was saved, but sending your offer failed. You can open a negotiation for it again from your dashboard.",
       };
     }
+  }
+
+  // Added 4 Agustus 2026 (P0.2 — order confirmation was the biggest
+  // "client gets zero notification" gap from the audit). Fire-and-await,
+  // not fire-and-forget: Vercel can freeze/kill the function once the
+  // response is sent, so we wait for the send attempt to finish before
+  // returning. sendOrderReceivedEmail never throws (see lib/email.tsx) —
+  // a failed send is logged, not surfaced to the client, since the order
+  // itself is already safely saved by this point.
+  if (user.email) {
+    await sendOrderReceivedEmail(user.email, {
+      clientName,
+      serviceName: service.name,
+      orderId: `ORD-${order.id.slice(0, 8).toUpperCase()}`,
+      submittedAt: new Date().toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" }),
+      description,
+      dashboardUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://studio.nimiagames.com"}/dashboard/orders`,
+    });
   }
 
   return { ok: true, orderId: order.id };

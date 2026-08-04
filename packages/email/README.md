@@ -1,27 +1,31 @@
 # @nimia/email
 
 Template email transaksional (React Email, dikirim lewat Resend dari
-`contact@nimiagames.com`) untuk semua event studio: pesanan dibuat, penawaran
-harga, invoice dibuat/dikirim, pembayaran diterima, receipt tersedia, project
-selesai, revisi diminta, deadline mendekat. Juga menyimpan desain email
+`studio@nimiagames.com`) untuk event-event studio. Juga menyimpan desain email
 Supabase Auth (konfirmasi pendaftaran, reset password, dll) sebagai referensi
 + HTML siap-tempel, walau pengirimannya bukan lewat package ini.
 
-Status: **1 template Resend aktif** (konfirmasi pesanan) + **1 template
-Supabase Auth** (konfirmasi pendaftaran). Sisanya (penawaran harga, invoice,
-pembayaran, reset password, magic link) menyusul di **Tahap 5** begitu alur
-backend-nya ada.
+Status (4 Agustus 2026): **4 template Resend aktif** — konfirmasi pesanan
+(`apps/studio`), negosiasi diterima/counter offer, pembayaran diverifikasi,
+dan pembayaran di-flag underpaid (3 terakhir dikirim dari `apps/admin`) —
+plus **1 template Supabase Auth** (konfirmasi pendaftaran). Belum ada:
+penawaran harga awal (quotation_sent), invoice, reset password, magic link —
+menyusul begitu fitur terkait (invoice/PDF, dll) dibangun.
 
 ## Struktur
 
 ```
 src/
   components/
-    EmailLayout.tsx        # header logo+wordmark, kartu putih, footer kontak — dipakai semua template Resend
+    EmailLayout.tsx           # header logo+wordmark, kartu putih, footer kontak — dipakai semua template Resend
   templates/
-    OrderReceivedEmail.tsx
-    ConfirmSignupEmail.tsx # HANYA untuk preview lokal, lihat catatan di bawah
-  index.ts                 # barrel export
+    OrderReceivedEmail.tsx        # apps/studio: submitOrderAction
+    NegotiationUpdateEmail.tsx    # apps/admin: acceptNegotiationOfferAction / sendCounterOfferAction
+    PaymentVerifiedEmail.tsx      # apps/admin: verifyPaymentAction
+    PaymentFlaggedEmail.tsx       # apps/admin: flagUnderpaidPaymentAction
+    ContactMessageEmail.tsx       # belum ada pemanggil (apps/www belum punya form kontak yang menulis ke sini)
+    ConfirmSignupEmail.tsx        # HANYA untuk preview lokal, lihat catatan di bawah
+  index.ts                        # barrel export
 supabase-templates/
   confirm-signup.html      # HTML statis yang di-paste ke Supabase Dashboard
 ```
@@ -41,9 +45,10 @@ www).
 Penting dibedakan karena keduanya kelihatan sama-sama "email transaksional"
 tapi jalurnya beda total:
 
-1. **Resend** (`OrderReceivedEmail`, dan semua template Tahap 5 nanti) —
-   dikirim dari kode kita sendiri (server action di `apps/studio`), lewat
-   API Resend, pakai komponen React di sini langsung.
+1. **Resend** (semua template di `templates/` kecuali `ConfirmSignupEmail`) —
+   dikirim dari kode kita sendiri lewat helper `lib/email.tsx` di masing-masing
+   app (`apps/studio/lib/email.tsx`, `apps/admin/lib/email.tsx`), lewat API
+   Resend, pakai komponen React di sini langsung.
 2. **Supabase Auth** (`ConfirmSignupEmail`, reset password, magic link) —
    dikirim otomatis oleh Supabase sendiri saat ada event auth (signup,
    reset password, dst). Kontennya dikonfigurasi di **Supabase Dashboard >
@@ -65,8 +70,8 @@ tapi jalurnya beda total:
 3. **Catatan soal pengirim**: ganti konten template ini TIDAK mengubah
    alamat pengirim. Selama custom SMTP belum disambungkan ke Resend
    (Authentication → Settings → SMTP Settings), email tetap terkirim dari
-   alamat default Supabase, bukan dari `contact@nimiagames.com` — itu
-   langkah terpisah, dilakukan begitu domain Resend selesai verifikasi.
+   alamat default Supabase, bukan dari `studio@nimiagames.com` — itu
+   langkah terpisah.
 
 Kalau desain brand berubah, dua file ini (`ConfirmSignupEmail.tsx` dan
 `confirm-signup.html`) perlu diupdate bareng-bareng secara manual — tidak
@@ -83,10 +88,17 @@ Membuka React Email's dev server (`email dev`) yang me-render tiap file di
 desain) dengan data contoh dari `<Template>.PreviewProps`, plus preview di
 beberapa ukuran layar/klien email sekaligus.
 
-## Cara pakai template Resend di Tahap 5
+## Cara pakai template Resend (aktif per 4 Agustus 2026)
 
-Belum dikirim dari mana pun — package ini baru berisi template-nya saja.
-Nanti di server action (mis. `createOrderAction`), tinggal:
+Setiap app yang mengirim email Resend punya helper tipis sendiri di
+`lib/email.tsx` (bukan di package ini — package ini sengaja tidak
+depend ke `resend` supaya tetap ringan/framework-agnostic untuk preview).
+Helper itu satu-satunya tempat yang tahu `RESEND_API_KEY`/`RESEND_FROM_EMAIL`
+dan menelan error (log-only, tidak throw) supaya kegagalan kirim email
+TIDAK PERNAH menggagalkan request yang memicunya (mis. order sudah tersimpan
+di DB duluan sebelum email dicoba dikirim).
+
+Contoh (`apps/studio/lib/email.tsx`):
 
 ```ts
 import { Resend } from "resend";
@@ -94,22 +106,22 @@ import { OrderReceivedEmail } from "@nimia/email";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-await resend.emails.send({
-  from: "Nimia Games <contact@nimiagames.com>",
-  to: email,
-  subject: `Pesanan ${serviceName} kamu sudah kami terima`,
-  react: (
-    <OrderReceivedEmail
-      clientName={fullName}
-      serviceName={serviceName}
-      orderId={order.id}
-      submittedAt={formattedDate}
-      description={description}
-      dashboardUrl="https://studio.nimiagames.com/dashboard/orders"
-    />
-  ),
-});
+export async function sendOrderReceivedEmail(to: string, props: OrderReceivedEmailProps) {
+  const { error } = await resend.emails.send({
+    from: `Nimia Studio <${process.env.RESEND_FROM_EMAIL}>`,
+    to,
+    subject: `We've received your ${props.serviceName} order`,
+    react: <OrderReceivedEmail {...props} />,
+  });
+  // ...error handling, lihat isi file aslinya
+}
 ```
+
+`apps/admin` punya helper serupa (`apps/admin/lib/email.tsx`) untuk
+`NegotiationUpdateEmail`, `PaymentVerifiedEmail`, dan `PaymentFlaggedEmail`
+— app itu juga butuh `RESEND_API_KEY`/`RESEND_FROM_EMAIL` di env-nya sendiri
+(ditambahkan ke `.env.example` per 4 Agustus 2026) karena aksi
+verifikasi/negosiasi pembayaran dijalankan dari sisi admin, bukan studio.
 
 Resend yang mengonversi komponen React ke HTML — tidak perlu memanggil
 `render()` manual.

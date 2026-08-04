@@ -3,6 +3,11 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createServerClient } from "@nimia/db";
+import {
+  sendNegotiationUpdateEmail,
+  sendPaymentVerifiedEmail,
+  sendPaymentFlaggedEmail,
+} from "../../../lib/email";
 
 export type OrderActionResult = { success: true } | { success: false; error: string };
 
@@ -11,6 +16,28 @@ export type OrderActionResult = { success: true } | { success: false; error: str
 // packages/db/migrations/0006_rls_policies.sql both gate on
 // public.is_admin()) — this file is convenience/UX, not the security
 // boundary itself.
+
+// Shared shape for the client-facing fields every email below needs —
+// requested via `.select()` on the same UPDATE that changes status, so
+// sending the notification never costs a second round trip.
+type OrderEmailFields = {
+  email: string | null;
+  full_name: string | null;
+  company_name: string | null;
+  services: { name: string } | { name: string }[] | null;
+};
+
+function resolveServiceName(services: OrderEmailFields["services"]): string {
+  if (!services) return "your project";
+  const row = Array.isArray(services) ? services[0] : services;
+  return row?.name ?? "your project";
+}
+
+function resolveClientName(order: OrderEmailFields): string {
+  return order.full_name ?? order.company_name ?? "there";
+}
+
+const STUDIO_DASHBOARD_URL = `${process.env.NEXT_PUBLIC_STUDIO_URL ?? "https://studio.nimiagames.com"}/dashboard/orders`;
 
 export async function approveOrderAction(orderId: string): Promise<OrderActionResult> {
   const supabase = createServerClient(await cookies());
@@ -100,17 +127,36 @@ export async function convertToProjectAction(orderId: string): Promise<OrderActi
 // see packages/db/migrations/0012/0013) so the client can be sent a wallet
 // address to pay. Deliberately does NOT insert a new order_negotiations
 // row — accepting isn't a new offer, it's agreeing to the existing one.
+//
+// 4 Agustus 2026 (P0.2): also emails the client — this is the moment they
+// go from "waiting on a reply" to "actually able to pay", and until now
+// nothing told them that happened outside of them reopening the dashboard.
 export async function acceptNegotiationOfferAction(
   orderId: string,
   amountUsd: number,
 ): Promise<OrderActionResult> {
   const supabase = createServerClient(await cookies());
-  const { error } = await supabase
+  const { data: order, error } = await supabase
     .from("orders")
     .update({ status: "awaiting_payment", final_price_usd: amountUsd })
-    .eq("id", orderId);
+    .eq("id", orderId)
+    .select("email, full_name, company_name, services(name)")
+    .single();
 
   if (error) return { success: false, error: error.message };
+
+  const fields = order as unknown as OrderEmailFields | null;
+  if (fields?.email) {
+    await sendNegotiationUpdateEmail(fields.email, {
+      clientName: resolveClientName(fields),
+      serviceName: resolveServiceName(fields.services),
+      orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
+      kind: "accepted",
+      amountUsd,
+      dashboardUrl: STUDIO_DASHBOARD_URL,
+    });
+  }
+
   revalidatePath("/orders");
   revalidatePath("/");
   return { success: true };
@@ -119,6 +165,10 @@ export async function acceptNegotiationOfferAction(
 // Sends a counter offer: a new order_negotiations row from 'staff' — same
 // shape as the client's own offer, just the other side of the thread. The
 // order stays in 'negotiating' until either side accepts (or rejects).
+//
+// 4 Agustus 2026 (P0.2): also emails the client so they know a counter
+// offer is waiting on them instead of finding out only if they happen to
+// check the dashboard.
 export async function sendCounterOfferAction(
   orderId: string,
   amountUsd: number,
@@ -133,9 +183,10 @@ export async function sendCounterOfferAction(
   // Defense in depth alongside order_negotiations_insert_own_or_admin's RLS
   // check — this also makes sure the order is actually still negotiating
   // rather than silently attaching an offer to an already-closed order.
+  // Also doubles as the fetch for the client-facing fields the email needs.
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("status")
+    .select("status, email, full_name, company_name, services(name)")
     .eq("id", orderId)
     .single();
   if (orderError || !order) {
@@ -153,13 +204,30 @@ export async function sendCounterOfferAction(
   });
 
   if (error) return { success: false, error: error.message };
+
+  const fields = order as unknown as OrderEmailFields;
+  if (fields.email) {
+    await sendNegotiationUpdateEmail(fields.email, {
+      clientName: resolveClientName(fields),
+      serviceName: resolveServiceName(fields.services),
+      orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
+      kind: "counter",
+      amountUsd,
+      message: message?.trim() || null,
+      dashboardUrl: `${process.env.NEXT_PUBLIC_STUDIO_URL ?? "https://studio.nimiagames.com"}/dashboard/negotiations`,
+    });
+  }
+
   revalidatePath("/orders");
   revalidatePath("/");
   return { success: true };
 }
 
 // Ends a negotiation without agreeing to a price — same terminal state as
-// rejecting a fresh order, just reachable from 'negotiating' too.
+// rejecting a fresh order, just reachable from 'negotiating' too. No email
+// here yet (deliberately — see NegotiationUpdateEmail.tsx's file comment):
+// this shares rejectOrderAction with plain, non-negotiated order rejection,
+// which has no agreed/offered price to show and would need its own copy.
 export async function rejectNegotiationAction(orderId: string): Promise<OrderActionResult> {
   return rejectOrderAction(orderId);
 }
@@ -180,6 +248,11 @@ export async function rejectNegotiationAction(orderId: string): Promise<OrderAct
 // marks the order 'paid'. payment_verified_by/payment_verified_at (0013)
 // record who/when, same idea as payment_verified_by on the legacy
 // IDR-invoice flow's `payments` table (0005).
+//
+// 4 Agustus 2026 (P0.2): also emails the client — this is the one moment
+// in the whole flow where "did my payment go through?" finally gets a
+// definitive yes, and previously they'd only find out by refreshing the
+// dashboard.
 export async function verifyPaymentAction(orderId: string): Promise<OrderActionResult> {
   const supabase = createServerClient(await cookies());
   const {
@@ -201,16 +274,38 @@ export async function verifyPaymentAction(orderId: string): Promise<OrderActionR
     return { success: false, error: "Only orders with a submitted payment can be verified." };
   }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("orders")
     .update({
       status: "paid",
       payment_verified_by: user.id,
       payment_verified_at: new Date().toISOString(),
     })
-    .eq("id", orderId);
+    .eq("id", orderId)
+    .select("email, full_name, company_name, final_price_usd, payment_network, payment_token, services(name)")
+    .single();
 
   if (error) return { success: false, error: error.message };
+
+  const fields = updated as unknown as
+    | (OrderEmailFields & {
+        final_price_usd: number | null;
+        payment_network: string | null;
+        payment_token: string | null;
+      })
+    | null;
+  if (fields?.email && fields.final_price_usd != null && fields.payment_network && fields.payment_token) {
+    await sendPaymentVerifiedEmail(fields.email, {
+      clientName: resolveClientName(fields),
+      serviceName: resolveServiceName(fields.services),
+      orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
+      amountUsd: fields.final_price_usd,
+      network: fields.payment_network,
+      currency: fields.payment_token,
+      dashboardUrl: STUDIO_DASHBOARD_URL,
+    });
+  }
+
   revalidatePath("/orders");
   revalidatePath("/");
   return { success: true };
@@ -223,6 +318,10 @@ export async function verifyPaymentAction(orderId: string): Promise<OrderActionR
 // status PaymentPanel's network/currency picker renders for. The note is
 // shown to the client on their next visit (see PaymentPanel.tsx's
 // `underpaidNote` banner) so they know what to fix before resending.
+//
+// 4 Agustus 2026 (P0.2): also emails the client with the note itself,
+// instead of relying on them to notice the banner next time they happen
+// to open the dashboard.
 export async function flagUnderpaidPaymentAction(
   orderId: string,
   note: string,
@@ -246,15 +345,29 @@ export async function flagUnderpaidPaymentAction(
     return { success: false, error: "Only orders with a submitted payment can be flagged." };
   }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("orders")
     .update({
       status: "awaiting_payment",
       payment_underpaid_note: trimmedNote,
     })
-    .eq("id", orderId);
+    .eq("id", orderId)
+    .select("email, full_name, company_name, services(name)")
+    .single();
 
   if (error) return { success: false, error: error.message };
+
+  const fields = updated as unknown as OrderEmailFields | null;
+  if (fields?.email) {
+    await sendPaymentFlaggedEmail(fields.email, {
+      clientName: resolveClientName(fields),
+      serviceName: resolveServiceName(fields.services),
+      orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
+      note: trimmedNote,
+      dashboardUrl: STUDIO_DASHBOARD_URL,
+    });
+  }
+
   revalidatePath("/orders");
   revalidatePath("/");
   return { success: true };
