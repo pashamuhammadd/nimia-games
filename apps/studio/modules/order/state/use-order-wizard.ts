@@ -20,6 +20,8 @@ import { getDefaultSelections } from "./default-selections";
 import { getStepsForService } from "./steps";
 import { clearOrderState, loadOrderState, saveOrderState } from "./storage";
 import { submitOrderAction } from "./submit-order-action";
+import { getUploadSignatureAction } from "./get-upload-signature-action";
+import { uploadFileToCloudinary } from "./upload-to-cloudinary";
 
 function withStep(state: OrderWizardState, step: StepId, steps: StepId[]): OrderWizardState {
   const index = steps.indexOf(step);
@@ -308,38 +310,87 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
         return;
       }
 
-      // Real submission (3 Agustus 2026, per user request — this used to be
-      // a window.setTimeout local-only simulation that never wrote to
-      // `orders`/`order_negotiations`, which is why a negotiated order never
-      // showed up under /dashboard's Negotiations menu). See
-      // submit-order-action.ts for the actual insert logic; "submit" ->
-      // orders.status = 'pending_review', "negotiate" ->
-      // orders.status = 'negotiating' + an order_negotiations row (per
-      // packages/db/migrations/0012 and 0013).
       setIsSubmitting(true);
-      submitOrderAction({
-        intent,
-        categoryId: state.categoryId,
-        serviceId: state.serviceId,
-        packageId: state.packageId,
-        configSelections: state.configSelections,
-        brief: state.brief,
-        negotiationOffer: state.negotiationOffer,
-      })
-        .then((result) => {
-          setIsSubmitting(false);
-          if (!result.ok) {
-            setSubmitError(result.error);
+
+      // Added 4 Agustus 2026 (P0.3 — "file upload order hilang total" dari
+      // audit). Everything past this point is authenticated (checked
+      // above), so attachments upload straight to Cloudinary here, BEFORE
+      // the order itself is created — see get-upload-signature-action.ts
+      // and upload-to-cloudinary.ts for why (and why that's safe/scoped
+      // per-user). Wrapped in a self-invoked async function since this
+      // callback itself can't be declared `async` without changing every
+      // caller's expectations (order-wizard.tsx just fires this from an
+      // onClick, it never awaits the return value).
+      (async () => {
+        let uploadedFiles: { name: string; url: string }[] = [];
+
+        if (state.files.length > 0) {
+          const signatureResult = await getUploadSignatureAction();
+          if (!signatureResult.success) {
+            setIsSubmitting(false);
+            setSubmitError(signatureResult.error);
             return;
           }
-          setSubmitted(true);
-          setSubmittedIntent(intent);
-          clearOrderState();
+
+          try {
+            uploadedFiles = await Promise.all(
+              state.files.map((meta) => {
+                const file = fileBlobs[meta.id];
+                if (!file) {
+                  // Shouldn't normally happen (removeFile keeps files/
+                  // fileBlobs in sync) — fails loudly instead of silently
+                  // submitting an order missing an attachment the client
+                  // thinks is still there.
+                  throw new Error(`${meta.name} is missing — please remove and re-attach it.`);
+                }
+                return uploadFileToCloudinary(file, signatureResult);
+              }),
+            );
+          } catch (uploadError) {
+            setIsSubmitting(false);
+            setSubmitError(
+              uploadError instanceof Error
+                ? uploadError.message
+                : "Failed to upload one of your files. Please try again.",
+            );
+            return;
+          }
+        }
+
+        // Real submission (3 Agustus 2026, per user request — this used to
+        // be a window.setTimeout local-only simulation that never wrote to
+        // `orders`/`order_negotiations`, which is why a negotiated order
+        // never showed up under /dashboard's Negotiations menu). See
+        // submit-order-action.ts for the actual insert logic; "submit" ->
+        // orders.status = 'pending_review', "negotiate" ->
+        // orders.status = 'negotiating' + an order_negotiations row (per
+        // packages/db/migrations/0012 and 0013). `uploadedFiles` (added
+        // 4 Agustus 2026) becomes one `order_files` row per attachment.
+        submitOrderAction({
+          intent,
+          categoryId: state.categoryId,
+          serviceId: state.serviceId,
+          packageId: state.packageId,
+          configSelections: state.configSelections,
+          brief: state.brief,
+          negotiationOffer: state.negotiationOffer,
+          uploadedFiles,
         })
-        .catch(() => {
-          setIsSubmitting(false);
-          setSubmitError("Something went wrong submitting your order. Please try again.");
-        });
+          .then((result) => {
+            setIsSubmitting(false);
+            if (!result.ok) {
+              setSubmitError(result.error);
+              return;
+            }
+            setSubmitted(true);
+            setSubmittedIntent(intent);
+            clearOrderState();
+          })
+          .catch(() => {
+            setIsSubmitting(false);
+            setSubmitError("Something went wrong submitting your order. Please try again.");
+          });
+      })();
     },
     [
       isAuthenticated,
@@ -351,6 +402,8 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
       state.packageId,
       state.configSelections,
       state.brief,
+      state.files,
+      fileBlobs,
     ],
   );
 

@@ -14,6 +14,13 @@ export interface UploadSectionProps {
 
 const ACCEPTED_TYPES = ".jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm,.mp3,.wav,.pdf,.zip,.rar";
 
+// Added 4 Agustus 2026 (P0.3) — a client-side guard so an oversized file is
+// rejected immediately with a clear reason, instead of only failing later
+// at Submit once useOrderWizard actually tries to upload it to Cloudinary.
+// 20 MB comfortably covers reference images/PDFs/short clips; adjust to
+// match whatever Nimia's actual Cloudinary plan allows if that changes.
+const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -29,19 +36,35 @@ function iconForType(type: string) {
   return FileText;
 }
 
-// STEP 6 — local-state only for now (per the brief: "Cloudinary belum
-// perlu. Gunakan local state terlebih dahulu."). File objects live only in
-// useOrderWizard's in-memory fileBlobs map, never in localStorage, so a
-// real navigation (e.g. the unauthenticated Submit -> /login redirect)
-// clears them — the note below makes that limitation visible rather than
-// silently losing attachments.
+// STEP 6 — file picking still only touches local state here (the File
+// objects live in useOrderWizard's in-memory fileBlobs map, never in
+// localStorage — Files aren't JSON-serializable, and aren't meant to
+// survive a real navigation like the login redirect anyway). What changed
+// 4 Agustus 2026 (P0.3): these files are no longer discarded at submit
+// time — useOrderWizard's submit() now actually uploads each one to
+// Cloudinary right before creating the order (see
+// state/upload-to-cloudinary.ts), so nothing is lost once the order goes
+// through. The redirect caveat below is a separate, still-true limitation:
+// a real page navigation (e.g. the unauthenticated Submit -> /login
+// redirect) still clears in-memory File blobs, same as before.
 export function UploadSection({ files, onAddFiles, onRemoveFile }: UploadSectionProps) {
   const [isDraggingOver, setIsDraggingOver] = React.useState(false);
+  const [sizeError, setSizeError] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const handleFiles = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
-    onAddFiles(Array.from(fileList));
+    const incoming = Array.from(fileList);
+    const tooLarge = incoming.filter((file) => file.size > MAX_FILE_SIZE_BYTES);
+    const accepted = incoming.filter((file) => file.size <= MAX_FILE_SIZE_BYTES);
+
+    setSizeError(
+      tooLarge.length > 0
+        ? `${tooLarge.map((file) => file.name).join(", ")} ${tooLarge.length > 1 ? "are" : "is"} over the ${formatBytes(MAX_FILE_SIZE_BYTES)} limit and ${tooLarge.length > 1 ? "weren't" : "wasn't"} added.`
+        : null,
+    );
+
+    if (accepted.length > 0) onAddFiles(accepted);
   };
 
   return (
@@ -86,8 +109,12 @@ export function UploadSection({ files, onAddFiles, onRemoveFile }: UploadSection
         <p className="text-sm font-semibold text-white">
           Drag & drop files here, or click to browse
         </p>
-        <p className="text-xs text-white/40">Images, video, audio, PDF, ZIP: any number of files</p>
+        <p className="text-xs text-white/40">
+          Images, video, audio, PDF, ZIP — up to {formatBytes(MAX_FILE_SIZE_BYTES)} each
+        </p>
       </label>
+
+      {sizeError ? <p className="mt-3 text-sm text-red-400">{sizeError}</p> : null}
 
       {files.length > 0 ? (
         <ul className="mt-5 flex flex-col gap-2.5">
@@ -122,8 +149,8 @@ export function UploadSection({ files, onAddFiles, onRemoveFile }: UploadSection
       ) : null}
 
       <p className="mt-4 text-xs text-white/35">
-        Note: attached files stay on this page only. If you're redirected to log in before
-        submitting, please re-attach them once you're back.
+        Note: files upload when you submit your order, so nothing is sent until then. If you're
+        redirected to log in before submitting, please re-attach them once you're back.
       </p>
     </div>
   );

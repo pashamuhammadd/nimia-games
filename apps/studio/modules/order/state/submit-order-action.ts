@@ -17,6 +17,13 @@ export interface SubmitOrderActionInput {
   configSelections: ConfigSelections;
   brief: ProjectBrief;
   negotiationOffer: string;
+  /** Added 4 Agustus 2026 (P0.3) — already-uploaded Cloudinary URLs, one
+   * per attachment. Uploading happens client-side in useOrderWizard's
+   * submit() BEFORE this action is even called (see
+   * get-upload-signature-action.ts / upload-to-cloudinary.ts) — by the
+   * time this runs, there's nothing left to do with these but insert them
+   * as `order_files` rows once the order itself exists. */
+  uploadedFiles: { name: string; url: string }[];
 }
 
 export type SubmitOrderResult = { ok: true; orderId: string } | { ok: false; error: string };
@@ -71,13 +78,6 @@ function buildDescription(params: {
 // client used "Negotiate Price" instead of "Submit Order", an
 // `order_negotiations` row too, so app/dashboard/orders and
 // app/dashboard/negotiations actually have something to show.
-//
-// Known gap: attached files (Step 6, upload-section.tsx) are NOT uploaded to
-// Supabase Storage here. The wizard only ever kept them as in-memory File
-// blobs (state/use-order-wizard.ts's fileBlobs, never persisted, not even
-// across the login redirect), and no Storage bucket/upload flow exists for
-// this module yet. `order_files` rows are intentionally not inserted —
-// revisit once real file upload is wired in.
 export async function submitOrderAction(input: SubmitOrderActionInput): Promise<SubmitOrderResult> {
   const category = getCategory(input.categoryId);
   const service = findServiceById(input.serviceId);
@@ -175,6 +175,29 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
         error:
           "Your order was saved, but sending your offer failed. You can open a negotiation for it again from your dashboard.",
       };
+    }
+  }
+
+  // Added 4 Agustus 2026 (P0.3 — "file upload order hilang total" dari
+  // audit). Files are already safely sitting in Cloudinary by this point
+  // (uploaded in useOrderWizard's submit(), before this action was even
+  // called) — this just links them to the order that now exists.
+  // order_files_insert_own's RLS (0006) allows this because the order was
+  // just created by this same authenticated client. A failure here is
+  // logged, not surfaced as a failed submission: the order (and the
+  // uploaded files themselves) are already safely saved, only the link
+  // rows would be missing, which is recoverable manually rather than worth
+  // losing an otherwise-successful order over.
+  if (input.uploadedFiles.length > 0) {
+    const { error: filesError } = await supabase.from("order_files").insert(
+      input.uploadedFiles.map((file) => ({
+        order_id: order.id,
+        file_name: file.name,
+        file_url: file.url,
+      })),
+    );
+    if (filesError) {
+      console.error("[order_files] Failed to link uploaded files to order", order.id, filesError);
     }
   }
 
