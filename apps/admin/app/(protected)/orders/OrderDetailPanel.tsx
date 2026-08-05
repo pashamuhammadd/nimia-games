@@ -13,6 +13,7 @@ import {
   Handshake,
   ShieldCheck,
   AlertTriangle,
+  Download,
 } from "lucide-react";
 import { cn } from "@nimia/ui";
 import { orderStatusMeta } from "../../lib/orderStatus";
@@ -426,10 +427,19 @@ export function OrderDetailPanel({
             </div>
           ) : null}
 
+          {order.status === "paid" ? (
+            <a
+              href={`/api/orders/${order.id}/receipt`}
+              className="flex w-fit items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <Download className="h-4 w-4" aria-hidden="true" />
+              Download Receipt (PDF)
+            </a>
+          ) : null}
+
           {order.status === "rejected" ||
           order.status === "converted" ||
-          order.status === "awaiting_payment" ||
-          order.status === "paid" ? (
+          order.status === "awaiting_payment" ? (
             <p className="text-sm text-white/40">
               {order.status === "awaiting_payment"
                 ? "Waiting for the client to submit a payment."

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Wallet, Copy, Check, ShieldCheck, AlertTriangle, Clock, Ticket } from "lucide-react";
+import { Wallet, Copy, Check, ShieldCheck, AlertTriangle, Clock, Ticket, Download } from "lucide-react";
 import { cn, Listbox, Input, Label, Button } from "@nimia/ui";
 import { formatRelativeTime } from "../../lib/relativeTime";
 import { getPaymentQuoteAction, submitPaymentAction, applyVoucherAction, type PaymentQuote } from "./payment-actions";
@@ -238,6 +238,13 @@ export function PaymentPanel({
         {payment.network && payment.token && payment.expectedAmount != null ? (
           <PaymentSummaryRows payment={payment} />
         ) : null}
+        <a
+          href={`/api/orders/${orderId}/receipt`}
+          className="flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          <Download className="h-4 w-4" aria-hidden="true" />
+          Download Receipt (PDF)
+        </a>
       </div>
     );
   }
