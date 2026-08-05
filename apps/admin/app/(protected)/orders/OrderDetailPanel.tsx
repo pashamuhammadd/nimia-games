@@ -22,6 +22,7 @@ import {
   approveOrderAction,
   rejectOrderAction,
   convertToProjectAction,
+  sendQuotationForPaymentAction,
   acceptNegotiationOfferAction,
   sendCounterOfferAction,
   rejectNegotiationAction,
@@ -61,6 +62,14 @@ export function OrderDetailPanel({
   const [actionTaken, setActionTaken] = React.useState<string | null>(null);
   const [counterOffer, setCounterOffer] = React.useState("");
   const [underpaidNote, setUnderpaidNote] = React.useState("");
+  // Prefilled with the client's own price-calculator estimate, if any (5
+  // Agustus 2026, bug fix — see sendQuotationForPaymentAction's comment in
+  // ./actions.ts for why this field exists at all: a plain "Submit Order"
+  // — not "Negotiate Price" — order had no way to ever reach
+  // awaiting_payment before this).
+  const [quotationPrice, setQuotationPrice] = React.useState(
+    order.proposed_price_usd != null ? String(order.proposed_price_usd) : "",
+  );
   const meta = orderStatusMeta(order.status);
   const clientLabel = order.clients?.company_name || order.company_name || order.full_name;
 
@@ -300,24 +309,64 @@ export function OrderDetailPanel({
           ) : null}
 
           {order.status === "quotation_sent" ? (
-            <>
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={() => run(() => convertToProjectAction(order.id), "Converted to a project.")}
-                className="rounded-lg bg-[var(--nimia-crimson)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--nimia-crimson-hover)] disabled:opacity-50"
-              >
-                Convert to Project
-              </button>
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={() => run(() => rejectOrderAction(order.id), "Order rejected.")}
-                className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-white/80 transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50"
-              >
-                Reject
-              </button>
-            </>
+            <div className="flex w-full flex-col gap-3">
+              {/* Send for Payment (5 Agustus 2026, bug fix) — this is the
+                  bridge every DIRECT (non-negotiated) order was missing:
+                  before this, a quotation_sent order could only go
+                  straight to "Convert to Project" (no payment at all) or
+                  get rejected, with no way to ever reach awaiting_payment
+                  and let the client actually pay via the crypto flow. See
+                  sendQuotationForPaymentAction in ./actions.ts. */}
+              <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
+                <span className="text-sm font-semibold text-white/50">$</span>
+                <input
+                  type="number"
+                  min={1}
+                  inputMode="decimal"
+                  placeholder="Set price & send for payment"
+                  value={quotationPrice}
+                  onChange={(event) => setQuotationPrice(event.target.value)}
+                  className="w-full bg-transparent text-sm text-white placeholder:text-white/30 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={isPending || !quotationPrice.trim()}
+                  onClick={() => {
+                    const amount = Number(quotationPrice.trim());
+                    if (!quotationPrice.trim() || Number.isNaN(amount) || amount <= 0) {
+                      setError("Enter a valid price.");
+                      return;
+                    }
+                    run(
+                      () => sendQuotationForPaymentAction(order.id, amount),
+                      `Price set at $${amount.toLocaleString("en-US")}. Order moved to Awaiting Payment.`,
+                    );
+                  }}
+                  className="shrink-0 rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-600 disabled:opacity-40"
+                >
+                  Send for Payment
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => run(() => convertToProjectAction(order.id), "Converted to a project.")}
+                  className="rounded-lg bg-[var(--nimia-crimson)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--nimia-crimson-hover)] disabled:opacity-50"
+                >
+                  Convert to Project
+                </button>
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => run(() => rejectOrderAction(order.id), "Order rejected.")}
+                  className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-white/80 transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50"
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
           ) : null}
 
           {order.status === "negotiating" ? (
