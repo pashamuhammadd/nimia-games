@@ -7,7 +7,7 @@
 -- completed and never got a reward voucher. Root cause: the tester's order
 -- was already 'paid' BEFORE this migration's own trigger
 -- (orders_check_quests_after_paid, 0022) existed — that trigger only fires
--- on the UPDATE transition `old.status IS DISTINCT FROM 'paid' AND
+-- on the UPDATE transition `old.status ~IS DISTINCT FROM 'paid' AND
 -- new.status = 'paid'`, so it never had a chance to run for an order that
 -- became paid earlier. get_client_quest_progress (0022) recomputes
 -- current_progress LIVE from `orders`/`partners` on every call, so it

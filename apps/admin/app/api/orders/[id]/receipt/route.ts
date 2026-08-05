@@ -62,7 +62,12 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     orderId: (order as any).id,
   });
 
-  return new Response(pdfBuffer, {
+  // Response()'s TS types want a plain Uint8Array/ArrayBufferView, not a
+  // Node Buffer subclass directly — Next.js's build-time typecheck (with the
+  // DOM lib's BodyInit) rejects `Buffer<ArrayBufferLike>` even though it's a
+  // Uint8Array at runtime. Wrap it (no copy — same underlying bytes) so this
+  // satisfies BodyInit under a strict Next.js/TS build.
+  return new Response(new Uint8Array(pdfBuffer), {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
