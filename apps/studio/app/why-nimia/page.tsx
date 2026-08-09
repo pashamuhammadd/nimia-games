@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
 import { PublicNavbar } from "../components/PublicNavbar";
+import { Footer } from "../components/Footer";
 import { WhyNimiaExperience } from "./WhyNimiaExperience";
 
 export const metadata: Metadata = {
@@ -30,6 +31,7 @@ export default async function WhyNimiaPage() {
     <div className="nimia-dark">
       <PublicNavbar isAuthenticated={!!user} />
       <WhyNimiaExperience isAuthenticated={!!user} />
+      <Footer />
     </div>
   );
 }

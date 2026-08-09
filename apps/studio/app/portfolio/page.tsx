@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
 import { PublicNavbar } from "../components/PublicNavbar";
+import { Footer } from "../components/Footer";
 import { PortfolioExperience } from "./PortfolioExperience";
 
 export const metadata: Metadata = {
@@ -27,6 +28,7 @@ export default async function PortfolioPage() {
     <div className="nimia-dark">
       <PublicNavbar isAuthenticated={!!user} />
       <PortfolioExperience />
+      <Footer />
     </div>
   );
 }

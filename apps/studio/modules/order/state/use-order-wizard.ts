@@ -366,6 +366,11 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
         // orders.status = 'negotiating' + an order_negotiations row (per
         // packages/db/migrations/0012 and 0013). `uploadedFiles` (added
         // 4 Agustus 2026) becomes one `order_files` row per attachment.
+        // `agreedToTerms` (added 9 Agustus 2026, launch-readiness audit
+        // finding) is forwarded so submitOrderAction can re-check it
+        // server-side too — the check at the top of this callback is only
+        // a client-side nicety, same defense-in-depth pattern as the
+        // negotiation-offer validation above.
         submitOrderAction({
           intent,
           categoryId: state.categoryId,
@@ -375,6 +380,7 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
           brief: state.brief,
           negotiationOffer: state.negotiationOffer,
           uploadedFiles,
+          agreedToTerms: state.agreedToTerms,
         })
           .then((result) => {
             setIsSubmitting(false);

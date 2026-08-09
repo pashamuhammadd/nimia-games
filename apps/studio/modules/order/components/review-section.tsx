@@ -7,6 +7,11 @@ import type { Estimate } from "../pricing";
 import { summarizeSelections } from "../pricing/summarize-selections";
 import { SummaryCard } from "./summary-card";
 
+// Same fallback pattern as app/components/Footer.tsx and
+// app/register/RegisterForm.tsx — the Terms of Service page only exists on
+// apps/www, not here.
+const WWW_URL = process.env.NEXT_PUBLIC_WWW_URL ?? "https://nimiagames.com";
+
 export interface ReviewSectionProps {
   category: CategoryDefinition | null;
   service: ServiceDefinition | null;
@@ -144,10 +149,32 @@ export function ReviewSection({
         </div>
       </div>
 
-      <button
-        type="button"
+      {/* Agreement checkbox (9 Agustus 2026, launch-readiness audit finding
+          — this used to be a plain <button> wrapping the whole row,
+          including the text "Nimia Studio's project terms", which was
+          never an actual link: a client had no way to read what they were
+          agreeing to without leaving the wizard. Restructured to a
+          role="checkbox" div (keyboard-accessible via onKeyDown below) so
+          "project terms" can be a real <a> to /terms on apps/www — nesting
+          a real <a> inside a <button> isn't valid HTML and would have
+          caused the browser to silently un-nest it. The link stops
+          propagation so opening it in a new tab doesn't also toggle the
+          checkbox underneath it. submitOrderAction (server) now also
+          re-validates agreedToTerms itself — see that file's own comment —
+          so this checkbox is no longer the only thing enforcing it. */}
+      <div
+        role="checkbox"
+        aria-checked={agreedToTerms}
+        aria-label="I confirm the details above are correct and agree to Nimia Studio's project terms"
+        tabIndex={0}
         onClick={() => onAgreedToTermsChange(!agreedToTerms)}
-        className="mt-7 flex w-full items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-left transition-colors hover:bg-white/[0.05]"
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onAgreedToTermsChange(!agreedToTerms);
+          }
+        }}
+        className="mt-7 flex w-full cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-left transition-colors hover:bg-white/[0.05]"
       >
         <span
           className={cn(
@@ -158,10 +185,19 @@ export function ReviewSection({
           {agreedToTerms ? <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} aria-hidden="true" /> : null}
         </span>
         <span className="text-sm text-white/70">
-          I confirm the details above are correct and agree to Nimia Studio's project terms. A
-          final quotation may be negotiated with the team before production begins.
+          I confirm the details above are correct and agree to Nimia Studio&apos;s{" "}
+          <a
+            href={`${WWW_URL}/terms`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(event) => event.stopPropagation()}
+            className="font-medium text-white underline decoration-white/30 underline-offset-2 hover:text-[var(--nimia-pink)]"
+          >
+            project terms
+          </a>
+          . A final quotation may be negotiated with the team before production begins.
         </span>
-      </button>
+      </div>
 
       {submitError ? <p className="mt-3 text-sm text-red-400">{submitError}</p> : null}
     </div>

@@ -70,6 +70,18 @@ export async function signUpAction(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
+  // Privacy Policy / Terms of Service consent (9 Agustus 2026,
+  // launch-readiness audit finding). RegisterForm.tsx's checkbox already
+  // has `required`, which blocks a normal browser submission — but that's
+  // client-side only, so this re-checks server-side too, same
+  // defense-in-depth pattern every other action in this app follows for
+  // things the client claims. Checked BEFORE calling auth.signUp() so an
+  // account is never created without consent recorded on the request that
+  // created it.
+  if (formData.get("agreed_to_terms") !== "true") {
+    return { error: "Please agree to the Terms of Service and Privacy Policy to continue." };
+  }
+
   // Optional Referral Code field from RegisterForm.tsx (pre-filled from
   // the nimia_referral_code cookie when the visitor came via a partner's
   // /r/:code link — see app/register/page.tsx). Only forwarded if it's at

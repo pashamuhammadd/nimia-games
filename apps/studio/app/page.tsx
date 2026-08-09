@@ -5,6 +5,7 @@ import { createServerClient } from "@nimia/db";
 import { buttonVariants, cn } from "@nimia/ui";
 import { Play, Rocket, Smile, Wrench, Headphones } from "lucide-react";
 import { PublicNavbar } from "./components/PublicNavbar";
+import { Footer } from "./components/Footer";
 import { StartProjectButton } from "./components/StartProjectButton";
 import { TypedHeroHeadline } from "./components/TypedHeroHeadline";
 
@@ -185,10 +186,10 @@ export default async function StudioHomePage() {
             /why-nimia, /portfolio, /contact were added the same day as
             part of the 5-item navbar expansion. /why-nimia and /portfolio
             are still minimal "coming soon" placeholders pending real
-            content from the user (see those files' own comments).
-            /contact (a contact form) was removed entirely on 30 Juli 2026
-            and replaced by /how-to-start, a full guide to Nimia Studio's
-            order process — see app/how-to-start/page.tsx.
+            content from the user. /contact (a contact form) was removed
+            entirely on 30 Juli 2026 and replaced by /how-to-start, a full
+            guide to Nimia Studio's order process — see
+            app/how-to-start/page.tsx.
 
             A premium 3-card Services section (ServicesSection.tsx, see
             app/components/services/) was briefly added here too later the
@@ -196,6 +197,8 @@ export default async function StudioHomePage() {
             correction — the brief was about that route, not the home page.
             Don't re-add it here without checking with the user first. */}
       </main>
+
+      <Footer />
     </div>
   );
 }

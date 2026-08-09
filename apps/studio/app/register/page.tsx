@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { RegisterForm } from "./RegisterForm";
 import { PublicNavbar } from "../components/PublicNavbar";
+import { Footer } from "../components/Footer";
 import { REFERRAL_COOKIE_NAME } from "../lib/referralCookie";
 
 export const metadata: Metadata = { title: "Sign up" };
@@ -22,6 +23,7 @@ export default async function RegisterPage() {
       <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
         <RegisterForm initialReferralCode={initialReferralCode} />
       </main>
+      <Footer />
     </div>
   );
 }

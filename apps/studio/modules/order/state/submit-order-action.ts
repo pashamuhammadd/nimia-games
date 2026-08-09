@@ -24,6 +24,15 @@ export interface SubmitOrderActionInput {
    * time this runs, there's nothing left to do with these but insert them
    * as `order_files` rows once the order itself exists. */
   uploadedFiles: { name: string; url: string }[];
+  /** Added 9 Agustus 2026 (launch-readiness audit finding). Mirrors
+   * `state.agreedToTerms` from ReviewSection's checkbox — useOrderWizard's
+   * submit() already blocks the call client-side when this is false, but
+   * that's only a client-side nicety (same as its negotiation-offer
+   * amount check right above it in that file); this action re-validates
+   * it below before ever writing an `orders` row, same defense-in-depth
+   * pattern every other server action in this app already follows for
+   * anything the client claims. */
+  agreedToTerms: boolean;
 }
 
 export type SubmitOrderResult = { ok: true; orderId: string } | { ok: false; error: string };
@@ -79,6 +88,10 @@ function buildDescription(params: {
 // `order_negotiations` row too, so app/dashboard/orders and
 // app/dashboard/negotiations actually have something to show.
 export async function submitOrderAction(input: SubmitOrderActionInput): Promise<SubmitOrderResult> {
+  if (!input.agreedToTerms) {
+    return { ok: false, error: "Please agree to Nimia Studio's project terms before submitting." };
+  }
+
   const category = getCategory(input.categoryId);
   const service = findServiceById(input.serviceId);
   if (!category || !service) {

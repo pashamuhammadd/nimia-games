@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
 import { PublicNavbar } from "../components/PublicNavbar";
+import { Footer } from "../components/Footer";
 import { HowToStartExperience } from "./HowToStartExperience";
 
 export const metadata: Metadata = {
@@ -34,6 +35,7 @@ export default async function HowToStartPage() {
     <div className="nimia-dark">
       <PublicNavbar isAuthenticated={!!user} />
       <HowToStartExperience isAuthenticated={!!user} />
+      <Footer />
     </div>
   );
 }

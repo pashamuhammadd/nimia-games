@@ -20,6 +20,10 @@ import {
 import { signUpAction, type ActionState } from "../actions";
 import { isValidReferralCodeFormat, normalizeReferralCode } from "@/modules/partners";
 
+// Same fallback pattern as app/components/Footer.tsx — the Privacy Policy
+// and Terms of Service pages only exist on apps/www, not here.
+const WWW_URL = process.env.NEXT_PUBLIC_WWW_URL ?? "https://nimiagames.com";
+
 export function RegisterForm({ initialReferralCode = "" }: { initialReferralCode?: string }) {
   const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     signUpAction,
@@ -155,6 +159,49 @@ export function RegisterForm({ initialReferralCode = "" }: { initialReferralCode
               />
             </div>
           </div>
+
+          {/* Privacy Policy / Terms consent (9 Agustus 2026, launch-readiness
+              audit finding — this form used to create an account with real
+              personal data (name, email, WhatsApp, country) with no consent
+              step at all, even though Privacy Policy/Terms of Service pages
+              already existed on apps/www. `required` makes the browser block
+              submission until this is checked; signUpAction below also
+              re-checks agreed_to_terms server-side (same defense-in-depth
+              pattern every other server action in this app already follows)
+              since a native checkbox's `required` attribute is a client-side
+              nicety, not something the server can trust on its own. */}
+          <div className="flex items-start gap-2.5">
+            <input
+              id="agreed_to_terms"
+              name="agreed_to_terms"
+              type="checkbox"
+              required
+              value="true"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-[var(--nimia-border)] accent-[var(--nimia-pink)]"
+            />
+            <Label htmlFor="agreed_to_terms" className="text-sm font-normal leading-snug">
+              I agree to Nimia Studio&apos;s{" "}
+              <a
+                href={`${WWW_URL}/terms`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-[var(--nimia-pink)] hover:underline"
+              >
+                Terms of Service
+              </a>{" "}
+              and{" "}
+              <a
+                href={`${WWW_URL}/privacy`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-[var(--nimia-pink)] hover:underline"
+              >
+                Privacy Policy
+              </a>
+              .
+            </Label>
+          </div>
+
           {state?.error ? <FieldError>{state.error}</FieldError> : null}
         </CardContent>
         <CardFooter className="flex-col items-stretch gap-3">
