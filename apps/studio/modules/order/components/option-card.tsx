@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Check, type LucideIcon } from "lucide-react";
 import { cn } from "@nimia/ui";
@@ -29,6 +30,18 @@ export interface OptionCardProps {
    * when `selected` is also true, since the selected style already carries
    * the strongest visual weight a card can have. */
   featured?: boolean;
+  /** Optional thumbnail (Package/Bundle system, 10 Agustus 2026 — per user
+   * request, every package card on the browse grid gets a real image).
+   * When set, this renders as a rounded image block at the top of the
+   * card and the plain `icon` block below is skipped for that card (an
+   * icon reads as a placeholder once a real thumbnail is present) — badge
+   * also moves to overlay the image's top-left corner instead of sitting
+   * in the normal card flow, so a card either has zero visual competition
+   * for top-of-card attention (image cards) or the original compact
+   * badge+icon layout (every other OptionCard usage in the app, which
+   * never passes `imageSrc` and is completely unaffected). */
+  imageSrc?: string;
+  imageAlt?: string;
 }
 
 export function OptionCard({
@@ -43,6 +56,8 @@ export function OptionCard({
   onClick,
   className,
   featured = false,
+  imageSrc,
+  imageAlt,
 }: OptionCardProps) {
   return (
     <motion.button
@@ -70,13 +85,32 @@ export function OptionCard({
         </span>
       ) : null}
 
-      {badge ? (
+      {imageSrc ? (
+        <div className="relative w-full overflow-hidden rounded-xl border border-white/10 bg-black/20">
+          <div className="relative aspect-video w-full">
+            <Image
+              src={imageSrc}
+              alt={imageAlt ?? title}
+              fill
+              sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+              className="object-cover"
+            />
+          </div>
+          {badge ? (
+            <span className="absolute left-3 top-3 inline-flex items-center rounded-full border border-[var(--nimia-pink)]/30 bg-black/60 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--nimia-pink)] backdrop-blur">
+              {badge}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!imageSrc && badge ? (
         <span className="inline-flex w-fit items-center rounded-full border border-[var(--nimia-pink)]/30 bg-[var(--nimia-pink)]/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--nimia-pink)]">
           {badge}
         </span>
       ) : null}
 
-      {Icon ? (
+      {!imageSrc && Icon ? (
         <div
           className={cn(
             "flex items-center justify-center rounded-xl border transition-colors",

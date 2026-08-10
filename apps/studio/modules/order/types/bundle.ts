@@ -52,6 +52,15 @@ export interface BundlePackage {
   price: number;
   description: string;
   icon: LucideIcon;
+  /** Card thumbnail (10 Agustus 2026, per user request — "setiap card
+   * package nya ada thumbnailnya"). A path under apps/studio/public/, e.g.
+   * "/packages/web3-launch.webp" (16:9) — see components/option-card.tsx's
+   * `imageSrc` prop, which renders this at the top of the browse-grid card
+   * in place of `icon` once it resolves. Optional so the browse grid still
+   * renders correctly (icon-only) before the actual image files exist on
+   * disk; every BUNDLE_PACKAGES entry below already points at its intended
+   * final path even though the files themselves haven't been added yet. */
+  thumbnailSrc?: string;
   includedItems: BundleIncludedItem[];
   /** How many creative-content slots this package grants. */
   creativeSlotCount: number;

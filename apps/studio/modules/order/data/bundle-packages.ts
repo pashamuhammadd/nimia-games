@@ -23,6 +23,7 @@ export const BUNDLE_PACKAGES: BundlePackage[] = [
     price: 500,
     description: "Everything you need to launch your Web3 project with a professional digital presence.",
     icon: Rocket,
+    thumbnailSrc: "/packages/web3-launch.webp",
     includedItems: [
       {
         label: "1 Responsive Landing Page",
@@ -65,6 +66,7 @@ export const BUNDLE_PACKAGES: BundlePackage[] = [
     description:
       "Build a recognizable Web3 brand and keep your community engaged with consistent visual content.",
     icon: Sparkles,
+    thumbnailSrc: "/packages/web3-growth.webp",
     includedItems: [
       {
         label: "1 Professional Responsive Landing Page",
@@ -107,6 +109,7 @@ export const BUNDLE_PACKAGES: BundlePackage[] = [
     price: 1800,
     description: "A complete digital and creative launch system for serious Web3 projects.",
     icon: Globe,
+    thumbnailSrc: "/packages/web3-launch-pro.webp",
     includedItems: [
       {
         label: "Premium Responsive Landing Page",
@@ -149,6 +152,7 @@ export const BUNDLE_PACKAGES: BundlePackage[] = [
     price: 500,
     description: "Essential visual assets for indie games, mobile games, and Web3 games.",
     icon: Gamepad2,
+    thumbnailSrc: "/packages/game-asset-pack.webp",
     includedItems: [
       { label: "1 Character Design" },
       { label: "1 Sprite Sheet" },
@@ -177,6 +181,7 @@ export const BUNDLE_PACKAGES: BundlePackage[] = [
     price: 700,
     description: "A professional, responsive website for startups, businesses, Web3 projects, and digital products.",
     icon: Monitor,
+    thumbnailSrc: "/packages/startup-website.webp",
     includedItems: [
       {
         label: "Website (up to 5 pages)",
@@ -214,6 +219,7 @@ export const BUNDLE_PACKAGES: BundlePackage[] = [
     price: 1200,
     description: "A playable MVP built to validate your game's core mechanics, gameplay loop, and concept.",
     icon: Gamepad2,
+    thumbnailSrc: "/packages/game-mvp.webp",
     includedItems: [
       {
         label: "Playable Game MVP",
