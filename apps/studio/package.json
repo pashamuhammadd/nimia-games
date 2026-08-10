@@ -11,6 +11,7 @@
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
     "@nimia/db": "*",
+    "@nimia/discord": "*",
     "@nimia/email": "*",
     "@nimia/pdf": "*",
     "@nimia/ui": "*",

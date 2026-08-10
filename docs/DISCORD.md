@@ -1,0 +1,157 @@
+# Discord Integration
+
+Architecture spec for Nimia Studio's official Discord server, and the plan
+for connecting it to `studio.nimiagames.com` / `admin.nimiagames.com`. This
+file existed only as conversational context with an AI assistant before 9
+Agustus 2026 — moved into the repo so it doesn't depend on any one
+session's memory. Read this before touching any Discord bot/webhook code.
+
+## Core principle
+
+The website (`studio.nimiagames.com`) is the single source of truth for
+the whole system. The official Nimia Studio Discord server is ONLY:
+
+- a **Notification Center**
+- a **Support Center**
+- an **Internal Activity Log**
+
+Discord is never where data is managed or business processes run. Every
+business decision (negotiation, approval, assignment) happens on the
+Dashboard website, not in Discord. The bot never makes business decisions
+— it only runs automation the website already decided on. All future
+Discord work must follow this architecture.
+
+## Why no persistent bot process (Gateway) is needed
+
+Every responsibility below is the website reacting to something that
+already happened (an order was created, a client connected their Discord
+account, an admin verified a payment) and telling Discord about it — never
+Discord telling the website something happened. That means every call is a
+one-shot REST request using a bot token, made directly from a Next.js
+server action / route handler in `apps/studio` or `apps/admin` — not a
+long-running Gateway (websocket) connection. See `packages/discord/README.md`
+for why this ruled out `discord.js` in favor of plain `fetch`, and why no
+separate hosting (Railway/Render/VPS) is needed for any of this.
+
+The only scenario that WOULD need either a persistent Gateway connection or
+Discord's serverless-friendly Interactions HTTP endpoint is a command or
+button *inside Discord itself* triggering an action — nothing in the spec
+below currently needs that.
+
+## Server purpose & roles
+
+Not a community server. Only: 👑 Founder, 🛡 Admin, 🤝 Partner, ⭐ Client, 🤖
+Bot. No Animator/Artist/Game Developer/Web Developer/Freelancer roles —
+production is managed internally by Admin via the Dashboard.
+
+## Server structure
+
+- 📢 INFORMATION: `#welcome`, `#announcements`, `#how-to-start`
+- 🎫 SUPPORT: `#create-ticket`
+- 🤝 PARTNER PROGRAM: `#partner-announcements`, `#partner-rewards`, `#partner-support`
+- 🔒 OPERATIONS: `#new-orders`, `#negotiations`, `#payment-verification`, `#system-log`
+
+## Order thread system
+
+Every new order from the website automatically creates a Discord Thread
+(e.g. 📦 `NM-2026-00021`). The thread is that project's full timeline — it
+only ever shows updates, it's never where the project is managed: Order
+Created → Negotiation → Payment Submitted → Payment Verified → Production
+Started → Revision → Delivery → Invoice Generated → Completed.
+
+## Bot responsibilities
+
+Send notifications (new order, negotiation, payment, invoice, delivery),
+create order Threads automatically, send system activity logs, create
+Support Tickets, grant Client/Partner roles. The bot never makes business
+decisions.
+
+## Client support
+
+A "Support" button on the website → the bot creates a Private Ticket,
+visible only to Founder + Admin + the Client who created it. No general
+chat channel for support.
+
+## Client/Partner registration
+
+Client registers on the website → connects Discord via OAuth (website gets
+the Discord User ID, username, avatar) → bot auto-assigns the ⭐ Client
+role. If the user joins the Nimia Partner Program, the website updates
+their status → bot auto-assigns the 🤝 Partner role (a user can hold both
+Client and Partner roles at once).
+
+## Order flow
+
+Login to Dashboard → Start a Project → pick a service → fill the form →
+submit → website creates the Order → Discord notification to `#new-orders`
+→ bot creates a Thread → Admin reviews → Negotiation (via the website,
+Discord is notification-only) → price agreed → Client pays → sends the TX
+hash → Admin verifies → invoice generated automatically → project starts →
+delivery → completed.
+
+## Payment flow
+
+Client picks a method (USDT/USDC/SOL/ETH/BSC/etc.) → website shows the
+company wallet → client sends payment + TX hash → Discord notification to
+`#payment-verification` → Admin verifies via the Dashboard → website
+updates payment status, generates the invoice PDF, sends the email, and
+shows a Dashboard notification. Discord only ever receives the "payment
+verified" update after the fact.
+
+## Negotiation & production
+
+Negotiation happens 100% via the website (Discord is notification-only,
+Admin's decision happens on the Dashboard, never in Discord). Project
+assignment is manual, by Admin — no auto-assign or @mention to an
+Animator/Developer/Artist; Discord only sends status updates.
+
+## System log
+
+`#system-log` records automated events: User Registered, Partner
+Registered, Order Created, Negotiation Updated, Payment Submitted, Payment
+Approved, Invoice Generated, Delivery Uploaded, Voucher Claimed, Referral
+Commission, etc.
+
+## Implementation status
+
+**Done (9 Agustus 2026):** account linking — "Client connects Discord via
+OAuth → bot auto-assigns the ⭐ Client role" from the Client/Partner
+registration section above. See:
+
+- `packages/db/migrations/0025_discord_account_linking.sql` — `clients.discord_user_id`/`discord_username`/`discord_avatar_url`/`discord_connected_at`, `connect_discord_account()` / `disconnect_discord_account()` RPCs.
+- `packages/discord/` — the `@nimia/discord` package (OAuth + bot REST helpers).
+- `apps/studio/app/api/discord/connect/route.ts` + `.../callback/route.ts` — the OAuth round trip.
+- `apps/studio/app/dashboard/profile/page.tsx` — the "Connect Discord" / "Disconnect" UI.
+
+**Not built yet** (all separate follow-up work, each independent of the
+others once account linking above exists to build on):
+
+- Partner role auto-assign (needs a decision on what marks a client as an
+  "active" partner for role purposes — `partners` rows are created for
+  every signup per `0016_partner_program.sql`'s trigger, so "row exists"
+  alone isn't the right signal; needs clarifying before implementing).
+- Notifications to `#new-orders` / `#negotiations` / `#payment-verification`
+  / `#system-log` (hook into the existing server actions in
+  `apps/admin/app/(protected)/orders/actions.ts` and
+  `apps/studio/app/dashboard/orders/payment-actions.ts`).
+- Auto-thread-per-order (needs an `order_id ↔ discord_thread_id` mapping
+  table — deliberately not added in 0025 since nothing consumes it yet).
+- Support ticket creation from a website "Support" button (the button
+  itself doesn't exist yet either).
+- `#welcome` / `#announcements` / `#how-to-start` / Partner Program
+  channels — informational only, no automation planned for these.
+
+## Server setup notes (manual, one-time)
+
+- Bot Application created in the Discord Developer Portal, invited with
+  `bot` scope + Manage Roles / Manage Channels / Send Messages / Create
+  Private Threads / Create Public Threads / Embed Links / Read Message
+  History permissions.
+- **The bot's own auto-created role (named after the Application, e.g.
+  "Nimia Studio" — NOT any manually-created "Bot" role that predates the
+  actual bot account) must sit ABOVE Client and Partner in Server Settings
+  → Roles**, or `assignGuildRole()` fails outright — Discord's permission
+  model won't let a bot grant a role at or above its own highest role.
+- OAuth2 redirect registered: `https://studio.nimiagames.com/api/discord/callback`
+  (plus `http://localhost:3000/api/discord/callback` for local dev, as its
+  own separate entry).
