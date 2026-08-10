@@ -14,6 +14,7 @@ import {
   Target,
   Wallet,
   LifeBuoy,
+  Handshake,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@nimia/ui";
@@ -35,6 +36,12 @@ export const ADMIN_NAV_ITEMS: { href: string; label: string; icon: LucideIcon; f
   // these same as Orders/Clients/Projects.
   { href: "/vouchers", label: "Vouchers", icon: Ticket },
   { href: "/quests", label: "Quests", icon: Target },
+  // Partners (10 Agustus 2026) — admin directory for the Nimia Partner
+  // Program (client-facing side already live since 30 Juli 2026). Same
+  // is_admin()-gated visibility as Vouchers/Quests above, not founderOnly
+  // — matches get_partner_metrics()/get_partner_referral_activity()
+  // (0016), which were already staff-accessible, not founder-only.
+  { href: "/partners", label: "Partners", icon: Handshake },
   // Tickets (9 Agustus 2026, Discord support-ticket pass) — unlike the
   // client-facing dashboard, apps/admin's brief never said "don't add
   // menu items", so this is a real Sidebar entry rather than tucked into
