@@ -38,12 +38,24 @@ export interface CoreService {
 
 // SECTION 2 — Core Services. Exactly 3, order fixed, no images/screenshots
 // per brief.
+//
+// Prices repriced 10 Agst 2026 per "ATURAN PRICING NIMIA STUDIO 2026" —
+// each is the entry-point price (cheapest real service) from its category's
+// full catalog in modules/order/data/categories/*.ts:
+//   Animation          -> Logo Animation Starter, $75
+//   Game Development   -> Prototype, $500
+//   Website Development-> Landing Page, $450
+// Digital Assets (entry point $60, Thumbnail Starter) has no card here —
+// this section is fixed at exactly 3 cards per the original design brief
+// and CoreService.id only supports these 3 categories; adding a 4th card
+// would be a UI/type structural change outside this pricing-only pass. See
+// the repricing summary sent to the studio for this exact flag.
 export const CORE_SERVICES: CoreService[] = [
   {
     id: "animation",
     title: "Animation",
     badge: "⭐ Most Popular",
-    price: "$25",
+    price: "$75",
     description:
       "Create high-quality 2D and 3D animations for games, brands, marketing, and digital experiences.",
     icon: Clapperboard,
@@ -59,7 +71,7 @@ export const CORE_SERVICES: CoreService[] = [
   {
     id: "website-development",
     title: "Website Development",
-    price: "$200",
+    price: "$450",
     description:
       "Modern, responsive, and high-performance websites designed to grow your business.",
     icon: Globe,
@@ -142,7 +154,9 @@ export interface AddonItem {
   icon: LucideIcon;
 }
 
-// SECTION 5 — Optional Add-ons (small cards).
+// SECTION 5 — Optional Add-ons (small cards). Deliberately no pricing here
+// (brief only lists names) — unchanged by this repricing pass since the
+// 2026 brief didn't provide standalone prices for these.
 export const ADDONS: AddonItem[] = [
   { label: "UI Design", icon: PenTool },
   { label: "Illustration", icon: Palette },
@@ -160,23 +174,27 @@ export interface FeaturedPackage {
   price: string;
 }
 
-// SECTION 6 — Featured Packages. Prices are placeholder starting points
-// (bundles priced above each package's single-service base price from
-// CORE_SERVICES) — easy to tune later, this is the only place they live.
+// SECTION 6 — Featured Packages. Repriced 10 Agst 2026 per the studio's
+// instruction to swap out the old placeholder prices for ones consistent
+// with the new catalog, WITHOUT building new bundle logic in this pass
+// (real package/bundle work — including a Web3 bundle — is a separate,
+// later task). "Game Prototype Package" renamed to "Game MVP Package" to
+// match the new Game MVP service instead of advertising Prototype (which
+// is the proof-of-concept tier, not really a "package" experience).
 export const FEATURED_PACKAGES: FeaturedPackage[] = [
   {
     name: "Animation Starter",
     description: "A focused animation bundle to bring one character or scene to life.",
-    price: "$150",
+    price: "$225",
   },
   {
-    name: "Game Prototype Package",
-    description: "Go from concept to a playable prototype, ready to test and pitch.",
-    price: "$800",
+    name: "Game MVP Package",
+    description: "Go from concept to a playable MVP, ready to test and pitch.",
+    price: "$1,200",
   },
   {
     name: "Business Website Package",
     description: "A complete, launch-ready website for your business or startup.",
-    price: "$350",
+    price: "$700",
   },
 ];

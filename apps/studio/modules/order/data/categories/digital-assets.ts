@@ -13,7 +13,15 @@ import {
 import type { CategoryDefinition } from "../../types";
 import { selectField, toggleField, multiSelectField, sourceFileToggle, expressDeliveryToggle } from "../fields";
 
-const sourceFileForAssets = () => sourceFileToggle(20);
+// Repriced 10 Agst 2026 per "ATURAN PRICING NIMIA STUDIO 2026" brief
+// (principle #3: Digital Assets uses the new baseline prices given in the
+// brief directly, not a 3x-cost formula). Delivery-day estimates are
+// UNCHANGED from the previous pricing pass — the 2026 brief only specified
+// prices, not delivery timelines. Two add-ons the brief didn't mention for
+// a given service (UI Kit's and Character Design's Express Delivery) were
+// left at their previous price rather than removed — see the repricing
+// summary for the full list.
+const sourceFileForAssets = (priceDelta = 25) => sourceFileToggle(priceDelta);
 
 export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
   id: "digital-assets",
@@ -30,16 +38,16 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
       icon: Grid3x3,
       pricingModel: "packages",
       packages: [
-        { id: "starter", name: "Starter", quantityLabel: "10 Icons", price: 80, deliveryDays: 3 },
+        { id: "starter", name: "Starter", quantityLabel: "10 Icons", price: 100, deliveryDays: 3 },
         {
           id: "standard",
           name: "Standard",
           quantityLabel: "25 Icons",
-          price: 150,
+          price: 200,
           deliveryDays: 5,
           highlight: true,
         },
-        { id: "pro", name: "Pro", quantityLabel: "50 Icons", price: 260, deliveryDays: 7 },
+        { id: "pro", name: "Pro", quantityLabel: "50 Icons", price: 350, deliveryDays: 7 },
       ],
       configFields: [
         selectField({
@@ -47,7 +55,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
           label: "Style",
           options: [
             { id: "flat", label: "Flat" },
-            { id: "3d", label: "3D Render", effect: { priceDelta: 40 } },
+            { id: "3d", label: "3D Render", effect: { priceDelta: 50 } },
             { id: "pixel", label: "Pixel Art" },
           ],
           defaultOptionId: "flat",
@@ -57,12 +65,12 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
           label: "Export Formats",
           options: [
             { id: "png", label: "PNG" },
-            { id: "svg", label: "SVG", effect: { priceDelta: 15 } },
-            { id: "psd-source", label: "PSD Source", effect: { priceDelta: 25 } },
+            { id: "svg", label: "SVG Export", effect: { priceDelta: 20 } },
+            { id: "psd-source", label: "PSD / Source File", effect: { priceDelta: 25 } },
           ],
           defaultSelectedIds: ["png"],
         }),
-        expressDeliveryToggle(20),
+        expressDeliveryToggle(25),
       ],
     },
     {
@@ -74,12 +82,12 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
       icon: LayoutTemplate,
       pricingModel: "packages",
       packages: [
-        { id: "starter", name: "Starter", quantityLabel: "Core Screens", price: 200, deliveryDays: 5 },
+        { id: "starter", name: "Starter", quantityLabel: "Core Screens", price: 250, deliveryDays: 5 },
         {
           id: "standard",
           name: "Standard",
           quantityLabel: "Full App",
-          price: 350,
+          price: 450,
           deliveryDays: 8,
           highlight: true,
         },
@@ -87,7 +95,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
           id: "pro",
           name: "Pro",
           quantityLabel: "Full App + Design System",
-          price: 600,
+          price: 750,
           deliveryDays: 12,
         },
       ],
@@ -98,12 +106,14 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
           options: [
             { id: "mobile", label: "Mobile" },
             { id: "web", label: "Web" },
-            { id: "both", label: "Mobile + Web", effect: { priceDelta: 60, deliveryDeltaDays: 2 } },
+            { id: "both", label: "Mobile + Web", effect: { priceDelta: 100, deliveryDeltaDays: 2 } },
           ],
           defaultOptionId: "mobile",
         }),
-        toggleField({ id: "darkMode", label: "Dark Mode Variant", effect: { priceDelta: 45, deliveryDeltaDays: 1 } }),
-        sourceFileForAssets(),
+        toggleField({ id: "darkMode", label: "Dark Mode Variant", effect: { priceDelta: 50, deliveryDeltaDays: 1 } }),
+        sourceFileForAssets(25),
+        // Not listed in the 2026 pricing brief for UI Kit — kept at the
+        // previous price rather than removed.
         expressDeliveryToggle(35),
       ],
     },
@@ -116,16 +126,16 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
       icon: Images,
       pricingModel: "packages",
       packages: [
-        { id: "starter", name: "Starter", quantityLabel: "1 Character", price: 90, deliveryDays: 3 },
+        { id: "starter", name: "Starter", quantityLabel: "1 Character", price: 125, deliveryDays: 3 },
         {
           id: "standard",
           name: "Standard",
           quantityLabel: "3 Characters",
-          price: 220,
+          price: 275,
           deliveryDays: 5,
           highlight: true,
         },
-        { id: "pro", name: "Pro", quantityLabel: "6 Characters", price: 400, deliveryDays: 8 },
+        { id: "pro", name: "Pro", quantityLabel: "6 Characters", price: 500, deliveryDays: 8 },
       ],
       configFields: [
         selectField({
@@ -133,7 +143,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
           label: "Resolution",
           options: [
             { id: "sd", label: "Standard (64px)" },
-            { id: "hd", label: "HD (128px)", effect: { priceDelta: 30 } },
+            { id: "hd", label: "HD Resolution (128px)", effect: { priceDelta: 35 } },
           ],
           defaultOptionId: "sd",
         }),
@@ -142,11 +152,15 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
           label: "Animation States",
           options: [
             { id: "basic", label: "Idle / Walk" },
-            { id: "extended", label: "Idle / Walk / Attack / Hurt", effect: { priceDelta: 45, deliveryDeltaDays: 1 } },
+            {
+              id: "extended",
+              label: "Additional Animation States (Idle / Walk / Attack / Hurt)",
+              effect: { priceDelta: 50, deliveryDeltaDays: 1 },
+            },
           ],
           defaultOptionId: "basic",
         }),
-        sourceFileForAssets(),
+        sourceFileForAssets(20),
       ],
     },
     {
@@ -157,7 +171,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
       tagline: "Original character concept art, front to back.",
       icon: UserRound,
       pricingModel: "startingFrom",
-      startingPrice: 150,
+      startingPrice: 175,
       baseDeliveryDays: 5,
       configFields: [
         selectField({
@@ -165,7 +179,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
           label: "Style",
           options: [
             { id: "2d", label: "2D Illustrated" },
-            { id: "3d", label: "3D Stylized", effect: { priceDelta: 90, deliveryDeltaDays: 2 } },
+            { id: "3d", label: "3D Stylized", effect: { priceDelta: 100, deliveryDeltaDays: 2 } },
           ],
           defaultOptionId: "2d",
         }),
@@ -174,8 +188,8 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
           label: "Characters",
           options: [
             { id: "1", label: "1 Character" },
-            { id: "2", label: "2 Characters", effect: { priceDelta: 110, deliveryDeltaDays: 2 } },
-            { id: "4", label: "4 Characters", effect: { priceDelta: 300, deliveryDeltaDays: 4 } },
+            { id: "2", label: "2 Characters", effect: { priceDelta: 150, deliveryDeltaDays: 2 } },
+            { id: "4", label: "4 Characters", effect: { priceDelta: 425, deliveryDeltaDays: 4 } },
           ],
           defaultOptionId: "1",
         }),
@@ -183,10 +197,12 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
           id: "turnaroundSheet",
           label: "Turnaround / Concept Sheet",
           helpText: "Front, side, and back reference views.",
-          effect: { priceDelta: 40, deliveryDeltaDays: 1 },
+          effect: { priceDelta: 50, deliveryDeltaDays: 1 },
         }),
-        sourceFileForAssets(),
-        expressDeliveryToggle(),
+        sourceFileForAssets(25),
+        // Not listed in the 2026 pricing brief for Character Design — kept
+        // at the previous price rather than removed.
+        expressDeliveryToggle(25),
       ],
     },
     {
@@ -198,16 +214,16 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
       icon: Mountain,
       pricingModel: "packages",
       packages: [
-        { id: "starter", name: "Starter", quantityLabel: "1 Scene", price: 180, deliveryDays: 5 },
+        { id: "starter", name: "Starter", quantityLabel: "1 Scene", price: 200, deliveryDays: 5 },
         {
           id: "standard",
           name: "Standard",
           quantityLabel: "3 Scenes",
-          price: 450,
+          price: 500,
           deliveryDays: 8,
           highlight: true,
         },
-        { id: "pro", name: "Pro", quantityLabel: "6 Scenes", price: 800, deliveryDays: 12 },
+        { id: "pro", name: "Pro", quantityLabel: "6 Scenes", price: 900, deliveryDays: 12 },
       ],
       configFields: [
         selectField({
@@ -215,16 +231,16 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
           label: "Style",
           options: [
             { id: "2d", label: "2D" },
-            { id: "3d", label: "3D", effect: { priceDelta: 120, deliveryDeltaDays: 2 } },
+            { id: "3d", label: "3D", effect: { priceDelta: 150, deliveryDeltaDays: 2 } },
           ],
           defaultOptionId: "2d",
         }),
         toggleField({
           id: "lightingSetup",
-          label: "Custom Lighting Setup",
-          effect: { priceDelta: 60, deliveryDeltaDays: 1 },
+          label: "Complex Lighting",
+          effect: { priceDelta: 75, deliveryDeltaDays: 1 },
         }),
-        sourceFileForAssets(),
+        sourceFileForAssets(25),
       ],
     },
     {
@@ -236,16 +252,16 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
       icon: Grid2x2,
       pricingModel: "packages",
       packages: [
-        { id: "starter", name: "Starter", quantityLabel: "32 Tiles", price: 100, deliveryDays: 3 },
+        { id: "starter", name: "Starter", quantityLabel: "32 Tiles", price: 125, deliveryDays: 3 },
         {
           id: "standard",
           name: "Standard",
           quantityLabel: "64 Tiles",
-          price: 220,
+          price: 250,
           deliveryDays: 5,
           highlight: true,
         },
-        { id: "pro", name: "Pro", quantityLabel: "128 Tiles", price: 400, deliveryDays: 8 },
+        { id: "pro", name: "Pro", quantityLabel: "128 Tiles", price: 450, deliveryDays: 8 },
       ],
       configFields: [
         selectField({
@@ -254,12 +270,12 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
           options: [
             { id: "grassland", label: "Grassland" },
             { id: "dungeon", label: "Dungeon" },
-            { id: "sci-fi", label: "Sci-Fi", effect: { priceDelta: 25 } },
+            { id: "custom", label: "Custom Theme", effect: { priceDelta: 30 } },
           ],
           defaultOptionId: "grassland",
         }),
         toggleField({ id: "seamlessTiling", label: "Seamless Tiling Verified", defaultOn: true }),
-        sourceFileForAssets(),
+        sourceFileForAssets(25),
       ],
     },
     {
@@ -271,16 +287,16 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
       icon: Gem,
       pricingModel: "packages",
       packages: [
-        { id: "starter", name: "Starter", quantityLabel: "10 pcs", price: 150, deliveryDays: 4 },
+        { id: "starter", name: "Starter", quantityLabel: "10 Artwork", price: 175, deliveryDays: 4 },
         {
           id: "standard",
           name: "Standard",
-          quantityLabel: "50 pcs",
-          price: 500,
+          quantityLabel: "50 Artwork",
+          price: 600,
           deliveryDays: 8,
           highlight: true,
         },
-        { id: "pro", name: "Pro", quantityLabel: "100 pcs", price: 900, deliveryDays: 12 },
+        { id: "pro", name: "Pro", quantityLabel: "100 Artwork", price: 1000, deliveryDays: 12 },
       ],
       configFields: [
         toggleField({
@@ -292,14 +308,14 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
         toggleField({
           id: "rarityConfig",
           label: "Rarity Configuration",
-          effect: { priceDelta: 50, deliveryDeltaDays: 1 },
+          effect: { priceDelta: 60, deliveryDeltaDays: 1 },
         }),
         toggleField({
           id: "metadataGeneration",
           label: "Metadata Generation",
-          effect: { priceDelta: 40 },
+          effect: { priceDelta: 50 },
         }),
-        sourceFileForAssets(),
+        sourceFileForAssets(25),
       ],
     },
     {
@@ -311,16 +327,16 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
       icon: Palette,
       pricingModel: "packages",
       packages: [
-        { id: "starter", name: "Starter", quantityLabel: "1 Illustration", price: 70, deliveryDays: 3 },
+        { id: "starter", name: "Starter", quantityLabel: "1 Illustration", price: 80, deliveryDays: 3 },
         {
           id: "standard",
           name: "Standard",
           quantityLabel: "3 Illustrations",
-          price: 180,
+          price: 200,
           deliveryDays: 5,
           highlight: true,
         },
-        { id: "pro", name: "Pro", quantityLabel: "6 Illustrations", price: 320, deliveryDays: 8 },
+        { id: "pro", name: "Pro", quantityLabel: "6 Illustrations", price: 350, deliveryDays: 8 },
       ],
       configFields: [
         selectField({
@@ -328,7 +344,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
           label: "Style",
           options: [
             { id: "flat", label: "Flat Color" },
-            { id: "painted", label: "Painted / Rendered", effect: { priceDelta: 35 } },
+            { id: "painted", label: "Painted / Rendered", effect: { priceDelta: 40 } },
           ],
           defaultOptionId: "flat",
         }),
@@ -342,8 +358,8 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
           ],
           defaultOptionId: "vibrant",
         }),
-        sourceFileForAssets(),
-        expressDeliveryToggle(15),
+        sourceFileForAssets(20),
+        expressDeliveryToggle(20),
       ],
     },
     {
@@ -355,16 +371,16 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
       icon: ImageIcon,
       pricingModel: "packages",
       packages: [
-        { id: "starter", name: "Starter", quantityLabel: "3 Sizes", price: 60, deliveryDays: 2 },
+        { id: "starter", name: "Starter", quantityLabel: "3 Sizes", price: 75, deliveryDays: 2 },
         {
           id: "standard",
           name: "Standard",
           quantityLabel: "6 Sizes",
-          price: 110,
+          price: 135,
           deliveryDays: 3,
           highlight: true,
         },
-        { id: "pro", name: "Pro", quantityLabel: "12 Sizes", price: 190, deliveryDays: 5 },
+        { id: "pro", name: "Pro", quantityLabel: "12 Sizes", price: 225, deliveryDays: 5 },
       ],
       configFields: [
         multiSelectField({
@@ -372,17 +388,17 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
           label: "Platforms",
           options: [
             { id: "web", label: "Web" },
-            { id: "steam", label: "Steam Store", effect: { priceDelta: 15 } },
-            { id: "social", label: "Social Media", effect: { priceDelta: 15 } },
+            { id: "steam", label: "Steam Store Adaptation", effect: { priceDelta: 20 } },
+            { id: "social", label: "Social Media Adaptation", effect: { priceDelta: 20 } },
           ],
           defaultSelectedIds: ["web"],
         }),
         toggleField({
           id: "animatedVersion",
           label: "Animated Version",
-          effect: { priceDelta: 40, deliveryDeltaDays: 1 },
+          effect: { priceDelta: 50, deliveryDeltaDays: 1 },
         }),
-        sourceFileForAssets(),
+        sourceFileForAssets(20),
       ],
     },
     {
@@ -394,16 +410,16 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
       icon: FileImage,
       pricingModel: "packages",
       packages: [
-        { id: "starter", name: "Starter", quantityLabel: "5 Thumbnails", price: 50, deliveryDays: 2 },
+        { id: "starter", name: "Starter", quantityLabel: "5 Thumbnails", price: 60, deliveryDays: 2 },
         {
           id: "standard",
           name: "Standard",
           quantityLabel: "10 Thumbnails",
-          price: 90,
+          price: 110,
           deliveryDays: 3,
           highlight: true,
         },
-        { id: "pro", name: "Pro", quantityLabel: "20 Thumbnails", price: 160, deliveryDays: 5 },
+        { id: "pro", name: "Pro", quantityLabel: "20 Thumbnails", price: 190, deliveryDays: 5 },
       ],
       configFields: [
         selectField({
@@ -411,7 +427,7 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
           label: "Style",
           options: [
             { id: "bold-text", label: "Bold Text + Graphic" },
-            { id: "photo-composite", label: "Photo Composite", effect: { priceDelta: 20 } },
+            { id: "photo-composite", label: "Photo Composite", effect: { priceDelta: 25 } },
           ],
           defaultOptionId: "bold-text",
         }),
@@ -419,10 +435,10 @@ export const DIGITAL_ASSETS_CATEGORY: CategoryDefinition = {
           id: "abVariant",
           label: "A/B Variant Set",
           helpText: "A second alternate version of every thumbnail.",
-          effect: { priceDelta: 25 },
+          effect: { priceDelta: 30 },
         }),
-        sourceFileForAssets(),
-        expressDeliveryToggle(10),
+        sourceFileForAssets(20),
+        expressDeliveryToggle(15),
       ],
     },
   ],
