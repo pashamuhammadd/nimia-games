@@ -20,6 +20,15 @@ export interface OptionCardProps {
   size?: "sm" | "md" | "lg";
   onClick?: () => void;
   className?: string;
+  /** Marks this card as the single most visually prominent option in its
+   * group (Package/Bundle system, 10 Agustus 2026 — Web3 Growth's "Most
+   * Popular" package on the browse grid). Layers a subtly stronger border,
+   * a small scale bump, and extra elevation on top of the default resting
+   * style — deliberately restrained (no glow/pulse/badge duplication) per
+   * the brief's "not excessive/gimmicky" requirement. Has no visible effect
+   * when `selected` is also true, since the selected style already carries
+   * the strongest visual weight a card can have. */
+  featured?: boolean;
 }
 
 export function OptionCard({
@@ -33,6 +42,7 @@ export function OptionCard({
   size = "md",
   onClick,
   className,
+  featured = false,
 }: OptionCardProps) {
   return (
     <motion.button
@@ -47,7 +57,9 @@ export function OptionCard({
         size === "sm" && "gap-2 p-4",
         selected
           ? "border-[var(--nimia-crimson)] bg-[var(--nimia-crimson)]/10 shadow-[0_10px_40px_-15px_rgba(193,18,77,0.45)]"
-          : "border-white/10 bg-white/[0.03] hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06]",
+          : featured
+            ? "scale-[1.02] border-[var(--nimia-crimson)]/50 bg-white/[0.04] shadow-[0_20px_60px_-25px_rgba(193,18,77,0.5)] hover:-translate-y-0.5 hover:border-[var(--nimia-crimson)]/70"
+            : "border-white/10 bg-white/[0.03] hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06]",
         disabled && "cursor-not-allowed opacity-40 hover:translate-y-0",
         className,
       )}

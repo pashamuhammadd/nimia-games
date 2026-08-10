@@ -5,9 +5,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { PartyPopper } from "lucide-react";
 import { Button, buttonVariants, cn } from "@nimia/ui";
 import { useOrderWizard } from "../state/use-order-wizard";
+import { BUNDLE_PACKAGES } from "../data/bundle-packages";
 import { OrderHeader } from "./order-header";
 import { OrderTypeSelector } from "./order-type-selector";
-import { PackagesPlaceholder } from "./packages-placeholder";
 import { CustomOrderPlaceholder } from "./custom-order-placeholder";
 import { ProgressIndicator } from "./progress-indicator";
 import { StepNavigation } from "./step-navigation";
@@ -19,6 +19,8 @@ import { ProjectBriefForm } from "./project-brief-form";
 import { UploadSection } from "./upload-section";
 import { ReviewSection } from "./review-section";
 import { PriceEstimator } from "./price-estimator";
+import { PackageBrowseGrid } from "./package-browse-grid";
+import { PackageDetail } from "./package-detail";
 
 export interface OrderWizardProps {
   isAuthenticated: boolean;
@@ -72,8 +74,8 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
   // point (ProgressIndicator, the step machine, StepNavigation, submit())
   // changed at all: "project-builder" is the only orderType that reaches
   // it, exactly the same wizard that existed before this addition.
-  // "packages" and "custom" render their own placeholder screens instead —
-  // see components/order-type-selector.tsx's comment for why this lives
+  // "custom" still renders a placeholder screen — see
+  // components/order-type-selector.tsx's comment for why this lives
   // outside ORDER_STEPS/StepId entirely.
   if (!wizard.orderType) {
     return (
@@ -86,23 +88,139 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
     );
   }
 
-  if (wizard.orderType === "packages") {
-    return (
-      <div className="nimia-dark min-h-screen">
-        <OrderHeader isAuthenticated={isAuthenticated} />
-        <main className="mx-auto max-w-5xl px-4 sm:px-6">
-          <PackagesPlaceholder onBack={wizard.resetOrderType} />
-        </main>
-      </div>
-    );
-  }
-
   if (wizard.orderType === "custom") {
     return (
       <div className="nimia-dark min-h-screen">
         <OrderHeader isAuthenticated={isAuthenticated} />
         <main className="mx-auto max-w-5xl px-4 sm:px-6">
           <CustomOrderPlaceholder onBack={wizard.resetOrderType} />
+        </main>
+      </div>
+    );
+  }
+
+  // Package/Bundle system (10 Agustus 2026, per user request) — reuses
+  // exactly the same layout shell (OrderHeader, ProgressIndicator,
+  // StepNavigation, PriceEstimator) as the Project Builder flow below, just
+  // driven by BUNDLE_STEPS/wizard.bundlePackage instead of
+  // ORDER_STEPS/wizard.service. See state/use-order-wizard.ts for how
+  // `steps`/`estimate`/`canGoNext`/`submit` all branch on orderType.
+  if (wizard.orderType === "packages") {
+    return (
+      <div className="nimia-dark min-h-screen">
+        <OrderHeader isAuthenticated={isAuthenticated} />
+
+        <div className="border-b border-white/10 bg-white/[0.02] px-4 py-4 sm:px-6">
+          <div className="mx-auto max-w-6xl">
+            <ProgressIndicator
+              steps={wizard.steps}
+              currentStepIndex={wizard.currentStepIndex}
+              maxStepIndexReached={wizard.state.maxStepIndexReached}
+              onSelectStep={wizard.goToStep}
+            />
+          </div>
+        </div>
+
+        <main className="mx-auto flex max-w-6xl flex-col gap-10 px-4 pb-28 pt-10 sm:px-6 lg:flex-row lg:items-start lg:pb-16">
+          <div className="min-w-0 flex-1">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={wizard.state.step}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              >
+                {wizard.state.step === "browse" ? (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={wizard.resetOrderType}
+                      className="mb-4 text-sm font-medium text-white/45 transition-colors hover:text-white"
+                    >
+                      ← Change order type
+                    </button>
+                    <PackageBrowseGrid
+                      packages={BUNDLE_PACKAGES}
+                      onSelect={wizard.selectBundlePackage}
+                      onCustomOrder={() => wizard.selectOrderType("custom")}
+                    />
+                  </div>
+                ) : null}
+
+                {wizard.state.step === "package-detail" ? (
+                  <PackageDetail
+                    pkg={wizard.bundlePackage}
+                    selectedOptionIds={wizard.state.bundleCreativeContentIds}
+                    onToggleOption={wizard.toggleBundleCreativeContent}
+                    onCustomOrder={() => wizard.selectOrderType("custom")}
+                  />
+                ) : null}
+
+                {wizard.state.step === "brief" ? (
+                  <ProjectBriefForm brief={wizard.state.brief} onChange={wizard.updateBrief} />
+                ) : null}
+
+                {wizard.state.step === "upload" ? (
+                  <UploadSection
+                    files={wizard.state.files}
+                    onAddFiles={wizard.addFiles}
+                    onRemoveFile={wizard.removeFile}
+                  />
+                ) : null}
+
+                {wizard.state.step === "review" ? (
+                  <ReviewSection
+                    category={null}
+                    service={null}
+                    packageName={null}
+                    configSelections={{}}
+                    brief={wizard.state.brief}
+                    files={wizard.state.files}
+                    estimate={wizard.estimate}
+                    agreedToTerms={wizard.state.agreedToTerms}
+                    onAgreedToTermsChange={wizard.setAgreedToTerms}
+                    onEditStep={wizard.goToStep}
+                    submitError={wizard.submitError}
+                    negotiationOffer={wizard.state.negotiationOffer}
+                    onNegotiationOfferChange={wizard.updateNegotiationOffer}
+                    bundle={
+                      wizard.bundlePackage
+                        ? {
+                            pkg: wizard.bundlePackage,
+                            selectedOptions: wizard.bundlePackage.creativeOptions.filter((option) =>
+                              wizard.state.bundleCreativeContentIds.includes(option.id),
+                            ),
+                          }
+                        : null
+                    }
+                  />
+                ) : null}
+              </motion.div>
+            </AnimatePresence>
+
+            <div className="mt-10">
+              <StepNavigation
+                step={wizard.state.step}
+                canGoBack={wizard.currentStepIndex > 0}
+                canGoNext={wizard.canGoNext}
+                isSubmitting={wizard.isSubmitting}
+                onBack={wizard.goBack}
+                onNext={wizard.goNext}
+                onSubmit={() => wizard.submit("submit")}
+                onNegotiate={() => wizard.submit("negotiate")}
+              />
+            </div>
+          </div>
+
+          <PriceEstimator
+            category={null}
+            service={null}
+            packageName={null}
+            estimate={wizard.estimate}
+            bundleLabel={wizard.bundlePackage ? "Package" : null}
+            bundleTitle={wizard.bundlePackage?.name ?? null}
+          />
         </main>
       </div>
     );

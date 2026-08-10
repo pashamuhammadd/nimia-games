@@ -6,18 +6,19 @@ import {
   EMPTY_BRIEF,
   INITIAL_ORDER_STATE,
   type CategoryDefinition,
-  type ConfigSelections,
   type OrderType,
   type OrderWizardState,
   type ProjectBrief,
   type ServiceDefinition,
   type StepId,
   type UploadedFileMeta,
+  type BundlePackage,
 } from "../types";
 import { getCategory, findServiceById } from "../data/catalog";
-import { calculateEstimate, type Estimate } from "../pricing";
+import { findBundlePackageById } from "../data/bundle-packages";
+import { calculateEstimate, calculateBundleEstimate, type Estimate } from "../pricing";
 import { getDefaultSelections } from "./default-selections";
-import { getStepsForService } from "./steps";
+import { getStepsForService, getStepsForBundle } from "./steps";
 import { clearOrderState, loadOrderState, saveOrderState } from "./storage";
 import { submitOrderAction } from "./submit-order-action";
 import { getUploadSignatureAction } from "./get-upload-signature-action";
@@ -31,6 +32,20 @@ function withStep(state: OrderWizardState, step: StepId, steps: StepId[]): Order
     maxStepIndexReached: index > state.maxStepIndexReached ? index : state.maxStepIndexReached,
   };
 }
+
+/** How many of a bundle package's creative-content slots are currently
+ * used by a set of selected option ids. Shared by canGoNext's validation
+ * and toggleBundleCreativeContent's over-cap guard so the two can never
+ * disagree about what counts as "full". */
+function usedSlotsFor(pkg: BundlePackage | null, selectedOptionIds: string[]): number {
+  if (!pkg) return 0;
+  return selectedOptionIds.reduce((sum, id) => {
+    const option = pkg.creativeOptions.find((candidate) => candidate.id === id);
+    return sum + (option?.slots ?? 0);
+  }, 0);
+}
+
+const BUNDLE_ONLY_STEPS: StepId[] = ["browse", "package-detail"];
 
 /** Repairs a raw parse of localStorage against the CURRENT catalog — if a
  * service/category referenced in an old save no longer exists (data file
@@ -57,7 +72,7 @@ function sanitizeRestoredState(raw: unknown): OrderWizardState {
     };
   }
 
-  return {
+  let restored: OrderWizardState = {
     ...INITIAL_ORDER_STATE,
     ...candidate,
     brief: { ...EMPTY_BRIEF, ...candidate.brief },
@@ -66,6 +81,28 @@ function sanitizeRestoredState(raw: unknown): OrderWizardState {
     // what an older save might contain.
     files: [],
   };
+
+  // Package/Bundle system (10 Agustus 2026) — same fallback pattern as the
+  // service check above: if the saved bundlePackageId no longer exists in
+  // the current BUNDLE_PACKAGES catalog, don't crash the page, just bounce
+  // back to Browse Packages instead of Step 0.
+  if (restored.orderType === "packages") {
+    if (restored.bundlePackageId && !findBundlePackageById(restored.bundlePackageId)) {
+      restored = {
+        ...restored,
+        bundlePackageId: null,
+        bundleCreativeContentIds: [],
+        step: "browse",
+        maxStepIndexReached: 0,
+      };
+    }
+  } else if (BUNDLE_ONLY_STEPS.includes(restored.step)) {
+    // Corrupted/cross-flow state (shouldn't normally happen) — a bundle-only
+    // step id without orderType === "packages" has nowhere valid to render.
+    restored = { ...restored, step: "category", maxStepIndexReached: 0 };
+  }
+
+  return restored;
 }
 
 /** Which of the Review step's two buttons was used — "submit" accepts the
@@ -79,6 +116,11 @@ export interface UseOrderWizardResult {
   state: OrderWizardState;
   category: CategoryDefinition | null;
   service: ServiceDefinition | null;
+  /** Package/Bundle system (10 Agustus 2026) — the currently selected
+   * bundle package, looked up from state.bundlePackageId exactly like
+   * `service` is looked up from state.serviceId. Null outside the
+   * "packages" order type. */
+  bundlePackage: BundlePackage | null;
   steps: StepId[];
   currentStepIndex: number;
   estimate: Estimate;
@@ -92,12 +134,22 @@ export interface UseOrderWizardResult {
    * chosen, see OrderTypeSelector/order-wizard.tsx's render branch. */
   orderType: OrderType | null;
   selectOrderType: (type: OrderType) => void;
-  /** Returns to Step 0 (the "← Back to order type" link on the Packages/
-   * Custom Order placeholders, and available from Category too). */
+  /** Returns to Step 0 (the "← Back to order type" link on Browse Packages/
+   * the Custom Order placeholder, and available from Category too). */
   resetOrderType: () => void;
   selectCategory: (categoryId: string) => void;
   selectService: (serviceId: string) => void;
   selectPackage: (packageId: string) => void;
+  /** Package/Bundle system (10 Agustus 2026) — picking a package on Browse
+   * Packages advances straight to Package Detail, same auto-advance pattern
+   * as selectCategory/selectService/selectPackage above. */
+  selectBundlePackage: (packageId: string) => void;
+  /** Toggles one BundleCreativeOption in/out of the current package's
+   * selection. A no-op if selecting it would push the running slot total
+   * past the package's creativeSlotCount — see usedSlotsFor above; the UI
+   * (components/package-detail.tsx) also disables that option so this
+   * over-cap guard is defense-in-depth, not the only thing enforcing it. */
+  toggleBundleCreativeContent: (optionId: string) => void;
   updateConfigValue: (fieldId: string, value: string | boolean | string[]) => void;
   updateBrief: (patch: Partial<ProjectBrief>) => void;
   updateNegotiationOffer: (value: string) => void;
@@ -140,12 +192,21 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
 
   const category = getCategory(state.categoryId);
   const service = findServiceById(state.serviceId);
-  const steps = getStepsForService(service);
+  const bundlePackage = findBundlePackageById(state.bundlePackageId);
+  const isBundleOrder = state.orderType === "packages";
+  const steps = isBundleOrder ? getStepsForBundle() : getStepsForService(service);
   const currentStepIndex = Math.max(0, steps.indexOf(state.step));
-  const estimate = calculateEstimate(service, state.packageId, state.configSelections);
+  const estimate = isBundleOrder
+    ? calculateBundleEstimate(bundlePackage)
+    : calculateEstimate(service, state.packageId, state.configSelections);
 
   const selectOrderType = React.useCallback((type: OrderType) => {
-    setState((prev) => ({ ...prev, orderType: type }));
+    setState((prev) => ({
+      ...prev,
+      orderType: type,
+      step: type === "packages" ? "browse" : type === "project-builder" ? "category" : prev.step,
+      maxStepIndexReached: 0,
+    }));
   }, []);
 
   const resetOrderType = React.useCallback(() => {
@@ -185,6 +246,37 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     setState((prev) => withStep({ ...prev, packageId }, "configure", steps));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [steps]);
+
+  const selectBundlePackage = React.useCallback((packageId: string) => {
+    setState((prev) =>
+      withStep(
+        { ...prev, bundlePackageId: packageId, bundleCreativeContentIds: [] },
+        "package-detail",
+        getStepsForBundle(),
+      ),
+    );
+  }, []);
+
+  const toggleBundleCreativeContent = React.useCallback((optionId: string) => {
+    setState((prev) => {
+      const pkg = findBundlePackageById(prev.bundlePackageId);
+      if (!pkg) return prev;
+      const option = pkg.creativeOptions.find((candidate) => candidate.id === optionId);
+      if (!option) return prev;
+
+      const isSelected = prev.bundleCreativeContentIds.includes(optionId);
+      if (isSelected) {
+        return {
+          ...prev,
+          bundleCreativeContentIds: prev.bundleCreativeContentIds.filter((id) => id !== optionId),
+        };
+      }
+
+      const used = usedSlotsFor(pkg, prev.bundleCreativeContentIds);
+      if (used + option.slots > pkg.creativeSlotCount) return prev; // over cap — see toggleBundleCreativeContent's doc comment
+      return { ...prev, bundleCreativeContentIds: [...prev.bundleCreativeContentIds, optionId] };
+    });
+  }, []);
 
   const updateConfigValue = React.useCallback(
     (fieldId: string, value: string | boolean | string[]) => {
@@ -273,8 +365,15 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     if (state.step === "brief") {
       return state.brief.projectTitle.trim().length > 0 && state.brief.projectDescription.trim().length > 0;
     }
+    // Package/Bundle system (10 Agustus 2026) — Continue only unlocks once
+    // the client has filled every creative-content slot the package grants,
+    // exactly matching the count (not "at least"), per the brief.
+    if (state.step === "package-detail") {
+      if (!bundlePackage) return false;
+      return usedSlotsFor(bundlePackage, state.bundleCreativeContentIds) === bundlePackage.creativeSlotCount;
+    }
     return true;
-  }, [state.step, state.brief.projectTitle, state.brief.projectDescription]);
+  }, [state.step, state.brief.projectTitle, state.brief.projectDescription, state.bundleCreativeContentIds, bundlePackage]);
 
   const submit = React.useCallback(
     (intent: SubmitIntent) => {
@@ -371,12 +470,20 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
         // server-side too — the check at the top of this callback is only
         // a client-side nicety, same defense-in-depth pattern as the
         // negotiation-offer validation above.
+        //
+        // Package/Bundle system (10 Agustus 2026) — for a bundle order,
+        // categoryId/serviceId/packageId/configSelections are sent as
+        // null/empty and bundlePackageId/bundleCreativeContentIds carry the
+        // real selection instead; submitOrderAction branches on whether
+        // bundlePackageId is set (see that file's isBundleOrder check).
         submitOrderAction({
           intent,
-          categoryId: state.categoryId,
-          serviceId: state.serviceId,
-          packageId: state.packageId,
-          configSelections: state.configSelections,
+          categoryId: isBundleOrder ? null : state.categoryId,
+          serviceId: isBundleOrder ? null : state.serviceId,
+          packageId: isBundleOrder ? null : state.packageId,
+          configSelections: isBundleOrder ? {} : state.configSelections,
+          bundlePackageId: isBundleOrder ? state.bundlePackageId : null,
+          bundleCreativeContentIds: isBundleOrder ? state.bundleCreativeContentIds : [],
           brief: state.brief,
           negotiationOffer: state.negotiationOffer,
           uploadedFiles,
@@ -401,12 +508,15 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     [
       isAuthenticated,
       router,
+      isBundleOrder,
       state.agreedToTerms,
       state.negotiationOffer,
       state.categoryId,
       state.serviceId,
       state.packageId,
       state.configSelections,
+      state.bundlePackageId,
+      state.bundleCreativeContentIds,
       state.brief,
       state.files,
       fileBlobs,
@@ -426,6 +536,7 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     state,
     category,
     service,
+    bundlePackage,
     steps,
     currentStepIndex,
     estimate,
@@ -441,6 +552,8 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     selectCategory,
     selectService,
     selectPackage,
+    selectBundlePackage,
+    toggleBundleCreativeContent,
     updateConfigValue,
     updateBrief,
     updateNegotiationOffer,

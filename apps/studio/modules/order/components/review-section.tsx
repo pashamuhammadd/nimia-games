@@ -3,6 +3,7 @@
 import { Check, FileText } from "lucide-react";
 import { cn } from "@nimia/ui";
 import type { CategoryDefinition, ProjectBrief, ServiceDefinition, StepId, UploadedFileMeta, ConfigSelections } from "../types";
+import type { BundlePackage, BundleCreativeOption } from "../types/bundle";
 import type { Estimate } from "../pricing";
 import { summarizeSelections } from "../pricing/summarize-selections";
 import { SummaryCard } from "./summary-card";
@@ -26,6 +27,12 @@ export interface ReviewSectionProps {
   submitError: string | null;
   negotiationOffer: string;
   onNegotiationOfferChange: (value: string) => void;
+  /** Package/Bundle system (10 Agustus 2026) — when set, Review renders the
+   * bundle's own recap (package + creative content) in place of the
+   * Category/Service and Configuration cards below. Brief/Files/Estimate/
+   * negotiation/terms/error UI is identical for both flows and stays fully
+   * shared. */
+  bundle?: { pkg: BundlePackage; selectedOptions: BundleCreativeOption[] } | null;
 }
 
 function formatBytes(bytes: number): string {
@@ -51,13 +58,36 @@ export function ReviewSection({
   submitError,
   negotiationOffer,
   onNegotiationOfferChange,
+  bundle = null,
 }: ReviewSectionProps) {
-  if (!service) return null;
+  if (!service && !bundle) return null;
+
+  const isBundle = Boolean(bundle);
 
   const configRows = summarizeSelections(service, configSelections).map((row) => ({
     label: row.label,
     value: row.value,
   }));
+
+  const primaryCardTitle = isBundle ? "Package" : "Category & Service";
+  const primaryCardRows = bundle
+    ? [
+        { label: "Package", value: bundle.pkg.name },
+        ...(bundle.pkg.badge ? [{ label: "Badge", value: bundle.pkg.badge }] : []),
+        { label: "Price", value: `$${bundle.pkg.price}` },
+      ]
+    : [
+        { label: "Category", value: category?.name ?? "-" },
+        { label: "Service", value: service?.name ?? "-" },
+        ...(packageName ? [{ label: "Package", value: packageName }] : []),
+      ];
+
+  const secondaryCardTitle = isBundle ? "Creative Content" : "Configuration";
+  const secondaryCardRows = bundle
+    ? bundle.selectedOptions.length > 0
+      ? bundle.selectedOptions.map((option) => ({ label: "Selected", value: option.label }))
+      : [{ label: "Creative Content", value: "None selected" }]
+    : configRows;
 
   const briefRows = [
     { label: "Title", value: brief.projectTitle || "-" },
@@ -77,15 +107,15 @@ export function ReviewSection({
 
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <SummaryCard
-          title="Category & Service"
-          onEdit={() => onEditStep("service")}
-          rows={[
-            { label: "Category", value: category?.name ?? "-" },
-            { label: "Service", value: service.name },
-            ...(packageName ? [{ label: "Package", value: packageName }] : []),
-          ]}
+          title={primaryCardTitle}
+          onEdit={() => onEditStep(isBundle ? "package-detail" : "service")}
+          rows={primaryCardRows}
         />
-        <SummaryCard title="Configuration" onEdit={() => onEditStep("configure")} rows={configRows} />
+        <SummaryCard
+          title={secondaryCardTitle}
+          onEdit={() => onEditStep(isBundle ? "package-detail" : "configure")}
+          rows={secondaryCardRows}
+        />
         <SummaryCard title="Project Brief" onEdit={() => onEditStep("brief")} rows={briefRows} />
         <SummaryCard
           title="Files"
@@ -100,7 +130,10 @@ export function ReviewSection({
           title="Estimate"
           rows={[
             { label: "Estimated Price", value: `$${estimate.totalPrice}` },
-            { label: "Estimated Delivery", value: `${estimate.totalDeliveryDays} Days` },
+            {
+              label: "Estimated Delivery",
+              value: estimate.deliveryLabel ?? `${estimate.totalDeliveryDays} Days`,
+            },
           ]}
           className="sm:col-span-2"
         />

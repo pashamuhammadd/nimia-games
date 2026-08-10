@@ -16,6 +16,10 @@ interface OrderTypeOption {
   icon: LucideIcon;
   badge?: string;
   recommended?: boolean;
+  /** Card-specific CTA copy (Package/Bundle system, 10 Agustus 2026) — the
+   * Packages card reads "Browse Packages" instead of the generic
+   * "Continue" every other card still uses, per the brief. */
+  ctaLabel?: string;
 }
 
 const ORDER_TYPE_OPTIONS: OrderTypeOption[] = [
@@ -32,8 +36,9 @@ const ORDER_TYPE_OPTIONS: OrderTypeOption[] = [
     type: "packages",
     title: "Packages",
     description:
-      "Browse ready to use service bundles for the best value. Perfect for clients who want a predefined package.",
+      "6 curated packages designed to help you launch, build, and grow — the best value for a multi-service project.",
     icon: Package,
+    ctaLabel: "Browse Packages",
   },
   {
     type: "custom",
@@ -47,12 +52,13 @@ const ORDER_TYPE_OPTIONS: OrderTypeOption[] = [
 // STEP 0 — added 3 Agustus 2026, per user request: a new phase before
 // Category that lets a visitor choose how they want to start their order at
 // all. Deliberately its own top-level screen, not part of ORDER_STEPS/
-// StepId — only "project-builder" hands off into the existing wizard
-// exactly as it worked before this change (see
-// state/use-order-wizard.ts's orderType field and
-// components/order-wizard.tsx's render branch). "packages" and "custom"
-// render their own placeholder screens instead, so those two can grow into
-// real flows later without touching Project Builder's architecture at all.
+// StepId — only "project-builder" hands off into the original step machine
+// exactly as it worked before this change (see state/use-order-wizard.ts's
+// orderType field and components/order-wizard.tsx's render branch).
+// "packages" hands off into its own BUNDLE_STEPS flow (added 10 Agustus
+// 2026 — Package/Bundle system), "custom" still renders a placeholder
+// screen, so it can grow into a real flow later without touching Project
+// Builder's or Packages' architecture at all.
 export function OrderTypeSelector({ onSelect }: OrderTypeSelectorProps) {
   const shouldReduceMotion = useReducedMotion();
 
@@ -134,7 +140,7 @@ function OrderTypeCard({ option, onSelect }: { option: OrderTypeOption; onSelect
             : "border border-white/15 text-white/80 group-hover:border-white/30 group-hover:text-white",
         )}
       >
-        Continue
+        {option.ctaLabel ?? "Continue"}
       </span>
     </motion.button>
   );

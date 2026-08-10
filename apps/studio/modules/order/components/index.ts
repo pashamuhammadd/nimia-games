@@ -15,3 +15,5 @@ export { UploadSection } from "./upload-section";
 export { ReviewSection } from "./review-section";
 export { SummaryCard } from "./summary-card";
 export { OptionCard } from "./option-card";
+export { PackageBrowseGrid } from "./package-browse-grid";
+export { PackageDetail } from "./package-detail";

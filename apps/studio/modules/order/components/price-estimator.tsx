@@ -11,6 +11,13 @@ export interface PriceEstimatorProps {
   service: ServiceDefinition | null;
   packageName: string | null;
   estimate: Estimate;
+  /** Package/Bundle system (10 Agustus 2026) — when set, the summary header
+   * shows this in place of category/service (e.g. eyebrow "Package", title
+   * "Web3 Growth") without touching the layout/estimate rendering below,
+   * which is identical for both flows. Both null (the default) preserves
+   * the exact original Project Builder behavior. */
+  bundleLabel?: string | null;
+  bundleTitle?: string | null;
 }
 
 // Live-updating order summary. Renders TWICE from the same props/estimate —
@@ -19,10 +26,17 @@ export interface PriceEstimatorProps {
 // expand the breakdown) — so both surfaces always agree, there's no
 // duplicated pricing logic between them, just two responsive presentations
 // of the same `estimate` computed once in useOrderWizard.
-export function PriceEstimator({ category, service, packageName, estimate }: PriceEstimatorProps) {
+export function PriceEstimator({
+  category,
+  service,
+  packageName,
+  estimate,
+  bundleLabel = null,
+  bundleTitle = null,
+}: PriceEstimatorProps) {
   const [mobileExpanded, setMobileExpanded] = React.useState(false);
 
-  if (!service) {
+  if (!service && !bundleTitle) {
     return (
       <aside className="hidden lg:sticky lg:top-24 lg:block lg:h-fit lg:w-[22rem] lg:shrink-0">
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center">
@@ -35,13 +49,16 @@ export function PriceEstimator({ category, service, packageName, estimate }: Pri
     );
   }
 
+  const deliveryDisplay =
+    estimate.deliveryLabel ?? `${estimate.totalDeliveryDays} ${estimate.totalDeliveryDays === 1 ? "Day" : "Days"}`;
+
   const breakdown = (
     <>
       <div className="flex flex-col gap-1">
         <p className="text-xs font-semibold uppercase tracking-wide text-white/40">
-          {category?.name}
+          {bundleTitle ? (bundleLabel ?? "Package") : category?.name}
         </p>
-        <p className="nimia-font-display text-lg font-bold text-white">{service.name}</p>
+        <p className="nimia-font-display text-lg font-bold text-white">{bundleTitle ?? service?.name}</p>
         {packageName ? <p className="text-sm text-white/55">{packageName}</p> : null}
       </div>
 
@@ -70,9 +87,7 @@ export function PriceEstimator({ category, service, packageName, estimate }: Pri
             <Clock className="h-3.5 w-3.5" aria-hidden="true" />
             Estimated Delivery
           </span>
-          <span className="font-semibold text-white">
-            {estimate.totalDeliveryDays} {estimate.totalDeliveryDays === 1 ? "Day" : "Days"}
-          </span>
+          <span className="font-semibold text-white">{deliveryDisplay}</span>
         </div>
       </div>
     </>
@@ -112,7 +127,7 @@ export function PriceEstimator({ category, service, packageName, estimate }: Pri
               <p className="text-[10px] font-semibold uppercase tracking-wide text-white/40">
                 Delivery
               </p>
-              <p className="text-sm font-semibold text-white">{estimate.totalDeliveryDays} Days</p>
+              <p className="text-sm font-semibold text-white">{deliveryDisplay}</p>
             </div>
           </div>
           <ChevronUp

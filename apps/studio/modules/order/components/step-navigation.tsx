@@ -15,13 +15,17 @@ export interface StepNavigationProps {
   onNegotiate: () => void;
 }
 
-// Category/Service/Package steps auto-advance on selection (see
-// useOrderWizard#selectCategory/selectService/selectPackage) and render no
-// "Continue" button here — Configure/Brief/Upload need an explicit
-// confirmation since they involve reading multiple fields, and Review ends
-// in two buttons instead of Continue: Submit Order (accept the estimate
-// as-is) and Negotiate Price (3 Agustus 2026, per user request — attaches
-// the offer typed into ReviewSection's negotiation field instead).
+// Category/Service/Package/Browse steps auto-advance on selection (see
+// useOrderWizard#selectCategory/selectService/selectPackage/
+// selectBundlePackage) and render no "Continue" button here —
+// Configure/Package Detail/Brief/Upload need an explicit confirmation since
+// they involve reading multiple fields or validating a selection (Package
+// Detail added 10 Agustus 2026 — Package/Bundle system's slot-selection
+// step, gated by useOrderWizard's canGoNext until every creative-content
+// slot is filled), and Review ends in two buttons instead of Continue:
+// Submit Order (accept the estimate as-is) and Negotiate Price (3 Agustus
+// 2026, per user request — attaches the offer typed into ReviewSection's
+// negotiation field instead).
 export function StepNavigation({
   step,
   canGoBack,
@@ -32,7 +36,7 @@ export function StepNavigation({
   onSubmit,
   onNegotiate,
 }: StepNavigationProps) {
-  const showContinue = step === "configure" || step === "brief" || step === "upload";
+  const showContinue = step === "configure" || step === "package-detail" || step === "brief" || step === "upload";
   const showSubmit = step === "review";
 
   if (!showContinue && !showSubmit && !canGoBack) return null;

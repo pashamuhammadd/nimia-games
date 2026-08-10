@@ -14,6 +14,14 @@ export interface Estimate {
   lineItems: EstimateLineItem[];
   totalPrice: number;
   totalDeliveryDays: number;
+  /** Optional human label overriding the default "{totalDeliveryDays} Days"
+   * delivery display (Package/Bundle system, 10 Agustus 2026 — see
+   * ./calculate-bundle-estimate.ts). Bundle packages show a range like
+   * "7–10 business days" instead of a single computed day count, since the
+   * real timeline depends on which creative content is picked. Absent for
+   * every Project Builder estimate — PriceEstimator/ReviewSection fall back
+   * to the original "{totalDeliveryDays} Days" text exactly as before. */
+  deliveryLabel?: string;
 }
 
 const EMPTY_ESTIMATE: Estimate = {

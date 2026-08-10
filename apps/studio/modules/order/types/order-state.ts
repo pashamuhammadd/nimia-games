@@ -41,17 +41,26 @@ export const ORDER_STEPS = [
   "review",
 ] as const;
 
-export type StepId = (typeof ORDER_STEPS)[number];
+/** Package/Bundle system's own step sequence (10 Agustus 2026) — Browse
+ * Packages -> Package Detail (slot selection), then rejoins the exact same
+ * "brief" -> "upload" -> "review" steps Project Builder already uses (those
+ * three components are fully orderType-agnostic, see
+ * components/project-brief-form.tsx and components/upload-section.tsx). Kept
+ * as its own tuple rather than reusing/extending ORDER_STEPS's "category"/
+ * "service"/"package" ids, which have different, now-conflicting semantics
+ * for a bundle order (see ../data/bundle-packages.ts). */
+export const BUNDLE_STEPS = ["browse", "package-detail", "brief", "upload", "review"] as const;
 
-/** Which entry path a visitor picked on /order's new Step 0 ("Choose Order
+export type StepId = (typeof ORDER_STEPS)[number] | (typeof BUNDLE_STEPS)[number];
+
+/** Which entry path a visitor picked on /order's Step 0 ("Choose Order
  * Type", added 3 Agustus 2026, per user request). Deliberately NOT part of
- * ORDER_STEPS/StepId: only "project-builder" hands off into the existing
- * step machine below (category -> service -> ... -> review) exactly as it
- * worked before this change. "packages" and "custom" render their own
- * placeholder screens instead (see components/order-type-selector.tsx and
- * components/order-wizard.tsx's render branch) — kept out of the step
- * machine so Packages/Custom Order can grow into real flows later without
- * touching Project Builder's architecture at all. */
+ * ORDER_STEPS/StepId: only "project-builder" hands off into the original
+ * step machine below (category -> service -> ... -> review). "packages"
+ * (real flow added 10 Agustus 2026, see components/order-wizard.tsx) hands
+ * off into BUNDLE_STEPS instead. "custom" still renders its own placeholder
+ * screen — see components/order-type-selector.tsx and
+ * components/order-wizard.tsx's render branches. */
 export type OrderType = "project-builder" | "packages" | "custom";
 
 export interface OrderWizardState {
@@ -62,6 +71,16 @@ export interface OrderWizardState {
   serviceId: string | null;
   packageId: string | null;
   configSelections: ConfigSelections;
+  /** Package/Bundle system (10 Agustus 2026) — id into
+   * ../data/bundle-packages.ts's BUNDLE_PACKAGES. Distinct from `packageId`
+   * above (that one means "selected Step 3 tier of a pricingModel:'packages'
+   * service", e.g. GIF/Sticker's Starter/Standard/Pro) to avoid any
+   * ambiguity between the two unrelated "package" concepts. Only meaningful
+   * when orderType === "packages". */
+  bundlePackageId: string | null;
+  /** Selected BundleCreativeOption ids for the current bundlePackageId's
+   * slot system. Only meaningful when orderType === "packages". */
+  bundleCreativeContentIds: string[];
   brief: ProjectBrief;
   files: UploadedFileMeta[];
   agreedToTerms: boolean;
@@ -85,6 +104,8 @@ export const INITIAL_ORDER_STATE: OrderWizardState = {
   serviceId: null,
   packageId: null,
   configSelections: {},
+  bundlePackageId: null,
+  bundleCreativeContentIds: [],
   brief: EMPTY_BRIEF,
   files: [],
   agreedToTerms: false,

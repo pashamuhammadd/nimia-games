@@ -3,9 +3,12 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
 import { findServiceById, getCategory } from "../data/catalog";
+import { findBundlePackageById } from "../data/bundle-packages";
 import { calculateEstimate } from "../pricing/calculate-estimate";
+import { calculateBundleEstimate } from "../pricing/calculate-bundle-estimate";
 import { summarizeSelections } from "../pricing/summarize-selections";
 import type { ConfigSelections, ProjectBrief } from "../types/order-state";
+import type { BundlePackage, BundleCreativeOption } from "../types/bundle";
 import type { SubmitIntent } from "./use-order-wizard";
 import { sendOrderReceivedEmail } from "../../../lib/email";
 import { notifyNewOrder } from "@nimia/discord";
@@ -16,6 +19,12 @@ export interface SubmitOrderActionInput {
   serviceId: string | null;
   packageId: string | null;
   configSelections: ConfigSelections;
+  /** Package/Bundle system (10 Agustus 2026). When set, this is a bundle
+   * order: categoryId/serviceId/packageId/configSelections above are all
+   * expected to be null/empty (see useOrderWizard#submit), and this action
+   * skips the category/service lookup entirely — see isBundleOrder below. */
+  bundlePackageId?: string | null;
+  bundleCreativeContentIds?: string[];
   brief: ProjectBrief;
   negotiationOffer: string;
   /** Added 4 Agustus 2026 (P0.3) — already-uploaded Cloudinary URLs, one
@@ -78,6 +87,39 @@ function buildDescription(params: {
   return lines.join("\n");
 }
 
+/** Bundle counterpart to buildDescription above (Package/Bundle system, 10
+ * Agustus 2026) — same "fold everything into orders.description" pattern,
+ * carrying the package name/price, its fixed included items, the client's
+ * slot-system creative-content picks, revisions, and the estimated delivery
+ * range so the team has the full order context with zero schema changes. */
+function buildBundleDescription(params: {
+  pkg: BundlePackage;
+  selectedOptions: BundleCreativeOption[];
+  brief: ProjectBrief;
+}): string {
+  const { pkg, selectedOptions, brief } = params;
+  const lines: string[] = [
+    `Project: ${brief.projectTitle.trim()}`,
+    `Package: ${pkg.name} ($${pkg.price})`,
+  ];
+  if (brief.targetPlatform.trim()) lines.push(`Target Platform: ${brief.targetPlatform.trim()}`);
+  lines.push("", "Description:", brief.projectDescription.trim());
+  if (brief.additionalNotes.trim()) {
+    lines.push("", "Additional Notes:", brief.additionalNotes.trim());
+  }
+  lines.push("", "What's Included:");
+  for (const item of pkg.includedItems) lines.push(`- ${item.label}`);
+  lines.push("", `Creative Content Selected (${pkg.creativeSlotLabel}):`);
+  if (selectedOptions.length > 0) {
+    for (const option of selectedOptions) lines.push(`- ${option.label}`);
+  } else {
+    lines.push("- None selected");
+  }
+  lines.push("", `Free Revisions: ${pkg.freeRevisions}`);
+  lines.push(`Estimated Delivery: ${pkg.estimatedDeliveryLabel} (estimate, not a guaranteed date)`);
+  return lines.join("\n");
+}
+
 // Real order-submission action for /order's Project Configurator (3 Agustus
 // 2026, per user request). Replaces useOrderWizard's previous
 // window.setTimeout local-only simulation, which never wrote to Supabase —
@@ -88,16 +130,38 @@ function buildDescription(params: {
 // client used "Negotiate Price" instead of "Submit Order", an
 // `order_negotiations` row too, so app/dashboard/orders and
 // app/dashboard/negotiations actually have something to show.
+//
+// Package/Bundle system (10 Agustus 2026) — extended (not replaced) to also
+// accept a bundle order. `orders.service_id` is nullable (see
+// 0003_orders_projects.sql), and the existing "fold extra structured data
+// into orders.description" pattern above already covers everything a
+// bundle order needs to persist (packageId/packageName/packagePrice/
+// selectedCreativeContent) — so no new Supabase migration was needed for
+// this feature.
 export async function submitOrderAction(input: SubmitOrderActionInput): Promise<SubmitOrderResult> {
   if (!input.agreedToTerms) {
     return { ok: false, error: "Please agree to Nimia Studio's project terms before submitting." };
   }
 
-  const category = getCategory(input.categoryId);
-  const service = findServiceById(input.serviceId);
-  if (!category || !service) {
-    return { ok: false, error: "Select a category and service before submitting." };
+  const isBundleOrder = Boolean(input.bundlePackageId);
+
+  let category: ReturnType<typeof getCategory> = null;
+  let service: ReturnType<typeof findServiceById> = null;
+  let bundlePkg: BundlePackage | null = null;
+
+  if (isBundleOrder) {
+    bundlePkg = findBundlePackageById(input.bundlePackageId ?? null);
+    if (!bundlePkg) {
+      return { ok: false, error: "Select a package before submitting." };
+    }
+  } else {
+    category = getCategory(input.categoryId);
+    service = findServiceById(input.serviceId);
+    if (!category || !service) {
+      return { ok: false, error: "Select a category and service before submitting." };
+    }
   }
+
   if (!input.brief.projectTitle.trim() || !input.brief.projectDescription.trim()) {
     return { ok: false, error: "Add a project title and description before submitting." };
   }
@@ -135,20 +199,44 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
     return { ok: false, error: "Couldn't find your client profile. Please try signing in again." };
   }
 
-  const selectedPackage =
-    service.pricingModel === "packages"
-      ? service.packages?.find((pkg) => pkg.id === input.packageId) ?? service.packages?.[0] ?? null
-      : null;
-  const estimate = calculateEstimate(service, input.packageId, input.configSelections);
-  const selections = summarizeSelections(service, input.configSelections);
+  let description: string;
+  let estimateTotalPrice: number;
+  let serviceNameForNotifications: string;
+  let selectedBundleOptions: BundleCreativeOption[] = [];
 
-  const description = buildDescription({
-    categoryName: category.name,
-    serviceName: service.name,
-    packageLabel: selectedPackage ? `${selectedPackage.name}, ${selectedPackage.quantityLabel}` : null,
-    brief: input.brief,
-    selections,
-  });
+  if (isBundleOrder && bundlePkg) {
+    selectedBundleOptions = bundlePkg.creativeOptions.filter((option) =>
+      (input.bundleCreativeContentIds ?? []).includes(option.id),
+    );
+    const bundleEstimate = calculateBundleEstimate(bundlePkg);
+    estimateTotalPrice = bundleEstimate.totalPrice;
+    description = buildBundleDescription({
+      pkg: bundlePkg,
+      selectedOptions: selectedBundleOptions,
+      brief: input.brief,
+    });
+    serviceNameForNotifications = bundlePkg.name;
+  } else if (category && service) {
+    const selectedPackage =
+      service.pricingModel === "packages"
+        ? service.packages?.find((pkg) => pkg.id === input.packageId) ?? service.packages?.[0] ?? null
+        : null;
+    const estimate = calculateEstimate(service, input.packageId, input.configSelections);
+    const selections = summarizeSelections(service, input.configSelections);
+    estimateTotalPrice = estimate.totalPrice;
+    description = buildDescription({
+      categoryName: category.name,
+      serviceName: service.name,
+      packageLabel: selectedPackage ? `${selectedPackage.name}, ${selectedPackage.quantityLabel}` : null,
+      brief: input.brief,
+      selections,
+    });
+    serviceNameForNotifications = service.name;
+  } else {
+    // Unreachable given the isBundleOrder/category+service checks above —
+    // satisfies strict null-checking without weakening either branch.
+    return { ok: false, error: "Select a category and service before submitting." };
+  }
 
   const clientName = profile?.full_name ?? "Nimia Client";
 
@@ -156,7 +244,7 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
     .from("orders")
     .insert({
       client_id: client.id,
-      service_id: service.dbServiceId,
+      service_id: isBundleOrder ? null : service!.dbServiceId,
       full_name: clientName,
       company_name: client.company_name,
       email: user.email ?? "",
@@ -166,7 +254,7 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
       description,
       reference_link: input.brief.referenceLink.trim() || null,
       status: input.intent === "negotiate" ? "negotiating" : "pending_review",
-      proposed_price_usd: estimate.totalPrice,
+      proposed_price_usd: estimateTotalPrice,
     })
     .select("id")
     .single();
@@ -225,7 +313,7 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
   if (user.email) {
     await sendOrderReceivedEmail(user.email, {
       clientName,
-      serviceName: service.name,
+      serviceName: serviceNameForNotifications,
       orderId: `ORD-${order.id.slice(0, 8).toUpperCase()}`,
       submittedAt: new Date().toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" }),
       description,
@@ -241,8 +329,8 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
   const { threadId } = await notifyNewOrder({
     orderId: `ORD-${order.id.slice(0, 8).toUpperCase()}`,
     clientName,
-    serviceName: service.name,
-    amountUsd: negotiationAmount ?? estimate.totalPrice,
+    serviceName: serviceNameForNotifications,
+    amountUsd: negotiationAmount ?? estimateTotalPrice,
     isNegotiation: input.intent === "negotiate",
   });
 
