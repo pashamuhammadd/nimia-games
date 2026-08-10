@@ -11,6 +11,7 @@ export { getDiscordOAuthUrl, exchangeDiscordCode, getDiscordUser, type DiscordUs
 export {
   assignGuildRole,
   removeGuildRole,
+  addGuildMember,
   sendChannelMessage,
   createThreadFromMessage,
   createPrivateThread,

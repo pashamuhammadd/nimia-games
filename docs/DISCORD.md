@@ -75,10 +75,12 @@ chat channel for support.
 ## Client/Partner registration
 
 Client registers on the website → connects Discord via OAuth (website gets
-the Discord User ID, username, avatar) → bot auto-assigns the ⭐ Client
-role. If the user joins the Nimia Partner Program, the website updates
-their status → bot auto-assigns the 🤝 Partner role (a user can hold both
-Client and Partner roles at once).
+the Discord User ID, username, avatar, and — since the 10 Agustus 2026
+guild-join fix — a `guilds.join`-scoped access token) → bot adds the
+client to the server if they aren't already a member → bot auto-assigns
+the ⭐ Client role. If the user joins the Nimia Partner Program, the
+website updates their status → bot auto-assigns the 🤝 Partner role (a
+user can hold both Client and Partner roles at once).
 
 ## Order flow
 
@@ -176,7 +178,10 @@ build on):
 - Bot Application created in the Discord Developer Portal, invited with
   `bot` scope + Manage Roles / Manage Channels / Send Messages / Create
   Private Threads / Create Public Threads / Embed Links / Read Message
-  History permissions.
+  History / **Create Invite** permissions. (**Create Invite** added 10
+  Agustus 2026 — required by `addGuildMember()`, see the guild-join entry
+  below; if the bot was invited before this date, check Server Settings →
+  Roles → the bot's own role → Permissions and grant it there if missing.)
 - **The bot's own auto-created role (named after the Application, e.g.
   "Nimia Studio" — NOT any manually-created "Bot" role that predates the
   actual bot account) must sit ABOVE Client and Partner in Server Settings
@@ -196,6 +201,32 @@ build on):
   addThreadMember could actually add) — everyone else's ticket would be
   invisible to everyone. This is the one piece of this pass that can't be
   verified by testing as the client — please double-check it as Founder.
+
+## Implementation status (guild-join fix)
+
+**Done (10 Agustus 2026):** fixed a gap found via production testing —
+connecting Discord (account-linking, first pass above) only ever LINKED
+the account in the database, it never actually added a not-yet-a-member
+client INTO the Nimia Studio server. This made `assignGuildRole` and
+`addThreadMember` (support tickets) silently no-op for any client who
+connected Discord without already being a guild member (Discord returns
+404 Unknown Member for both against a non-member — caught and logged, not
+surfaced anywhere). See:
+
+- `packages/discord/src/oauth.ts` — `OAUTH_SCOPE` widened from `"identify"` to `"identify guilds.join"`.
+- `packages/discord/src/rest.ts` — new `addGuildMember()`, Discord's "Add Guild Member" endpoint (bot token + the user's own OAuth access token together).
+- `apps/studio/app/api/discord/callback/route.ts` — calls `addGuildMember()` right after the account-link RPC succeeds, before the existing `assignGuildRole()` call.
+
+**Manual follow-up required (can't be done from code):**
+
+1. Confirm the bot has **Create Invite** (`CREATE_INSTANT_INVITE`) —
+   `addGuildMember` needs it. See the updated bullet in "Server setup
+   notes" above.
+2. Any account that connected Discord BEFORE this fix (including test
+   accounts used during earlier phases) needs to **Disconnect, then
+   Connect again** on the Profile page — Discord doesn't retroactively
+   widen an already-granted OAuth scope, so the code fix alone doesn't
+   add already-linked-but-never-joined accounts to the server.
 
 ## Implementation status (support tickets)
 

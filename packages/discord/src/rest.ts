@@ -61,6 +61,48 @@ export async function removeGuildRole(discordUserId: string, roleId: string): Pr
   }
 }
 
+/** Adds `discordUserId` to the configured guild (DISCORD_GUILD_ID) using
+ * Discord's "Add Guild Member" endpoint — this is the ONLY Discord REST
+ * call in this whole package that needs BOTH credentials at once: the bot
+ * token (via discordBotFetch, same as every other call here) AND a valid
+ * OAuth access token for that specific user with the `guilds.join` scope
+ * (passed in the body, not a header — Discord's API shape for this one
+ * endpoint). Added 10 Agustus 2026 after production testing showed the
+ * account-linking flow (oauth.ts, migration 0025) only ever linked a
+ * Discord account in the database — it never actually put a
+ * not-yet-a-member client INTO the Nimia Studio server, so assignGuildRole
+ * and addThreadMember (support tickets) were silently no-op'ing (Discord
+ * returns 404 Unknown Member for both when the target isn't a guild
+ * member yet). `roleIds`, if given, is ONLY applied by Discord on the
+ * user's very first join — passing it on a call for someone who's already
+ * a member is harmless but does nothing, so callers should keep calling
+ * assignGuildRole afterward too rather than relying on this alone.
+ * Requires the bot to have the "Create Invite" (CREATE_INSTANT_INVITE)
+ * permission in the server — see this package's README. Treats both 201
+ * (newly added) and 204 (already a member) as success, same idempotent
+ * shape as assignGuildRole above. */
+export async function addGuildMember(
+  discordUserId: string,
+  accessToken: string,
+  roleIds?: string[],
+): Promise<void> {
+  const { guildId } = getDiscordBotConfig();
+  const response = await discordBotFetch(`/guilds/${guildId}/members/${discordUserId}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      access_token: accessToken,
+      ...(roleIds && roleIds.length > 0 ? { roles: roleIds } : {}),
+    }),
+  });
+
+  if (!response.ok && response.status !== 201 && response.status !== 204) {
+    throw new Error(
+      `Discord add guild member failed (${response.status}): ${await response.text()} — ` +
+        `check the bot has the "Create Invite" permission in Server Settings → Roles.`,
+    );
+  }
+}
+
 /** Discord's embed object, trimmed to the fields this integration actually
  * uses (Discord's real schema has many more — author/footer/thumbnail/
  * etc. — deliberately not modeled here since nothing in notify.ts needs

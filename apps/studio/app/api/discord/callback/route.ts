@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@nimia/db";
-import { assignGuildRole, exchangeDiscordCode, getDiscordRoleId, getDiscordUser } from "@nimia/discord";
+import { addGuildMember, assignGuildRole, exchangeDiscordCode, getDiscordRoleId, getDiscordUser } from "@nimia/discord";
 import { DISCORD_OAUTH_STATE_COOKIE, getDiscordRedirectUri } from "../../../lib/discordRedirect";
 
 const PROFILE_URL = "/dashboard/profile";
@@ -74,13 +74,22 @@ export async function GET(request: NextRequest) {
       throw new Error(rpcError.message);
     }
 
-    // Best-effort, same non-throwing convention as lib/email.tsx for
-    // side effects that shouldn't fail the primary action if they break —
-    // the account link itself (the RPC call above) is already safely
-    // saved by this point; a role-assign failure just means an admin
-    // needs to fix it manually in Discord (or the client reconnects
-    // later once the bot's role position is fixed — see this session's
-    // earlier conversation about dragging the bot's role above Client).
+    // Best-effort, same non-throwing convention as lib/email.tsx for side
+    // effects that shouldn't fail the primary action if they break — the
+    // account link itself (the RPC call above) is already safely saved by
+    // this point. addGuildMember (added 10 Agustus 2026) actually puts the
+    // client INTO the server using this OAuth token's new "guilds.join"
+    // scope (oauth.ts) — it has to run BEFORE assignGuildRole, since a
+    // role-assign against someone who isn't a guild member yet 404s.
+    // roleIds here only takes effect on the user's very first join, so
+    // assignGuildRole still runs unconditionally right after to cover
+    // reconnects/already-members, same as before this fix.
+    try {
+      await addGuildMember(discordUser.id, token.access_token, [getDiscordRoleId("client")]);
+    } catch (joinError) {
+      console.error("[discord/callback] Add guild member failed:", joinError);
+    }
+
     try {
       await assignGuildRole(discordUser.id, getDiscordRoleId("client"));
     } catch (roleError) {

@@ -2,15 +2,20 @@ import { getDiscordOAuthConfig } from "./config";
 
 const DISCORD_API_BASE = "https://discord.com/api/v10";
 
-// "identify" is the only scope this needs — it's enough for id/username/
-// avatar, which is all connect_discord_account (0025) stores. Deliberately
-// NOT requesting "guilds.join" or anything write-scoped: the client never
-// gets ADDED to the server through this OAuth flow (they're expected to
-// already be a member, or join via a normal invite link) — this flow only
-// links an EXISTING Discord account to their Nimia Studio account so the
-// bot (using its own bot token, not this OAuth token) can later assign a
-// role to them inside the server it's already in.
-const OAUTH_SCOPE = "identify";
+// "identify" gets id/username/avatar, which is what connect_discord_account
+// (0025) stores. "guilds.join" (added 10 Agustus 2026) lets the callback
+// route's addGuildMember() call (rest.ts) actually add the client to the
+// Nimia Studio server using this OAuth token + the bot token together —
+// the ORIGINAL assumption here was that clients would already be guild
+// members (join via a normal invite link) and this flow would only ever
+// link an existing membership. Production testing proved that wrong: a
+// client connecting Discord for the first time who ISN'T already in the
+// server never got added at all, which made assignGuildRole and
+// addThreadMember (support tickets) silently no-op (Discord 404s "Unknown
+// Member" for both against a non-member). Note: anyone who connected under
+// the old "identify"-only scope has to Disconnect + Connect again to grant
+// this new scope — Discord doesn't retroactively widen an existing grant.
+const OAUTH_SCOPE = "identify guilds.join";
 
 /** Builds the URL apps/studio's `/api/discord/connect` route redirects the
  * client to. `state` should be a random value the caller also stashes in a

@@ -28,6 +28,24 @@ root sudah exclude semua `.env*`).
 | `DISCORD_CHANNEL_SYSTEM_LOG_ID` | Channel #system-log — mirror ringkas dari semua notifikasi di atas | `apps/studio`, `apps/admin` |
 | `DISCORD_CHANNEL_SUPPORT_ID` | Channel #create-ticket — setiap ticket support jadi PRIVATE thread baru di sini (`createSupportTicket`) | `apps/studio` (bikin ticket), `apps/admin` (link "Open in Discord" + close ticket) |
 
+Catatan (fix 10 Agustus 2026, guild-join): sebelumnya OAuth cuma minta
+scope `identify`, dan asumsinya client SUDAH jadi member server (join
+lewat link invite biasa) sebelum connect Discord. Ternyata salah — client
+yang connect Discord duluan (belum pernah join server) TIDAK otomatis
+masuk server, cuma ke-link di database. Akibatnya `assignGuildRole` dan
+`addThreadMember` (support ticket) diam-diam gagal (404 Unknown Member)
+untuk client itu. Sekarang scope-nya `identify guilds.join`, dan route
+`/api/discord/callback` panggil `addGuildMember()` (rest.ts) pakai OAuth
+token client + bot token buat langsung masukkan mereka ke server saat
+connect. **Ini butuh bot punya permission "Create Invite"
+(CREATE_INSTANT_INVITE)** di server — cek/tambahkan di Server Settings →
+Roles kalau belum ada (lihat daftar permission bot lengkap di
+`docs/DISCORD.md`'s "Server setup notes"). **Akun yang sudah connect
+SEBELUM fix ini (termasuk akun test Anda
+sendiri) harus Disconnect lalu Connect lagi** di halaman Profile — Discord
+tidak otomatis memperluas scope dari koneksi lama, jadi cuma push kode ini
+saja TIDAK menambahkan akun yang sudah ke-link sebelumnya ke server.
+
 Catatan (fase notifikasi, 9 Agustus 2026): setiap fungsi `notify*` di
 `src/notify.ts` TIDAK PERNAH melempar error — kalau channel ID salah, bot
 token invalid, atau Discord API sedang down, itu cuma di-`console.error`
