@@ -9,14 +9,16 @@ interface Segment {
   className?: string;
 }
 
-// "Digital Assets" keeps its own gradient span exactly like the static
-// headline this replaces; the rest stays plain foreground text. Kept as
-// data (not the caller's JSX) so the typing effect below can walk one
-// combined character stream across both segments without caring where the
-// gradient span starts/ends.
+// Home hero redesign (10 Agustus 2026, per user brief — outcome-focused
+// copy: "turn ideas into something extraordinary", not a services list).
+// "Something Extraordinary." keeps its own gradient span exactly like
+// "Digital Assets" did before it; the rest stays plain foreground text.
+// Kept as data (not the caller's JSX) so the typing effect below can walk
+// one combined character stream across both segments without caring where
+// the gradient span starts/ends.
 const SEGMENTS: Segment[] = [
-  { text: "Digital Assets", className: "nimia-gradient-text" },
-  { text: " That Bring Ideas to Life", className: "" },
+  { text: "Turn Your Ideas Into ", className: "" },
+  { text: "Something Extraordinary.", className: "nimia-gradient-text" },
 ];
 
 const FULL_TEXT = SEGMENTS.map((s) => s.text).join("");
@@ -60,7 +62,7 @@ export function TypedHeroHeadline() {
   let remaining = charCount;
 
   return (
-    <h1 className="nimia-font-display mt-4 text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+    <h1 className="nimia-font-display mt-5 text-5xl font-bold leading-[1.03] tracking-tight sm:text-6xl lg:text-7xl">
       {/* The typed spans are purely decorative — screen readers get the
           plain sr-only string below instead, so nothing is read twice. */}
       <span aria-hidden="true">

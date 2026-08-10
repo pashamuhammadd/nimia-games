@@ -8,6 +8,7 @@ import { PublicNavbar } from "./components/PublicNavbar";
 import { Footer } from "./components/Footer";
 import { StartProjectButton } from "./components/StartProjectButton";
 import { TypedHeroHeadline } from "./components/TypedHeroHeadline";
+import { ToolsSection } from "./components/home/ToolsSection";
 
 // Placeholder numbers (confirmed with the user 29 Juli 2026 — these are
 // the reference design's example figures, not verified Nimia Games data
@@ -18,14 +19,6 @@ const STATS = [
   { icon: Wrench, value: "7+", label: "Years Experience" },
   { icon: Headphones, value: "24/7", label: "Support" },
 ];
-
-// Also placeholder (confirmed with the user 29 Juli 2026): the reference
-// design showed real engine/platform logos (Unity, Unreal, Solana, Steam,
-// AWS) — using those without a real relationship would misrepresent an
-// endorsement/partnership Nimia Games doesn't have, so this renders
-// generic labeled slots instead until you tell me which logos are
-// actually accurate to show here.
-const TRUST_PLACEHOLDERS = ["Partner", "Partner", "Partner", "Partner", "Partner"];
 
 export default async function StudioHomePage() {
   const supabase = createServerClient(await cookies());
@@ -42,7 +35,13 @@ export default async function StudioHomePage() {
       <PublicNavbar isAuthenticated={false} />
 
       <main>
-        {/* HERO */}
+        {/* HERO — redesigned 10 Agustus 2026 per user brief: outcome-focused
+            copy ("turn your idea into something extraordinary" rather than
+            a services list), stronger typographic hierarchy on the
+            headline, premium CTA micro-interactions, and a more dynamic
+            (but still performant, CSS-only) hero visual. Only this section
+            and the section right below it (TOOLS) changed — everything
+            else on this page, and every other route, is untouched. */}
         <section className="relative overflow-hidden">
           {/* Ambient glow blobs, purely decorative */}
           <div
@@ -56,54 +55,47 @@ export default async function StudioHomePage() {
 
           <div className="relative mx-auto grid max-w-6xl gap-10 px-4 pt-8 pb-8 sm:px-6 lg:grid-cols-2 lg:items-center lg:pt-10 lg:pb-10">
             <div>
-              {/* Reordered to lead with "Digital Assets" (29 Juli 2026, per
-                  user feedback: hero should read as a digital-asset studio
-                  first, game studio second — this and the headline/copy
-                  below were reordered together; revert if you'd rather
-                  keep "Game Development" first). */}
+              {/* Eyebrow rewritten 10 Agustus 2026 — was a 3-service label
+                  ("Digital Assets • Animation • Game Development"); the
+                  brief asked for outcome-first positioning instead of a
+                  services list, so this now reads as an invitation rather
+                  than a category tag. The services themselves still show up
+                  in the subheading just below. */}
               <span className="inline-block rounded-full border border-[var(--nimia-crimson)]/30 bg-[var(--nimia-crimson)]/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--nimia-pink)]">
-                Digital Assets &bull; Animation &bull; Game Development
+                Every Great Project Starts With An Idea
               </span>
 
-              {/* Typing animation (3 Agustus 2026, per user request — the
-                  static headline felt passive) — see
-                  components/TypedHeroHeadline.tsx. */}
+              {/* Typing animation kept as-is (3 Agustus 2026 feature,
+                  unchanged mechanism) — only the copy/coloring/size inside
+                  components/TypedHeroHeadline.tsx changed for this
+                  redesign. */}
               <TypedHeroHeadline />
 
-              <p className="mt-4 max-w-lg text-lg text-[var(--nimia-muted)]">
-                Nimia Games Studio is a creative production studio specializing
-                in <strong className="font-semibold text-[var(--nimia-pink)]">digital assets</strong>,{" "}
-                <strong className="font-semibold text-[var(--nimia-pink)]">animation</strong>, and{" "}
-                <strong className="font-semibold text-[var(--nimia-pink)]">game development</strong> for
-                studios and brands worldwide.
+              <p className="mt-5 max-w-lg text-lg text-[var(--nimia-muted)]">
+                Animation, digital assets, games, and interactive experiences,
+                crafted to feel{" "}
+                <strong className="font-semibold text-[var(--nimia-pink)]">
+                  polished, professional, and ready for the spotlight
+                </strong>
+                .
               </p>
 
-              {/* No arrow icon inside either CTA (29 Juli 2026, per user
-                  feedback). "View Our Work" gets a stronger border than
-                  the default outline variant for the same reason as the
-                  navbar's Log in button — see PublicNavbar.tsx.
-                  href now points at "/portfolio" (29 Juli 2026) — that
-                  route now exists (part of the 5-item navbar expansion)
-                  as a minimal "coming soon" page, since real portfolio
-                  content is still pending from the user. Swap in specific
-                  work later if you'd rather deep-link somewhere else.
-                  "Start a Project" now uses StartProjectButton (3 Agustus
-                  2026, per user request — modal login sitewide): this
-                  branch of the page only ever renders with user === null
-                  (see the redirect("/dashboard") above), so this is always
-                  the signed-out state in practice, but isAuthenticated is
-                  still passed through for correctness if that ever
-                  changes. */}
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                {/* bg/text/hover repeated here on top of buttonVariants()
-                    as a safety net (29 Juli 2026) — see the @source note
-                    in globals.css for why the "primary" variant's OWN
-                    classes were silently not rendering in production. */}
+              {/* CTAs: same two actions, same routing/functionality as
+                  before — StartProjectButton still opens the sitewide login
+                  modal when signed out (3 Agustus 2026 mechanism, see that
+                  component), "View Our Work" still links to /portfolio.
+                  Only the visual treatment changed (10 Agustus 2026):
+                  primary CTA now uses .nimia-cta-gradient (the same
+                  animated sheen already used on the Why Nimia closing CTA
+                  and the /partners CTA) instead of a flat fill, plus a
+                  hover scale + glow-shadow micro-interaction on both
+                  buttons and a nudge-right on the secondary button's icon. */}
+              <div className="mt-7 flex flex-wrap items-center gap-4">
                 <StartProjectButton
                   isAuthenticated={!!user}
                   className={cn(
                     buttonVariants({ size: "lg" }),
-                    "bg-[var(--nimia-crimson)] text-white hover:bg-[var(--nimia-crimson-hover)]",
+                    "nimia-cta-gradient border-0 text-white shadow-[0_18px_45px_-15px_rgba(193,18,77,0.65)] transition-transform duration-300 ease-out hover:scale-[1.045] active:scale-[0.98]",
                   )}
                 >
                   Start a Project
@@ -112,35 +104,46 @@ export default async function StudioHomePage() {
                   href="/portfolio"
                   className={cn(
                     buttonVariants({ variant: "outline", size: "lg" }),
-                    "gap-2 border-[var(--foreground)]/30 hover:border-[var(--nimia-pink)]/70 hover:bg-[var(--nimia-surface-hover)]",
+                    "group gap-2 border-[var(--foreground)]/30 transition-all duration-300 ease-out hover:scale-[1.03] hover:border-[var(--nimia-pink)]/70 hover:bg-[var(--nimia-surface-hover)] hover:shadow-[0_0_35px_-12px_rgba(255,77,141,0.55)]",
                   )}
                 >
                   View Our Work
-                  <Play className="h-4 w-4" aria-hidden="true" />
+                  <Play
+                    className="h-4 w-4 transition-transform duration-300 ease-out group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
                 </Link>
               </div>
 
-              {/* Shrunk further (29 Juli 2026, per user feedback) so this
-                  row takes up less height and "Trusted by" sits higher. */}
-              <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {/* Stats — restyled 10 Agustus 2026 (thin vertical rules
+                  instead of circle-icon "widget" boxes, so it reads as an
+                  editorial detail under the CTAs rather than a dashboard
+                  summary card). Same 4 figures, same placeholder-data
+                  caveat as before (29 Juli 2026 note). Plain 2-col grid on
+                  mobile (no dividers — a 2x2 grid can't divide cleanly by
+                  DOM order alone once it wraps), a single divided row from
+                  `sm:` up once there's room for all 4 side by side. */}
+              <div className="mt-9 grid grid-cols-2 gap-x-6 gap-y-6 sm:flex sm:flex-wrap sm:gap-0 sm:divide-x sm:divide-[var(--nimia-border)]">
                 {STATS.map(({ icon: Icon, value, label }) => (
-                  <div key={label}>
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--nimia-crimson)]/15 text-[var(--nimia-pink)]">
-                      <Icon className="h-4 w-4" aria-hidden="true" />
-                    </div>
-                    <p className="mt-1.5 text-lg font-bold">{value}</p>
+                  <div key={label} className="sm:px-5 sm:first:pl-0">
+                    <Icon className="h-4 w-4 text-[var(--nimia-pink)]/70" aria-hidden="true" />
+                    <p className="nimia-font-display mt-1.5 text-2xl font-bold sm:text-3xl">{value}</p>
                     <p className="text-xs text-[var(--nimia-muted)]">{label}</p>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Hero visual: the Nimia mark itself, floating/tilting in place
-                of a photo (the reference's character art was explicitly a
-                style reference only, not a real asset — see user request
-                29 Juli 2026). `perspective` on this wrapper is what makes
-                the child's rotateY/rotateX in .nimia-hero-mark actually
-                read as 3D instead of a flat skew. */}
+            {/* Hero visual — same Nimia mark + 3D float as before (29 Juli
+                2026 mechanism, .nimia-hero-mark in globals.css, unchanged),
+                now with two purely decorative additions for a more dynamic/
+                cinematic feel per the 10 Agustus 2026 brief: a slow-spinning
+                conic gradient ring, and a handful of floating particle dots
+                (both reuse existing CSS keyframes already defined in
+                globals.css — nimia-ring-spin is new, nimia-particle-float
+                already existed for the /services card visuals). Both are
+                `motion-safe:`-gated the same way, so prefers-reduced-motion
+                visitors just see the static mark + glow, same as before. */}
             <div
               className="relative mx-auto flex max-w-md items-center justify-center py-2"
               style={{ perspective: "1200px" }}
@@ -149,6 +152,31 @@ export default async function StudioHomePage() {
                 aria-hidden="true"
                 className="absolute h-72 w-72 rounded-full bg-[var(--nimia-crimson)]/25 blur-[80px]"
               />
+              <div
+                aria-hidden="true"
+                className="motion-safe:animate-[nimia-ring-spin_16s_linear_infinite] absolute h-80 w-80 rounded-full opacity-40"
+                style={{
+                  background:
+                    "conic-gradient(from 0deg, transparent 0deg, var(--nimia-pink) 60deg, transparent 140deg, var(--nimia-crimson) 220deg, transparent 300deg, transparent 360deg)",
+                  maskImage: "radial-gradient(circle, transparent 62%, black 63%, black 68%, transparent 69%)",
+                  WebkitMaskImage:
+                    "radial-gradient(circle, transparent 62%, black 63%, black 68%, transparent 69%)",
+                }}
+              />
+              {[
+                { top: "8%", left: "12%", delay: "0s", duration: "4.5s" },
+                { top: "18%", left: "82%", delay: "0.7s", duration: "5.2s" },
+                { top: "78%", left: "10%", delay: "1.3s", duration: "4.8s" },
+                { top: "86%", left: "78%", delay: "0.4s", duration: "5.6s" },
+                { top: "48%", left: "4%", delay: "1.8s", duration: "5s" },
+              ].map((p, i) => (
+                <span
+                  key={i}
+                  aria-hidden="true"
+                  style={{ top: p.top, left: p.left, animationDelay: p.delay, animationDuration: p.duration }}
+                  className="motion-safe:animate-[nimia-particle-float_4s_ease-in-out_infinite] absolute h-1.5 w-1.5 rounded-full bg-[var(--nimia-pink)]/70 shadow-[0_0_8px_2px_rgba(255,77,141,0.5)]"
+                />
+              ))}
               {/* eslint-disable-next-line @next/next/no-img-element -- see
                   PublicNavbar.tsx for the same fixed-local-asset rationale */}
               <img
@@ -160,24 +188,14 @@ export default async function StudioHomePage() {
           </div>
         </section>
 
-        {/* TRUST (placeholder — see TRUST_PLACEHOLDERS note above) */}
-        <section className="border-t border-[var(--nimia-border)] px-4 py-6 sm:px-6">
-          <div className="mx-auto max-w-6xl text-center">
-            <p className="text-xs font-medium uppercase tracking-widest text-[var(--nimia-muted)]">
-              Trusted by innovative studios &amp; brands
-            </p>
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-4">
-              {TRUST_PLACEHOLDERS.map((label, i) => (
-                <span
-                  key={i}
-                  className="rounded-lg border border-dashed border-[var(--nimia-border)] px-6 py-3 text-sm font-medium text-[var(--nimia-muted)]"
-                >
-                  {label}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* TOOLS — redesigned 10 Agustus 2026, see
+            components/home/ToolsSection.tsx for the full rationale. Replaces
+            the old "Trusted by innovative studios & brands" section, which
+            rendered 5 literal dashed boxes reading "Partner" as an
+            unresolved placeholder (29 Juli 2026 note) — this now shows real
+            software/tool logos instead, with copy that doesn't claim any
+            partnership/sponsorship relationship. */}
+        <ToolsSection />
 
         {/* Recent Work and the Services teaser were removed from the home
             page (29 Juli 2026, per user request) — that content moved off

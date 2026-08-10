@@ -199,6 +199,18 @@
   }
 }
 
+/* Home hero redesign (10 Agustus 2026) — a slow-spinning conic gradient
+   ring behind the hero mark, for the "gradient movement" ask in the brief
+   without a real WebGL scene. Purely decorative (aria-hidden), gated with
+   Tailwind's `motion-safe:` variant the same way visuals.tsx's
+   nimia-drift-slow/nimia-particle-float already are, so it's automatically
+   skipped under prefers-reduced-motion with no separate @media block
+   needed here. */
+@keyframes nimia-ring-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* Portfolio Preview page ticker marquees (studio.nimiagames.com/portfolio,
    30 Juli 2026). Two rows, opposite directions, each row's content
    duplicated once in TickerRow.tsx so a translateX loop between 0 and
