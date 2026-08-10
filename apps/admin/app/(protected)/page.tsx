@@ -11,6 +11,18 @@ export const metadata = { title: "Overview" };
 
 const ORDERS_HREF = "/orders";
 const PENDING_ORDERS_HREF = "/orders?status=pending_review";
+// Fix (10 Agustus 2026, while building the real Invoices page): this used
+// to count public.invoices, which is dead code — nothing has written to
+// that table since the crypto-payment flow (0013) replaced the old
+// IDR/manual invoice flow it belonged to (see 0024_order_receipts.sql's own
+// comment on the same trio). That query was always going to read ~0
+// regardless of real activity, which would have been a misleading stat
+// sitting right next to the new, real Invoices page. "Awaiting Payment"
+// counts orders actually waiting on money (quoted-but-unpaid +
+// submitted-but-unverified) instead, and links to the equivalent Orders
+// filter rather than to /invoices (which now only lists orders already
+// paid).
+const AWAITING_PAYMENT_HREF = "/orders?status=awaiting_payment";
 
 export default async function OverviewPage() {
   const supabase = createServerClient(await cookies());
@@ -33,7 +45,7 @@ export default async function OverviewPage() {
     { count: clientsCount },
     { count: pendingOrdersCount },
     { count: activeProjectsCount },
-    { count: unpaidInvoicesCount },
+    { count: awaitingPaymentCount },
     { data: pendingOrders },
     { data: updates },
   ] = await Promise.all([
@@ -44,9 +56,9 @@ export default async function OverviewPage() {
       .select("id", { count: "exact", head: true })
       .not("status", "in", "(completed,cancelled)"),
     supabase
-      .from("invoices")
+      .from("orders")
       .select("id", { count: "exact", head: true })
-      .in("status", ["unpaid", "partially_paid", "overdue"]),
+      .in("status", ["awaiting_payment", "payment_submitted"]),
     supabase
       .from("orders")
       .select("id, full_name, company_name, budget, created_at, services(name), clients(company_name)")
@@ -120,10 +132,10 @@ export default async function OverviewPage() {
         <StatCard
           index={3}
           icon="receipt"
-          label="Unpaid Invoices"
-          value={unpaidInvoicesCount ?? 0}
-          href="/invoices"
-          footerLabel="View all invoices"
+          label="Awaiting Payment"
+          value={awaitingPaymentCount ?? 0}
+          href={AWAITING_PAYMENT_HREF}
+          footerLabel="View orders"
           accent="emerald"
         />
       </div>
