@@ -37,8 +37,6 @@ const ORDER_TYPE_OPTIONS: OrderTypeOption[] = [
     description:
       "Configure one professional service with real time pricing and project estimation. Perfect if you already know exactly what you need.",
     icon: Sparkles,
-    badge: "Recommended",
-    recommended: true,
     imageSrc: "/order-types/project-builder.webp",
   },
   {
@@ -47,6 +45,11 @@ const ORDER_TYPE_OPTIONS: OrderTypeOption[] = [
     description:
       "6 curated packages designed to help you launch, build, and grow — the best value for a multi-service project.",
     icon: Package,
+    // Moved here from Project Builder (10 Agustus 2026, per user request) —
+    // Packages is now the card that carries the "Recommended" badge and its
+    // matching highlighted-border/gradient/filled-button treatment.
+    badge: "Recommended",
+    recommended: true,
     ctaLabel: "Browse Packages",
     imageSrc: "/order-types/packages.webp",
   },
@@ -123,17 +126,25 @@ function OrderTypeCard({ option, onSelect }: { option: OrderTypeOption; onSelect
       whileTap={{ scale: 0.98 }}
       transition={{ type: "spring", stiffness: 320, damping: 26 }}
       className={cn(
-        "group relative flex h-full w-full flex-col items-start gap-4 rounded-2xl border p-7 text-left transition-colors duration-200",
+        "group relative flex h-full w-full flex-col items-center gap-4 rounded-2xl border p-7 text-center transition-colors duration-200",
         option.recommended
           ? "border-[var(--nimia-crimson)]/60 bg-gradient-to-b from-[var(--nimia-crimson)]/15 to-white/[0.02] shadow-[0_20px_60px_-20px_rgba(193,18,77,0.5)]"
           : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]",
       )}
     >
-      {option.badge ? (
-        <span className="inline-flex w-fit items-center rounded-full border border-[var(--nimia-pink)]/30 bg-[var(--nimia-pink)]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--nimia-pink)]">
-          {option.badge}
-        </span>
-      ) : null}
+      {/* Fixed-height badge slot, always rendered even when empty (10
+          Agustus 2026, per user feedback) — otherwise a card with a badge
+          pushes its icon box lower than the other two cards, so the 3
+          icons no longer line up at the same height. Reserving this row
+          unconditionally keeps every card's icon box aligned regardless of
+          which single card currently carries "Recommended". */}
+      <div className="flex h-7 items-center justify-center">
+        {option.badge ? (
+          <span className="inline-flex w-fit items-center rounded-full border border-[var(--nimia-pink)]/30 bg-[var(--nimia-pink)]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--nimia-pink)]">
+            {option.badge}
+          </span>
+        ) : null}
+      </div>
 
       <div
         className={cn(
@@ -143,7 +154,9 @@ function OrderTypeCard({ option, onSelect }: { option: OrderTypeOption; onSelect
           // ratio instead and shows it in full). `aspect-[3/2]` with a
           // fixed width, not a fixed height, so this stays consistent
           // whether an image or the lucide fallback icon is showing.
-          "relative flex aspect-[3/2] w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border",
+          // Enlarged (w-20 -> w-28) same day per user feedback ("agak
+          // besar") and centered in the card (parent is now items-center).
+          "relative flex aspect-[3/2] w-28 shrink-0 items-center justify-center overflow-hidden rounded-2xl border",
           option.recommended
             ? "border-[var(--nimia-crimson)]/50 bg-[var(--nimia-crimson)]/20"
             : "border-white/10 bg-white/[0.06] group-hover:border-white/20",
@@ -154,12 +167,12 @@ function OrderTypeCard({ option, onSelect }: { option: OrderTypeOption; onSelect
             src={option.imageSrc as string}
             alt=""
             fill
-            sizes="80px"
+            sizes="112px"
             className="object-cover"
             onError={() => setImageFailed(true)}
           />
         ) : (
-          <Icon className="h-7 w-7 text-[var(--nimia-pink)]" strokeWidth={1.75} aria-hidden="true" />
+          <Icon className="h-9 w-9 text-[var(--nimia-pink)]" strokeWidth={1.75} aria-hidden="true" />
         )}
       </div>
 
