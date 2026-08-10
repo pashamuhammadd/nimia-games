@@ -3,9 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, ChevronDown, LogOut, Menu, Settings, LifeBuoy } from "lucide-react";
+import { ChevronDown, LogOut, Menu, Settings, LifeBuoy } from "lucide-react";
 import { getActiveNavItem } from "../DashboardNav";
 import { Avatar } from "./Avatar";
+import { NotificationsBell } from "./NotificationsBell";
+import type { NotificationRow } from "../../lib/notifications";
 
 function useClickOutside<T extends HTMLElement>(onOutside: () => void) {
   const ref = React.useRef<T>(null);
@@ -34,19 +36,21 @@ export function Topbar({
   userEmail,
   userAvatarUrl,
   onSignOut,
+  initialNotifications,
+  initialUnreadCount,
 }: {
   onMenuClick: () => void;
   userName: string;
   userEmail: string;
   userAvatarUrl?: string | null;
   onSignOut: () => void;
+  initialNotifications: NotificationRow[];
+  initialUnreadCount: number;
 }) {
   const pathname = usePathname();
   const pageTitle = getActiveNavItem(pathname)?.label ?? "Dashboard";
 
-  const [bellOpen, setBellOpen] = React.useState(false);
   const [avatarOpen, setAvatarOpen] = React.useState(false);
-  const bellRef = useClickOutside<HTMLDivElement>(() => setBellOpen(false));
   const avatarRef = useClickOutside<HTMLDivElement>(() => setAvatarOpen(false));
 
   return (
@@ -64,39 +68,12 @@ export function Topbar({
       </div>
 
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-        <div ref={bellRef} className="relative">
-          <button
-            type="button"
-            onClick={() => {
-              setBellOpen((v) => !v);
-              setAvatarOpen(false);
-            }}
-            aria-label="Notifications"
-            aria-expanded={bellOpen}
-            className="relative flex h-9 w-9 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white"
-          >
-            <Bell className="h-[18px] w-[18px]" />
-          </button>
-          {bellOpen ? (
-            <div
-              role="menu"
-              className="absolute right-0 top-11 w-72 overflow-hidden rounded-2xl border border-white/10 bg-[#120a0f]/95 p-1 shadow-2xl shadow-black/50 backdrop-blur"
-            >
-              <div className="px-3.5 pb-2 pt-3 text-sm font-semibold text-white">Notifications</div>
-              <div className="px-3.5 pb-4 pt-1 text-sm text-white/45">
-                You&apos;re all caught up, nothing new right now.
-              </div>
-            </div>
-          ) : null}
-        </div>
+        <NotificationsBell initialNotifications={initialNotifications} initialUnreadCount={initialUnreadCount} />
 
         <div ref={avatarRef} className="relative">
           <button
             type="button"
-            onClick={() => {
-              setAvatarOpen((v) => !v);
-              setBellOpen(false);
-            }}
+            onClick={() => setAvatarOpen((v) => !v)}
             aria-expanded={avatarOpen}
             className="flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 transition-colors hover:bg-white/[0.06]"
           >

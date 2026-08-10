@@ -4,6 +4,7 @@ import * as React from "react";
 import { Sidebar } from "./Sidebar";
 import { MobileNavDrawer } from "./MobileNavDrawer";
 import { Topbar } from "./Topbar";
+import type { NotificationRow } from "../../lib/notifications";
 
 // Client wrapper composing the sidebar/drawer/topbar shell around whatever
 // page the App Router renders as `children`. Split out from
@@ -17,12 +18,16 @@ export function DashboardShell({
   userEmail,
   userAvatarUrl,
   signOutAction,
+  initialNotifications,
+  initialUnreadCount,
 }: {
   children: React.ReactNode;
   userName: string;
   userEmail: string;
   userAvatarUrl?: string | null;
   signOutAction: () => void | Promise<void>;
+  initialNotifications: NotificationRow[];
+  initialUnreadCount: number;
 }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
@@ -45,6 +50,8 @@ export function DashboardShell({
           userEmail={userEmail}
           userAvatarUrl={userAvatarUrl}
           onSignOut={() => void signOutAction()}
+          initialNotifications={initialNotifications}
+          initialUnreadCount={initialUnreadCount}
         />
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
       </div>

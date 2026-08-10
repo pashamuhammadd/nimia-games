@@ -4,6 +4,7 @@ import * as React from "react";
 import { Sidebar } from "./Sidebar";
 import { MobileNavDrawer } from "./MobileNavDrawer";
 import { Topbar } from "./Topbar";
+import type { NotificationRow } from "../../lib/notifications";
 
 // Client wrapper composing sidebar/drawer/topbar around whatever page the
 // App Router renders — split from (protected)/layout.tsx (which stays a
@@ -19,12 +20,16 @@ export function AdminShell({
   userEmail,
   role,
   signOutAction,
+  initialNotifications,
+  initialUnreadCount,
 }: {
   children: React.ReactNode;
   userName: string;
   userEmail: string;
   role: string;
   signOutAction: () => void | Promise<void>;
+  initialNotifications: NotificationRow[];
+  initialUnreadCount: number;
 }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
@@ -39,6 +44,8 @@ export function AdminShell({
           userName={userName}
           userEmail={userEmail}
           onSignOut={() => void signOutAction()}
+          initialNotifications={initialNotifications}
+          initialUnreadCount={initialUnreadCount}
         />
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
       </div>

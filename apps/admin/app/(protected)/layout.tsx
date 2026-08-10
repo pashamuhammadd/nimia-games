@@ -4,6 +4,7 @@ import { createServerClient } from "@nimia/db";
 import { signOutAction } from "../actions";
 import { AdminShell } from "../components/dashboard/AdminShell";
 import { isAdminTierRole } from "../lib/roles";
+import { getNotificationsAction } from "./notifications/actions";
 
 export default async function ProtectedLayout({
   children,
@@ -19,11 +20,10 @@ export default async function ProtectedLayout({
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
-    .from("users")
-    .select("full_name, role")
-    .eq("id", user.id)
-    .single();
+  const [{ data: profile }, notifications] = await Promise.all([
+    supabase.from("users").select("full_name, role").eq("id", user.id).single(),
+    getNotificationsAction(),
+  ]);
 
   // Second defense-in-depth layer, this time for ROLE rather than just
   // session presence — signInAction already checks this at sign-in time,
@@ -42,6 +42,8 @@ export default async function ProtectedLayout({
       userEmail={user.email ?? ""}
       role={profile.role}
       signOutAction={signOutAction}
+      initialNotifications={notifications.notifications}
+      initialUnreadCount={notifications.unreadCount}
     >
       {children}
     </AdminShell>

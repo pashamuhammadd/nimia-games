@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@nimia/db";
 import { signOutAction } from "../actions";
 import { DashboardShell } from "../components/dashboard/DashboardShell";
+import { getNotificationsAction } from "./notifications/actions";
 
 // SEO fix, 10 Agustus 2026 — this noindex directive used to live in the
 // ROOT layout (app/layout.tsx) and applied sitewide by accident, which
@@ -38,11 +39,16 @@ export default async function DashboardLayout({
   // under /dashboard/* still does its own, more specific data fetching.
   // avatar_url (3 Agustus 2026) is read here too so Topbar can show a real
   // photo the moment one exists — see components/dashboard/Avatar.tsx.
-  const { data: profile } = await supabase
-    .from("users")
-    .select("full_name, avatar_url")
-    .eq("id", user.id)
-    .single();
+  //
+  // Notification Center (10 Agustus 2026) — initial bell contents fetched
+  // here too, same "just enough for the shell chrome" scope as the
+  // profile query above. NotificationsBell.tsx polls for updates after
+  // this first paint (see that file's own comment) — this is only ever
+  // the very first render's data.
+  const [{ data: profile }, notifications] = await Promise.all([
+    supabase.from("users").select("full_name, avatar_url").eq("id", user.id).single(),
+    getNotificationsAction(),
+  ]);
 
   return (
     <DashboardShell
@@ -50,6 +56,8 @@ export default async function DashboardLayout({
       userEmail={user.email ?? ""}
       userAvatarUrl={profile?.avatar_url ?? null}
       signOutAction={signOutAction}
+      initialNotifications={notifications.notifications}
+      initialUnreadCount={notifications.unreadCount}
     >
       {children}
     </DashboardShell>
