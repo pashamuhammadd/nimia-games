@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+import Image from "next/image";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { Sparkles, Package, Layers, type LucideIcon } from "lucide-react";
 import { cn } from "@nimia/ui";
@@ -20,6 +22,12 @@ interface OrderTypeOption {
    * Packages card reads "Browse Packages" instead of the generic
    * "Continue" every other card still uses, per the brief. */
   ctaLabel?: string;
+  /** Optional real icon/image (10 Agustus 2026, per user request — all 3
+   * Step 0 cards get a real icon image). When set, this renders in place
+   * of the plain lucide `icon` inside the same rounded box — `icon` stays
+   * required on every option as the fallback so the page still renders
+   * correctly (icon-only) before the actual image files exist on disk. */
+  imageSrc?: string;
 }
 
 const ORDER_TYPE_OPTIONS: OrderTypeOption[] = [
@@ -31,6 +39,7 @@ const ORDER_TYPE_OPTIONS: OrderTypeOption[] = [
     icon: Sparkles,
     badge: "Recommended",
     recommended: true,
+    imageSrc: "/order-types/project-builder.webp",
   },
   {
     type: "packages",
@@ -39,6 +48,7 @@ const ORDER_TYPE_OPTIONS: OrderTypeOption[] = [
       "6 curated packages designed to help you launch, build, and grow — the best value for a multi-service project.",
     icon: Package,
     ctaLabel: "Browse Packages",
+    imageSrc: "/order-types/packages.webp",
   },
   {
     type: "custom",
@@ -46,6 +56,7 @@ const ORDER_TYPE_OPTIONS: OrderTypeOption[] = [
     description:
       "Combine multiple services into one project, like several GIFs, a trailer, and a landing page, and receive a single quotation.",
     icon: Layers,
+    imageSrc: "/order-types/custom-order.webp",
   },
 ];
 
@@ -96,6 +107,14 @@ export function OrderTypeSelector({ onSelect }: OrderTypeSelectorProps) {
 
 function OrderTypeCard({ option, onSelect }: { option: OrderTypeOption; onSelect: () => void }) {
   const Icon = option.icon;
+  // Falls back to the lucide icon if imageSrc is missing on disk (10
+  // Agustus 2026 — user is preparing the 3 image files separately, so this
+  // avoids a broken-image box showing up between shipping this code and
+  // the actual files landing in public/order-types/). Once the real file
+  // exists, this never fires and the image renders normally.
+  const [imageFailed, setImageFailed] = React.useState(false);
+  const showImage = Boolean(option.imageSrc) && !imageFailed;
+
   return (
     <motion.button
       type="button"
@@ -118,13 +137,30 @@ function OrderTypeCard({ option, onSelect }: { option: OrderTypeOption; onSelect
 
       <div
         className={cn(
-          "flex h-14 w-14 items-center justify-center rounded-2xl border",
+          // Landscape box (10 Agustus 2026 — user's icon images are
+          // 1536x1024, a 3:2 ratio; a square box would crop them left/right
+          // via object-cover, so the box matches the image's own aspect
+          // ratio instead and shows it in full). `aspect-[3/2]` with a
+          // fixed width, not a fixed height, so this stays consistent
+          // whether an image or the lucide fallback icon is showing.
+          "relative flex aspect-[3/2] w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border",
           option.recommended
             ? "border-[var(--nimia-crimson)]/50 bg-[var(--nimia-crimson)]/20"
             : "border-white/10 bg-white/[0.06] group-hover:border-white/20",
         )}
       >
-        <Icon className="h-7 w-7 text-[var(--nimia-pink)]" strokeWidth={1.75} aria-hidden="true" />
+        {showImage ? (
+          <Image
+            src={option.imageSrc as string}
+            alt=""
+            fill
+            sizes="80px"
+            className="object-cover"
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <Icon className="h-7 w-7 text-[var(--nimia-pink)]" strokeWidth={1.75} aria-hidden="true" />
+        )}
       </div>
 
       <div className="flex-1">
