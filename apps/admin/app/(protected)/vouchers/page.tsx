@@ -18,9 +18,19 @@ export default async function VouchersPage() {
     )
     .order("created_at", { ascending: false });
 
+  // Fix 10 Agustus 2026: this used to also select users(email), but
+  // public.users has no `email` column (only id/role/full_name/avatar_url —
+  // see packages/db/migrations/0001_enums_and_users.sql; email only ever
+  // lives in Supabase auth.users, which isn't reachable through this
+  // client). Selecting a non-existent column makes PostgREST reject the
+  // whole query, so `clients` here silently came back null/undefined and
+  // the "Assign to" dropdown below always rendered with ONLY the "Public /
+  // anyone with the code" option — a client-specific voucher could never
+  // actually be created from this form. See CreateVoucherForm.tsx's
+  // clientLabel() for the corresponding fallback fix.
   const { data: clients } = await supabase
     .from("clients")
-    .select("id, company_name, users(full_name, email)")
+    .select("id, company_name, users(full_name)")
     .order("created_at", { ascending: false });
 
   return (

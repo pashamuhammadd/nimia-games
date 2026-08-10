@@ -7,11 +7,20 @@ import { createVoucherAction } from "./actions";
 export type ClientOption = {
   id: string;
   company_name: string | null;
-  users: { full_name: string | null; email: string } | null;
+  users: { full_name: string | null } | null;
 };
 
+// Fix 10 Agustus 2026: this used to also fall back to client.users?.email,
+// but public.users has no `email` column at all (see page.tsx's own
+// comment on the query above) — that field was always undefined, so this
+// fallback chain never actually reached it. Now falls back to a short
+// id-based label instead of silently showing "Unnamed client" for every
+// client who hasn't filled in a company name, which — since `company_name`
+// is optional on signup (packages/db/migrations/0002_catalog_and_clients.sql)
+// — could otherwise make several different clients in the dropdown look
+// identically "Unnamed client" with no way to tell them apart.
 function clientLabel(client: ClientOption) {
-  return client.company_name || client.users?.full_name || client.users?.email || "Unnamed client";
+  return client.company_name || client.users?.full_name || `Client ${client.id.slice(0, 8)}`;
 }
 
 // Not gen_random_uuid-grade, just a quick human-typeable suggestion — the
