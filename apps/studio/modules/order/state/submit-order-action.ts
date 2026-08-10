@@ -8,6 +8,7 @@ import { summarizeSelections } from "../pricing/summarize-selections";
 import type { ConfigSelections, ProjectBrief } from "../types/order-state";
 import type { SubmitIntent } from "./use-order-wizard";
 import { sendOrderReceivedEmail } from "../../../lib/email";
+import { notifyNewOrder } from "@nimia/discord";
 
 export interface SubmitOrderActionInput {
   intent: SubmitIntent;
@@ -231,6 +232,19 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
       dashboardUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://studio.nimiagames.com"}/dashboard/orders`,
     });
   }
+
+  // Added 9 Agustus 2026 (notifications phase, docs/DISCORD.md's Order
+  // flow — "website creates the Order → Discord notification to
+  // #new-orders"). notifyNewOrder never throws (see
+  // packages/discord/src/notify.ts), same fire-and-log posture as
+  // sendOrderReceivedEmail right above it.
+  await notifyNewOrder({
+    orderId: `ORD-${order.id.slice(0, 8).toUpperCase()}`,
+    clientName,
+    serviceName: service.name,
+    amountUsd: negotiationAmount ?? estimate.totalPrice,
+    isNegotiation: input.intent === "negotiate",
+  });
 
   return { ok: true, orderId: order.id };
 }

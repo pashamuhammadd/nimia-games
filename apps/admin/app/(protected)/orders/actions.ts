@@ -8,6 +8,7 @@ import {
   sendPaymentVerifiedEmail,
   sendPaymentFlaggedEmail,
 } from "../../../lib/email";
+import { notifyNegotiationUpdate, notifyPaymentVerified, notifyPaymentFlagged } from "@nimia/discord";
 
 export type OrderActionResult = { success: true } | { success: false; error: string };
 
@@ -177,6 +178,19 @@ export async function sendQuotationForPaymentAction(
       dashboardUrl: STUDIO_DASHBOARD_URL,
     });
   }
+  // Added 9 Agustus 2026 (notifications phase) — same "reuses accepted
+  // copy" reasoning as the email right above, see this action's own file
+  // comment for why a direct-quote order is treated as an accepted
+  // negotiation for notification purposes too.
+  if (fields) {
+    await notifyNegotiationUpdate({
+      orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
+      clientName: resolveClientName(fields),
+      serviceName: resolveServiceName(fields.services),
+      kind: "accepted",
+      amountUsd,
+    });
+  }
 
   revalidatePath("/orders");
   revalidatePath("/");
@@ -252,6 +266,16 @@ export async function acceptNegotiationOfferAction(
       dashboardUrl: STUDIO_DASHBOARD_URL,
     });
   }
+  // Added 9 Agustus 2026 (notifications phase).
+  if (fields) {
+    await notifyNegotiationUpdate({
+      orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
+      clientName: resolveClientName(fields),
+      serviceName: resolveServiceName(fields.services),
+      kind: "accepted",
+      amountUsd,
+    });
+  }
 
   revalidatePath("/orders");
   revalidatePath("/");
@@ -313,6 +337,16 @@ export async function sendCounterOfferAction(
       dashboardUrl: `${process.env.NEXT_PUBLIC_STUDIO_URL ?? "https://studio.nimiagames.com"}/dashboard/negotiations`,
     });
   }
+  // Added 9 Agustus 2026 (notifications phase).
+  await notifyNegotiationUpdate({
+    orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
+    clientName: resolveClientName(fields),
+    serviceName: resolveServiceName(fields.services),
+    kind: "offer",
+    proposedBy: "staff",
+    amountUsd,
+    message: message?.trim() || null,
+  });
 
   revalidatePath("/orders");
   revalidatePath("/");
@@ -324,8 +358,34 @@ export async function sendCounterOfferAction(
 // here yet (deliberately — see NegotiationUpdateEmail.tsx's file comment):
 // this shares rejectOrderAction with plain, non-negotiated order rejection,
 // which has no agreed/offered price to show and would need its own copy.
+//
+// 9 Agustus 2026 (notifications phase): DOES send a Discord notification
+// though (unlike the email) — #negotiations should show a rejection
+// happened even without a full client-facing email template for it, so
+// this fetches just enough (name/service) to post one before delegating
+// the actual status change to rejectOrderAction.
 export async function rejectNegotiationAction(orderId: string): Promise<OrderActionResult> {
-  return rejectOrderAction(orderId);
+  const supabase = createServerClient(await cookies());
+  const { data: order } = await supabase
+    .from("orders")
+    .select("full_name, company_name, services(name)")
+    .eq("id", orderId)
+    .single();
+
+  const result = await rejectOrderAction(orderId);
+
+  if (result.success && order) {
+    const fields = order as unknown as OrderEmailFields;
+    await notifyNegotiationUpdate({
+      orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
+      clientName: resolveClientName(fields),
+      serviceName: resolveServiceName(fields.services),
+      kind: "rejected",
+      amountUsd: null,
+    });
+  }
+
+  return result;
 }
 
 // ------------------------------------------------------------------
@@ -399,6 +459,16 @@ export async function verifyPaymentAction(orderId: string): Promise<OrderActionR
       network: fields.payment_network,
       currency: fields.payment_token,
       dashboardUrl: STUDIO_DASHBOARD_URL,
+    });
+  }
+  // Added 9 Agustus 2026 (notifications phase).
+  if (fields && fields.final_price_usd != null && fields.payment_network && fields.payment_token) {
+    await notifyPaymentVerified({
+      orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
+      clientName: resolveClientName(fields),
+      amountUsd: fields.final_price_usd,
+      network: fields.payment_network,
+      currency: fields.payment_token,
     });
   }
 
@@ -479,6 +549,14 @@ export async function flagUnderpaidPaymentAction(
       orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
       note: trimmedNote,
       dashboardUrl: STUDIO_DASHBOARD_URL,
+    });
+  }
+  // Added 9 Agustus 2026 (notifications phase).
+  if (fields) {
+    await notifyPaymentFlagged({
+      orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
+      clientName: resolveClientName(fields),
+      note: trimmedNote,
     });
   }
 

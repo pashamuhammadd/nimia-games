@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
+import { notifyNegotiationUpdate } from "@nimia/discord";
 
 export type NegotiationActionResult = { success: true } | { success: false; error: string };
 
@@ -18,10 +19,63 @@ export type NegotiationActionResult = { success: true } | { success: false; erro
 // order_negotiations_insert_own_or_admin (0013) — no RPC needed for that
 // one, same as apps/admin's own sendCounterOfferAction.
 
+// Shared shape for the fields the Discord notifications below need — same
+// idea as apps/admin's OrderEmailFields, just without an email column
+// (this file has no email sending of its own, unlike its apps/admin
+// counterpart).
+type OrderNotifyFields = {
+  full_name: string | null;
+  company_name: string | null;
+  final_price_usd: number | null;
+  services: { name: string } | { name: string }[] | null;
+};
+
+function resolveServiceName(services: OrderNotifyFields["services"]): string {
+  if (!services) return "your project";
+  const row = Array.isArray(services) ? services[0] : services;
+  return row?.name ?? "your project";
+}
+
+function resolveClientName(order: OrderNotifyFields): string {
+  return order.full_name ?? order.company_name ?? "A client";
+}
+
+// Added 9 Agustus 2026 (notifications phase). The RPCs below don't return
+// the order's client-facing fields, so this does a small best-effort
+// follow-up SELECT purely to have something to put in the Discord embed —
+// wrapped so a failure here (or notifyNegotiationUpdate itself, which
+// already never throws — see packages/discord/src/notify.ts) can NEVER
+// turn an already-successful accept/reject into a failed response.
+async function notifyBestEffort(
+  supabase: ReturnType<typeof createServerClient>,
+  orderId: string,
+  kind: "accepted" | "rejected",
+): Promise<void> {
+  try {
+    const { data: order } = await supabase
+      .from("orders")
+      .select("full_name, company_name, final_price_usd, services(name)")
+      .eq("id", orderId)
+      .single();
+    if (!order) return;
+    const fields = order as unknown as OrderNotifyFields;
+    await notifyNegotiationUpdate({
+      orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
+      clientName: resolveClientName(fields),
+      serviceName: resolveServiceName(fields.services),
+      kind,
+      amountUsd: kind === "accepted" ? fields.final_price_usd : null,
+    });
+  } catch (error) {
+    console.error(`[discord] Failed to look up order for ${kind} notification`, orderId, error);
+  }
+}
+
 export async function acceptNegotiationOfferAction(orderId: string): Promise<NegotiationActionResult> {
   const supabase = createServerClient(await cookies());
   const { error } = await supabase.rpc("accept_negotiation_offer", { p_order_id: orderId });
   if (error) return { success: false, error: error.message };
+  await notifyBestEffort(supabase, orderId, "accepted");
   return { success: true };
 }
 
@@ -29,6 +83,7 @@ export async function rejectNegotiationOfferAction(orderId: string): Promise<Neg
   const supabase = createServerClient(await cookies());
   const { error } = await supabase.rpc("reject_negotiation_offer", { p_order_id: orderId });
   if (error) return { success: false, error: error.message };
+  await notifyBestEffort(supabase, orderId, "rejected");
   return { success: true };
 }
 
@@ -47,10 +102,11 @@ export async function sendClientCounterOfferAction(
   // RLS check — same shape as admin's sendCounterOfferAction (see
   // apps/admin/app/(protected)/orders/actions.ts) — makes sure this order
   // is still actually open for negotiation rather than silently attaching
-  // an offer to one that's already moved on.
+  // an offer to one that's already moved on. Also doubles as the fetch for
+  // the Discord notification's fields (added 9 Agustus 2026).
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("status")
+    .select("status, full_name, company_name, services(name)")
     .eq("id", orderId)
     .single();
   if (orderError || !order) {
@@ -68,5 +124,17 @@ export async function sendClientCounterOfferAction(
   });
 
   if (error) return { success: false, error: error.message };
+
+  const fields = order as unknown as OrderNotifyFields;
+  await notifyNegotiationUpdate({
+    orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
+    clientName: resolveClientName(fields),
+    serviceName: resolveServiceName(fields.services),
+    kind: "offer",
+    proposedBy: "client",
+    amountUsd,
+    message: message?.trim() || null,
+  });
+
   return { success: true };
 }

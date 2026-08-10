@@ -18,14 +18,22 @@ root sudah exclude semua `.env*`).
 |---|---|---|
 | `DISCORD_CLIENT_ID` | OAuth2 authorize URL (bukan rahasia, boleh terlihat di URL browser) | `apps/studio` |
 | `DISCORD_CLIENT_SECRET` | Tukar `code` OAuth jadi access token — **RAHASIA** | `apps/studio` |
-| `DISCORD_BOT_TOKEN` | Semua REST call sebagai bot (assign role, dst) — **RAHASIA, paling sensitif dari semua** | `apps/studio` (assign role saat connect), `apps/admin` (fase notifikasi berikutnya) |
+| `DISCORD_BOT_TOKEN` | Semua REST call sebagai bot (assign role, kirim notifikasi channel, dst) — **RAHASIA, paling sensitif dari semua** | `apps/studio`, `apps/admin` |
 | `DISCORD_GUILD_ID` | Server Discord Nimia Studio | `apps/studio`, `apps/admin` |
 | `DISCORD_ROLE_CLIENT_ID` | Role ⭐ Client yang di-assign otomatis | `apps/studio` |
 | `DISCORD_ROLE_PARTNER_ID` | Role 🤝 Partner (belum dipakai di fase ini — disiapkan untuk fase berikutnya) | `apps/studio` |
-| `DISCORD_CHANNEL_NEW_ORDERS_ID` | Channel #new-orders (belum dipakai — fase notifikasi) | `apps/studio` |
-| `DISCORD_CHANNEL_NEGOTIATIONS_ID` | Channel #negotiations (belum dipakai) | `apps/admin` |
-| `DISCORD_CHANNEL_PAYMENT_VERIFICATION_ID` | Channel #payment-verification (belum dipakai) | `apps/admin` |
-| `DISCORD_CHANNEL_SYSTEM_LOG_ID` | Channel #system-log (belum dipakai) | `apps/studio`, `apps/admin` |
+| `DISCORD_CHANNEL_NEW_ORDERS_ID` | Channel #new-orders — notifikasi order baru (`notifyNewOrder`) | `apps/studio` |
+| `DISCORD_CHANNEL_NEGOTIATIONS_ID` | Channel #negotiations — notifikasi offer/accept/reject (`notifyNegotiationUpdate`) | `apps/studio`, `apps/admin` |
+| `DISCORD_CHANNEL_PAYMENT_VERIFICATION_ID` | Channel #payment-verification — notifikasi submit/verified/flagged (`notifyPaymentSubmitted`/`notifyPaymentVerified`/`notifyPaymentFlagged`) | `apps/studio`, `apps/admin` |
+| `DISCORD_CHANNEL_SYSTEM_LOG_ID` | Channel #system-log — mirror ringkas dari semua notifikasi di atas | `apps/studio`, `apps/admin` |
+
+Catatan (fase notifikasi, 9 Agustus 2026): setiap fungsi `notify*` di
+`src/notify.ts` TIDAK PERNAH melempar error — kalau channel ID salah, bot
+token invalid, atau Discord API sedang down, itu cuma di-`console.error`
+saja, tidak pernah menggagalkan order/pembayaran/negosiasi yang memicunya.
+Kalau notifikasi tidak muncul di Discord padahal aksinya di website
+berhasil, cek log server (Vercel) untuk baris `[discord] Failed to send
+...`, bukan periksa order/pembayarannya — itu sudah pasti tersimpan aman.
 
 ## Cara ambil setiap nilai
 

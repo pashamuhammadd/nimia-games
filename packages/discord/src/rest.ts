@@ -60,3 +60,38 @@ export async function removeGuildRole(discordUserId: string, roleId: string): Pr
     throw new Error(`Discord role remove failed (${response.status}): ${await response.text()}`);
   }
 }
+
+/** Discord's embed object, trimmed to the fields this integration actually
+ * uses (Discord's real schema has many more — author/footer/thumbnail/
+ * etc. — deliberately not modeled here since nothing in notify.ts needs
+ * them yet; add fields here if/when a notification needs one). */
+export type DiscordEmbed = {
+  title?: string;
+  description?: string;
+  color?: number;
+  fields?: { name: string; value: string; inline?: boolean }[];
+  timestamp?: string;
+};
+
+/** Posts a message to `channelId` as the bot (added 9 Agustus 2026,
+ * notifications phase — see docs/DISCORD.md's "Bot responsibilities").
+ * Every caller in this package goes through notify.ts's safeSend, which
+ * never lets a failure here escape to whatever website action triggered
+ * it — this low-level function itself still throws on a non-2xx response
+ * so that wrapper has something to catch. Requires the bot to have Send
+ * Messages (+ Embed Links, for the `embeds` field) in the target channel
+ * — see this package's README for the full permission list granted at
+ * invite time. */
+export async function sendChannelMessage(
+  channelId: string,
+  payload: { content?: string; embeds?: DiscordEmbed[] },
+): Promise<void> {
+  const response = await discordBotFetch(`/channels/${channelId}/messages`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Discord channel message failed (${response.status}): ${await response.text()}`);
+  }
+}

@@ -8,5 +8,14 @@
 // ID/secret.
 
 export { getDiscordOAuthUrl, exchangeDiscordCode, getDiscordUser, type DiscordUser, type DiscordOAuthToken } from "./oauth";
-export { assignGuildRole, removeGuildRole } from "./rest";
+export { assignGuildRole, removeGuildRole, sendChannelMessage, type DiscordEmbed } from "./rest";
 export { getDiscordRoleId, getDiscordChannelId } from "./config";
+export {
+  notifyNewOrder,
+  notifyNegotiationUpdate,
+  notifyPaymentSubmitted,
+  notifyPaymentVerified,
+  notifyPaymentFlagged,
+  notifySystemLog,
+  type NegotiationEventKind,
+} from "./notify";

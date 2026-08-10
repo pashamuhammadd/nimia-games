@@ -123,17 +123,32 @@ registration section above. See:
 - `apps/studio/app/api/discord/connect/route.ts` + `.../callback/route.ts` — the OAuth round trip.
 - `apps/studio/app/dashboard/profile/page.tsx` — the "Connect Discord" / "Disconnect" UI.
 
+**Done (9 Agustus 2026, second pass):** notifications to `#new-orders` /
+`#negotiations` / `#payment-verification`, each mirrored as a short summary
+to `#system-log` too. See `packages/discord/src/notify.ts` for every
+`notify*` function (all deliberately never-throwing — a Discord outage or
+bad channel ID never rolls back or fails the website action that triggered
+it) and its own comment for exactly which docs/DISCORD.md event it covers.
+Wired into:
+
+- `apps/studio/modules/order/state/submit-order-action.ts` — `notifyNewOrder` on order creation.
+- `apps/admin/app/(protected)/orders/actions.ts` — `notifyNegotiationUpdate` (sendQuotationForPaymentAction / acceptNegotiationOfferAction / sendCounterOfferAction / rejectNegotiationAction) and `notifyPaymentVerified` / `notifyPaymentFlagged` (verifyPaymentAction / flagUnderpaidPaymentAction).
+- `apps/studio/app/dashboard/negotiations/actions.ts` — `notifyNegotiationUpdate` (accept/reject/counter, client side).
+- `apps/studio/app/dashboard/orders/payment-actions.ts` — `notifyPaymentSubmitted` (submitPaymentAction).
+
 **Not built yet** (all separate follow-up work, each independent of the
-others once account linking above exists to build on):
+others once account linking + notifications above exist to build on):
 
 - Partner role auto-assign (needs a decision on what marks a client as an
   "active" partner for role purposes — `partners` rows are created for
   every signup per `0016_partner_program.sql`'s trigger, so "row exists"
   alone isn't the right signal; needs clarifying before implementing).
-- Notifications to `#new-orders` / `#negotiations` / `#payment-verification`
-  / `#system-log` (hook into the existing server actions in
-  `apps/admin/app/(protected)/orders/actions.ts` and
-  `apps/studio/app/dashboard/orders/payment-actions.ts`).
+- `#system-log` events beyond the notifications-phase mirror above: User
+  Registered, Partner Registered, Invoice Generated, Delivery Uploaded,
+  Voucher Claimed, Referral Commission — each needs its own hook into the
+  registration/invoice/delivery/voucher/referral code, none of which exist
+  yet. `notifySystemLog()` (in `packages/discord/src/notify.ts`) is already
+  exported and ready for these, just not called anywhere yet.
 - Auto-thread-per-order (needs an `order_id ↔ discord_thread_id` mapping
   table — deliberately not added in 0025 since nothing consumes it yet).
 - Support ticket creation from a website "Support" button (the button

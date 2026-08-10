@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createServerClient } from "@nimia/db";
+import { notifyPaymentSubmitted } from "@nimia/discord";
 
 // Buyer-facing crypto payment flow (3 Agustus 2026, per user request — an
 // order could reach 'awaiting_payment' with no way for the client to
@@ -206,6 +207,31 @@ export async function submitPaymentAction(
   });
 
   if (error) return { success: false, error: error.message };
+
+  // Added 9 Agustus 2026 (notifications phase, docs/DISCORD.md's Payment
+  // flow — "Discord notification to #payment-verification"). The RPC above
+  // doesn't return the client's name, and this file has no email helper of
+  // its own to already have it in scope (unlike apps/admin's payment
+  // actions) — a small best-effort follow-up SELECT, wrapped so a failure
+  // here can never turn an already-successful payment submission into a
+  // failed response. notifyPaymentSubmitted itself also never throws (see
+  // packages/discord/src/notify.ts), so this is belt-and-suspenders.
+  try {
+    const { data: order } = await supabase
+      .from("orders")
+      .select("full_name, company_name")
+      .eq("id", orderId)
+      .single();
+    await notifyPaymentSubmitted({
+      orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
+      clientName: (order?.full_name as string | undefined) ?? (order?.company_name as string | undefined) ?? "A client",
+      network: quote.network,
+      currency: quote.currency,
+      txHash: trimmedTxHash,
+    });
+  } catch (notifyError) {
+    console.error("[discord] Failed to look up order for payment-submitted notification", orderId, notifyError);
+  }
 
   revalidatePath("/dashboard/orders");
   revalidatePath("/dashboard");
