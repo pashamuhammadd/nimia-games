@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   title: "Services",
   description:
     "Animation, game development, and website development for businesses, startups, and studios. Explore what Nimia Studio builds and find the right service or package for your project.",
+  // SEO fix, 10 Agustus 2026 — canonical URL, part of the sitewide SEO
+  // pass (see app/layout.tsx). Resolves against root's metadataBase.
+  alternates: {
+    canonical: "/services",
+  },
 };
 
 // Rebuilt as a full 7-section services experience (29 Juli 2026 redesign

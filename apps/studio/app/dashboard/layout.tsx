@@ -1,8 +1,23 @@
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@nimia/db";
 import { signOutAction } from "../actions";
 import { DashboardShell } from "../components/dashboard/DashboardShell";
+
+// SEO fix, 10 Agustus 2026 — this noindex directive used to live in the
+// ROOT layout (app/layout.tsx) and applied sitewide by accident, which
+// noindexed every public marketing page along with it. Moved down here so
+// it only covers the internal client portal it was always meant for — see
+// app/layout.tsx's matching comment for the full story. Metadata set in a
+// nested layout like this fully overrides the parent's `robots` field for
+// every route under /dashboard/*, so this is the only place that needs it.
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function DashboardLayout({
   children,

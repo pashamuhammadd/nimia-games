@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Sora, Rajdhani } from "next/font/google";
 import "./globals.css";
+import { JsonLd } from "./components/seo/JsonLd";
 
 // Sora (body) + Rajdhani (headings) — matches apps/www/app/layout.tsx
 // exactly (same fonts, same weights, same variable names), so the
@@ -28,18 +29,102 @@ const rajdhani = Rajdhani({
   display: "swap",
 });
 
+// SEO fix, 10 Agustus 2026 — this used to set `robots: {index:false,
+// follow:false}` sitewide, meant only to keep the internal /dashboard/*
+// client portal out of Google. Next.js metadata inheritance meant every
+// public marketing page (/, /services, /portfolio, /why-nimia,
+// /how-to-start, /partners) inherited that same noindex directive too, so
+// the entire public site — including the homepage — has been invisible to
+// search engines since it launched. Fixed by flipping the sitewide
+// default to indexable here and moving the noindex directive down to
+// app/dashboard/layout.tsx instead, which now overrides it for that
+// subtree only (a child's `robots` field fully replaces the parent's for
+// everything under it, so this stays scoped correctly). Also added every
+// site-wide SEO field this app never had (metadataBase, OpenGraph,
+// Twitter card, keywords, JSON-LD) — same pattern as
+// apps/www/app/layout.tsx, adapted for the studio subdomain and its own
+// public/og-image.png (new asset, matches www's og-image.png style:
+// same dark maroon gradient, same brand colors/fonts, studio-specific
+// headline and lockup).
 export const metadata: Metadata = {
+  metadataBase: new URL("https://studio.nimiagames.com"),
+
   title: {
-    default: "Nimia Studio",
+    default: "Nimia Studio - Animation, Game Development & Digital Assets",
     template: "%s | Nimia Studio",
   },
+
   description:
-    "Client portal, order system, project management, and invoicing for Nimia Games.",
-  robots: {
-    // Internal client dashboard — never meant to be indexed.
-    index: false,
-    follow: false,
+    "Nimia Studio turns your ideas into professional, polished animation, games, and digital assets. Get an instant estimate, track production, and pay securely — all from your own project dashboard.",
+
+  keywords: [
+    "Nimia Studio",
+    "creative production studio",
+    "animation studio",
+    "game development studio",
+    "digital assets",
+    "hire animators",
+    "commission game development",
+    "2D animation service",
+    "indie game outsourcing",
+    "project dashboard",
+  ],
+
+  applicationName: "Nimia Studio",
+  authors: [{ name: "Nimia Games", url: "https://nimiagames.com" }],
+  creator: "Nimia Games",
+  publisher: "Nimia Games",
+  referrer: "origin-when-cross-origin",
+
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
   },
+
+  alternates: {
+    canonical: "/",
+  },
+
+  openGraph: {
+    title: "Nimia Studio: Animation, Game Development & Digital Assets",
+    description:
+      "Professional animation, games, and digital assets, crafted end-to-end and tracked from your own project dashboard.",
+    url: "https://studio.nimiagames.com",
+    siteName: "Nimia Studio",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Nimia Studio: Animation, Game Development & Digital Assets",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Nimia Studio: Animation, Game Development & Digital Assets",
+    description:
+      "Professional animation, games, and digital assets, crafted end-to-end and tracked from your own project dashboard.",
+    images: ["/og-image.png"],
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+
+  category: "technology",
 };
 
 export default function RootLayout({
@@ -49,7 +134,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${sora.variable} ${rajdhani.variable}`}>
-      <body>{children}</body>
+      <body>
+        <JsonLd />
+        {children}
+      </body>
     </html>
   );
 }

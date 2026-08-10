@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   title: "Portfolio",
   description:
     "A curated preview of animations, games, and digital experiences crafted by Nimia Studio. Visit the full portfolio for the complete collection.",
+  // SEO fix, 10 Agustus 2026 — canonical URL, part of the sitewide SEO
+  // pass (see app/layout.tsx). Resolves against root's metadataBase.
+  alternates: {
+    canonical: "/portfolio",
+  },
 };
 
 // Rebuilt as a "Portfolio Preview" teaser (30 Juli 2026 brief), replacing

@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   title: "Why Nimia",
   description:
     "AI can generate images in seconds. Nimia turns ideas into production-ready games, animation, and digital assets with professional art direction, a dedicated creative team, and a live project dashboard.",
+  // SEO fix, 10 Agustus 2026 — canonical URL, part of the sitewide SEO
+  // pass (see app/layout.tsx). Resolves against root's metadataBase.
+  alternates: {
+    canonical: "/why-nimia",
+  },
 };
 
 // Redesigned 29 Juli 2026, replacing the earlier "check back soon"

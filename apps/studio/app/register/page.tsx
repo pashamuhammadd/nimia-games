@@ -5,7 +5,19 @@ import { PublicNavbar } from "../components/PublicNavbar";
 import { Footer } from "../components/Footer";
 import { REFERRAL_COOKIE_NAME } from "../lib/referralCookie";
 
-export const metadata: Metadata = { title: "Sign up" };
+// SEO fix, 10 Agustus 2026 — noindex, part of the sitewide SEO pass (see
+// app/layout.tsx). Thin, no-content auth utility page: keeping it out of
+// the index avoids diluting search results with a low-value page, while
+// `follow: true` still lets crawlers reach anything it links to. Left
+// crawlable in app/robots.ts on purpose (see that file's comment) so
+// Google actually sees this tag instead of just being blocked from the URL.
+export const metadata: Metadata = {
+  title: "Sign up",
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
 
 export default async function RegisterPage() {
   // Set by app/r/[code]/route.ts when this visitor arrived via a partner's

@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   title: "Start Your Project",
   description:
     "Configure your Animation, Digital Assets, Website Development, or Game Development project step by step and get an instant estimate.",
+  // SEO fix, 10 Agustus 2026 — canonical URL, part of the sitewide SEO
+  // pass (see app/layout.tsx). Resolves against root's metadataBase.
+  alternates: {
+    canonical: "/order",
+  },
 };
 
 // /order — the Project Configurator (multi-step wizard), reached from the

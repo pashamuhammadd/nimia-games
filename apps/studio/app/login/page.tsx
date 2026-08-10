@@ -3,7 +3,19 @@ import { LoginForm } from "./LoginForm";
 import { PublicNavbar } from "../components/PublicNavbar";
 import { Footer } from "../components/Footer";
 
-export const metadata: Metadata = { title: "Log in" };
+// SEO fix, 10 Agustus 2026 — noindex, part of the sitewide SEO pass (see
+// app/layout.tsx). Thin, no-content auth utility page: keeping it out of
+// the index avoids diluting search results with a low-value page, while
+// `follow: true` still lets crawlers reach anything it links to. Left
+// crawlable in app/robots.ts on purpose (see that file's comment) so
+// Google actually sees this tag instead of just being blocked from the URL.
+export const metadata: Metadata = {
+  title: "Log in",
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
 
 export default async function LoginPage({
   searchParams,

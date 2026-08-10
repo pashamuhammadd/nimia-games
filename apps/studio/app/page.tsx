@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -9,6 +10,25 @@ import { Footer } from "./components/Footer";
 import { StartProjectButton } from "./components/StartProjectButton";
 import { TypedHeroHeadline } from "./components/TypedHeroHeadline";
 import { ToolsSection } from "./components/home/ToolsSection";
+
+// SEO fix, 10 Agustus 2026 — this page had NO metadata export at all, so
+// it fell all the way back to the root layout's generic dashboard-oriented
+// description ("Client portal, order system, project management, and
+// invoicing for Nimia Games.") for its own <meta description> — wrong for
+// the single most important page on the site. No `title` here on purpose:
+// the root layout's `title.default` ("Nimia Studio - Animation, Game
+// Development & Digital Assets") is already the correct homepage title, so
+// setting one here would just run it through the "%s | Nimia Studio"
+// template and duplicate the brand name. `openGraph`/`twitter` are left
+// unset too, for the same reason — they fully inherit the root layout's
+// (also homepage-appropriate) versions instead of being redefined here.
+export const metadata: Metadata = {
+  description:
+    "Nimia Studio turns your ideas into professional, polished animation, games, and digital assets. Get an instant estimate, track production, and pay securely — all from your own project dashboard.",
+  alternates: {
+    canonical: "/",
+  },
+};
 
 // Placeholder numbers (confirmed with the user 29 Juli 2026 — these are
 // the reference design's example figures, not verified Nimia Games data

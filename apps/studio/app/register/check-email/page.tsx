@@ -3,7 +3,19 @@ import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@nimia/ui";
 import { PublicNavbar } from "../../components/PublicNavbar";
 
-export const metadata: Metadata = { title: "Check your email" };
+// SEO fix, 10 Agustus 2026 — noindex, part of the sitewide SEO pass (see
+// app/layout.tsx). Transient confirmation screen with no real content —
+// keeping it out of the index avoids a low-value page showing up in search
+// results. Left crawlable in app/robots.ts on purpose (see that file's
+// comment) so Google actually sees this tag instead of just being blocked
+// from the URL.
+export const metadata: Metadata = {
+  title: "Check your email",
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
 
 export default function CheckEmailPage() {
   return (

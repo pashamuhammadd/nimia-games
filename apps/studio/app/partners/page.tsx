@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   title: "Partner Program",
   description:
     "Earn rewards for introducing new clients to Nimia Studio. Every account is automatically enrolled with a personal referral link, no application, no fees. Join the Nimia Partner Program.",
+  // SEO fix, 10 Agustus 2026 — canonical URL, part of the sitewide SEO
+  // pass (see app/layout.tsx). Resolves against root's metadataBase.
+  alternates: {
+    canonical: "/partners",
+  },
 };
 
 // Public marketing page for the Nimia Partner Program (10 Agustus 2026,
