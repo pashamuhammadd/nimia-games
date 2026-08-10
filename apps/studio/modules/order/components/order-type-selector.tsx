@@ -146,33 +146,28 @@ function OrderTypeCard({ option, onSelect }: { option: OrderTypeOption; onSelect
         ) : null}
       </div>
 
-      <div
-        className={cn(
-          // Landscape box (10 Agustus 2026 — user's icon images are
-          // 1536x1024, a 3:2 ratio; a square box would crop them left/right
-          // via object-cover, so the box matches the image's own aspect
-          // ratio instead and shows it in full). `aspect-[3/2]` with a
-          // fixed width, not a fixed height, so this stays consistent
-          // whether an image or the lucide fallback icon is showing.
-          // Enlarged (w-20 -> w-28) same day per user feedback ("agak
-          // besar") and centered in the card (parent is now items-center).
-          "relative flex aspect-[3/2] w-28 shrink-0 items-center justify-center overflow-hidden rounded-2xl border",
-          option.recommended
-            ? "border-[var(--nimia-crimson)]/50 bg-[var(--nimia-crimson)]/20"
-            : "border-white/10 bg-white/[0.06] group-hover:border-white/20",
-        )}
-      >
+      {/* No frame/border/background here anymore (10 Agustus 2026, per
+          user feedback — the artwork's own background is transparent, so a
+          boxed container just competed with it visually). This is now a
+          plain sizing wrapper only: `relative` + fixed width is required
+          for next/image's `fill` to work, nothing else. Also enlarged
+          ~2.5x per user feedback (w-28/112px -> 280px). `aspect-[3/2]`
+          still matches the source images' real 1536x1024 ratio so nothing
+          crops; `object-contain` (not `object-cover`) so a transparent-bg
+          image is never edge-cropped even if a future image doesn't match
+          that ratio exactly. */}
+      <div className="relative flex aspect-[3/2] w-[280px] shrink-0 items-center justify-center">
         {showImage ? (
           <Image
             src={option.imageSrc as string}
             alt=""
             fill
-            sizes="112px"
-            className="object-cover"
+            sizes="280px"
+            className="object-contain"
             onError={() => setImageFailed(true)}
           />
         ) : (
-          <Icon className="h-9 w-9 text-[var(--nimia-pink)]" strokeWidth={1.75} aria-hidden="true" />
+          <Icon className="h-20 w-20 text-[var(--nimia-pink)]" strokeWidth={1.5} aria-hidden="true" />
         )}
       </div>
 
