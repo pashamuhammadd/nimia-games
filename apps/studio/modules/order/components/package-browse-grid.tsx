@@ -55,6 +55,8 @@ export function PackageBrowseGrid({ packages, onSelect, onCustomOrder }: Package
                 description={pkg.description}
                 badge={pkg.badge}
                 icon={Icon}
+                imageSrc={pkg.thumbnailSrc}
+                imageAlt={pkg.name}
                 featured={pkg.featured}
                 onClick={() => onSelect(pkg.id)}
                 className="min-h-[16rem]"
