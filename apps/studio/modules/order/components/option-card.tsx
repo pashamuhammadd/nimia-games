@@ -32,16 +32,38 @@ export interface OptionCardProps {
   featured?: boolean;
   /** Optional thumbnail (Package/Bundle system, 10 Agustus 2026 — per user
    * request, every package card on the browse grid gets a real image).
-   * When set, this renders as a rounded image block at the top of the
-   * card and the plain `icon` block below is skipped for that card (an
-   * icon reads as a placeholder once a real thumbnail is present) — badge
-   * also moves to overlay the image's top-left corner instead of sitting
-   * in the normal card flow, so a card either has zero visual competition
-   * for top-of-card attention (image cards) or the original compact
-   * badge+icon layout (every other OptionCard usage in the app, which
-   * never passes `imageSrc` and is completely unaffected). */
+   * When set, this renders as a rounded image block and the plain `icon`
+   * block below is skipped for that card (an icon reads as a placeholder
+   * once a real thumbnail is present). The badge (see BADGE_TONES below)
+   * always sits in the card's normal document flow above the image/icon —
+   * revised same day per user feedback that overlaying it on the photo
+   * made the photo itself harder to read. */
   imageSrc?: string;
   imageAlt?: string;
+}
+
+/**
+ * Per-badge-text color (Package/Bundle system, 10 Agustus 2026 — per user
+ * request: "warna badge juga dibuat unik misalnya badge pro berwarna
+ * emas"). Keyed by the exact badge string so this only changes styling for
+ * the 4 known package badges; every other OptionCard badge in the app
+ * (e.g. PackageSelector's tier "⭐ Most Popular" ribbon) doesn't match any
+ * key here and keeps the original pink/crimson pill exactly as before.
+ */
+const BADGE_TONES: Record<string, string> = {
+  "BEST VALUE": "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
+  "MOST POPULAR": "border-[var(--nimia-pink)]/30 bg-[var(--nimia-pink)]/10 text-[var(--nimia-pink)]",
+  PRO: "border-amber-400/40 bg-amber-400/10 text-amber-300",
+  RECOMMENDED: "border-sky-400/30 bg-sky-400/10 text-sky-300",
+};
+const DEFAULT_BADGE_TONE = "border-[var(--nimia-pink)]/30 bg-[var(--nimia-pink)]/10 text-[var(--nimia-pink)]";
+
+/** Exported so components/package-detail.tsx's own standalone badge pill
+ * (rendered outside OptionCard, at the top of the Package Detail page) can
+ * reuse the exact same badge -> color mapping instead of a second copy. */
+export function badgeToneClass(badge?: string): string {
+  if (!badge) return DEFAULT_BADGE_TONE;
+  return BADGE_TONES[badge] ?? DEFAULT_BADGE_TONE;
 }
 
 export function OptionCard({
@@ -85,6 +107,17 @@ export function OptionCard({
         </span>
       ) : null}
 
+      {badge ? (
+        <span
+          className={cn(
+            "inline-flex w-fit items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+            badgeToneClass(badge),
+          )}
+        >
+          {badge}
+        </span>
+      ) : null}
+
       {imageSrc ? (
         <div className="relative w-full overflow-hidden rounded-xl border border-white/10 bg-black/20">
           <div className="relative aspect-video w-full">
@@ -96,18 +129,7 @@ export function OptionCard({
               className="object-cover"
             />
           </div>
-          {badge ? (
-            <span className="absolute left-3 top-3 inline-flex items-center rounded-full border border-[var(--nimia-pink)]/30 bg-black/60 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--nimia-pink)] backdrop-blur">
-              {badge}
-            </span>
-          ) : null}
         </div>
-      ) : null}
-
-      {!imageSrc && badge ? (
-        <span className="inline-flex w-fit items-center rounded-full border border-[var(--nimia-pink)]/30 bg-[var(--nimia-pink)]/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--nimia-pink)]">
-          {badge}
-        </span>
       ) : null}
 
       {!imageSrc && Icon ? (

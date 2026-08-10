@@ -1,9 +1,10 @@
 "use client";
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { cn } from "@nimia/ui";
 import { Check, Clock, RefreshCw } from "lucide-react";
 import type { BundlePackage } from "../types/bundle";
-import { OptionCard } from "./option-card";
+import { OptionCard, badgeToneClass } from "./option-card";
 
 export interface PackageDetailProps {
   pkg: BundlePackage | null;
@@ -47,7 +48,12 @@ export function PackageDetail({ pkg, selectedOptionIds, onToggleOption, onCustom
   return (
     <div>
       {pkg.badge ? (
-        <span className="mb-3 inline-flex w-fit items-center rounded-full border border-[var(--nimia-pink)]/30 bg-[var(--nimia-pink)]/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--nimia-pink)]">
+        <span
+          className={cn(
+            "mb-3 inline-flex w-fit items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+            badgeToneClass(pkg.badge),
+          )}
+        >
           {pkg.badge}
         </span>
       ) : null}
