@@ -26,6 +26,10 @@ type OrderEmailFields = {
   full_name: string | null;
   company_name: string | null;
   services: { name: string } | { name: string }[] | null;
+  /** Added 9 Agustus 2026 (auto-thread pass) — not every select below asks
+   * for this column (only the ones whose notify* call actually uses it),
+   * so it's optional here rather than on every OrderEmailFields literal. */
+  discord_thread_id?: string | null;
 };
 
 function resolveServiceName(services: OrderEmailFields["services"]): string {
@@ -162,7 +166,7 @@ export async function sendQuotationForPaymentAction(
     .from("orders")
     .update({ status: "awaiting_payment", final_price_usd: amountUsd })
     .eq("id", orderId)
-    .select("email, full_name, company_name, services(name)")
+    .select("email, full_name, company_name, services(name), discord_thread_id")
     .single();
 
   if (error) return { success: false, error: error.message };
@@ -189,6 +193,7 @@ export async function sendQuotationForPaymentAction(
       serviceName: resolveServiceName(fields.services),
       kind: "accepted",
       amountUsd,
+      threadId: fields.discord_thread_id,
     });
   }
 
@@ -250,7 +255,7 @@ export async function acceptNegotiationOfferAction(
     .from("orders")
     .update({ status: "awaiting_payment", final_price_usd: amountUsd })
     .eq("id", orderId)
-    .select("email, full_name, company_name, services(name)")
+    .select("email, full_name, company_name, services(name), discord_thread_id")
     .single();
 
   if (error) return { success: false, error: error.message };
@@ -274,6 +279,7 @@ export async function acceptNegotiationOfferAction(
       serviceName: resolveServiceName(fields.services),
       kind: "accepted",
       amountUsd,
+      threadId: fields.discord_thread_id,
     });
   }
 
@@ -306,7 +312,7 @@ export async function sendCounterOfferAction(
   // Also doubles as the fetch for the client-facing fields the email needs.
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("status, email, full_name, company_name, services(name)")
+    .select("status, email, full_name, company_name, services(name), discord_thread_id")
     .eq("id", orderId)
     .single();
   if (orderError || !order) {
@@ -346,6 +352,7 @@ export async function sendCounterOfferAction(
     proposedBy: "staff",
     amountUsd,
     message: message?.trim() || null,
+    threadId: fields.discord_thread_id,
   });
 
   revalidatePath("/orders");
@@ -368,7 +375,7 @@ export async function rejectNegotiationAction(orderId: string): Promise<OrderAct
   const supabase = createServerClient(await cookies());
   const { data: order } = await supabase
     .from("orders")
-    .select("full_name, company_name, services(name)")
+    .select("full_name, company_name, services(name), discord_thread_id")
     .eq("id", orderId)
     .single();
 
@@ -382,6 +389,7 @@ export async function rejectNegotiationAction(orderId: string): Promise<OrderAct
       serviceName: resolveServiceName(fields.services),
       kind: "rejected",
       amountUsd: null,
+      threadId: fields.discord_thread_id,
     });
   }
 
@@ -438,7 +446,7 @@ export async function verifyPaymentAction(orderId: string): Promise<OrderActionR
       payment_verified_at: new Date().toISOString(),
     })
     .eq("id", orderId)
-    .select("email, full_name, company_name, final_price_usd, payment_network, payment_token, services(name)")
+    .select("email, full_name, company_name, final_price_usd, payment_network, payment_token, services(name), discord_thread_id")
     .single();
 
   if (error) return { success: false, error: error.message };
@@ -469,6 +477,7 @@ export async function verifyPaymentAction(orderId: string): Promise<OrderActionR
       amountUsd: fields.final_price_usd,
       network: fields.payment_network,
       currency: fields.payment_token,
+      threadId: fields.discord_thread_id,
     });
   }
 
@@ -536,7 +545,7 @@ export async function flagUnderpaidPaymentAction(
       payment_submitted_at: null,
     })
     .eq("id", orderId)
-    .select("email, full_name, company_name, services(name)")
+    .select("email, full_name, company_name, services(name), discord_thread_id")
     .single();
 
   if (error) return { success: false, error: error.message };
@@ -557,6 +566,7 @@ export async function flagUnderpaidPaymentAction(
       orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
       clientName: resolveClientName(fields),
       note: trimmedNote,
+      threadId: fields.discord_thread_id,
     });
   }
 

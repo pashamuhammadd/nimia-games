@@ -219,7 +219,7 @@ export async function submitPaymentAction(
   try {
     const { data: order } = await supabase
       .from("orders")
-      .select("full_name, company_name")
+      .select("full_name, company_name, discord_thread_id")
       .eq("id", orderId)
       .single();
     await notifyPaymentSubmitted({
@@ -228,6 +228,7 @@ export async function submitPaymentAction(
       network: quote.network,
       currency: quote.currency,
       txHash: trimmedTxHash,
+      threadId: order?.discord_thread_id as string | null | undefined,
     });
   } catch (notifyError) {
     console.error("[discord] Failed to look up order for payment-submitted notification", orderId, notifyError);

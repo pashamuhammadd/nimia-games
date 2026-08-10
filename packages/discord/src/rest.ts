@@ -81,11 +81,18 @@ export type DiscordEmbed = {
  * so that wrapper has something to catch. Requires the bot to have Send
  * Messages (+ Embed Links, for the `embeds` field) in the target channel
  * — see this package's README for the full permission list granted at
- * invite time. */
+ * invite time.
+ *
+ * `channelId` also accepts a THREAD id — Discord threads are just
+ * channels under the hood, so posting a follow-up update into an order's
+ * thread (see createThreadFromMessage below) is the exact same call as
+ * posting to a top-level channel. Returns the created message's own id
+ * (added in the auto-thread pass, 9 Agustus 2026) so a caller can turn
+ * THAT message into a thread — see createThreadFromMessage. */
 export async function sendChannelMessage(
   channelId: string,
   payload: { content?: string; embeds?: DiscordEmbed[] },
-): Promise<void> {
+): Promise<string> {
   const response = await discordBotFetch(`/channels/${channelId}/messages`, {
     method: "POST",
     body: JSON.stringify(payload),
@@ -94,4 +101,40 @@ export async function sendChannelMessage(
   if (!response.ok) {
     throw new Error(`Discord channel message failed (${response.status}): ${await response.text()}`);
   }
+
+  const data = (await response.json()) as { id: string };
+  return data.id;
+}
+
+/** Turns an existing message into a Discord Thread — used once per order,
+ * right after notifyNewOrder posts the "New Order" embed to #new-orders,
+ * so the thread hangs off that message in Discord's UI rather than
+ * floating as a disconnected standalone thread (added 9 Agustus 2026,
+ * auto-thread pass — see docs/DISCORD.md's "Order thread system": "Every
+ * new order from the website automatically creates a Discord Thread").
+ * The returned id is itself a channel id — every later status update for
+ * this order posts into it via sendChannelMessage, same as any other
+ * channel. `name` is Discord-truncated at 100 chars if longer.
+ * `auto_archive_duration: 10080` (7 days, the longest option available
+ * without server boosts) just controls when Discord hides an inactive
+ * thread from the sidebar — posting into an archived thread silently
+ * un-archives it, nothing is ever lost or locked. Requires the bot to
+ * have Create Public Threads in the target channel (see this package's
+ * README for the full permission list). */
+export async function createThreadFromMessage(
+  channelId: string,
+  messageId: string,
+  name: string,
+): Promise<string> {
+  const response = await discordBotFetch(`/channels/${channelId}/messages/${messageId}/threads`, {
+    method: "POST",
+    body: JSON.stringify({ name, auto_archive_duration: 10080 }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Discord thread creation failed (${response.status}): ${await response.text()}`);
+  }
+
+  const data = (await response.json()) as { id: string };
+  return data.id;
 }

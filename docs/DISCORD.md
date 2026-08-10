@@ -136,8 +136,21 @@ Wired into:
 - `apps/studio/app/dashboard/negotiations/actions.ts` — `notifyNegotiationUpdate` (accept/reject/counter, client side).
 - `apps/studio/app/dashboard/orders/payment-actions.ts` — `notifyPaymentSubmitted` (submitPaymentAction).
 
+**Done (9 Agustus 2026, third pass):** auto-thread-per-order — "Every new
+order from the website automatically creates a Discord Thread". See:
+
+- `packages/db/migrations/0026_discord_order_threads.sql` — `orders.discord_thread_id`, `set_order_discord_thread_id()` RPC (needed because `orders_update_admin_only` blocks a client-side raw `UPDATE` on `orders`).
+- `packages/discord/src/rest.ts` — `sendChannelMessage` now returns the created message's id, `createThreadFromMessage()` (new) turns that message into a Thread.
+- `packages/discord/src/notify.ts` — `notifyNewOrder` now creates the thread (hanging off the `#new-orders` notification message) and returns `{ threadId }`; `notifyNegotiationUpdate` / `notifyPaymentSubmitted` / `notifyPaymentVerified` / `notifyPaymentFlagged` all take an optional `threadId` and mirror a short line into it via the new `postToThread()` helper.
+- Every call site that already fetches order fields for its notify* call now also selects `discord_thread_id` and passes it through — `apps/studio/modules/order/state/submit-order-action.ts` (creates + persists it), `apps/admin/app/(protected)/orders/actions.ts`, `apps/studio/app/dashboard/negotiations/actions.ts`, `apps/studio/app/dashboard/orders/payment-actions.ts`.
+
+Threads only ever show updates (per the Order thread system section
+above) — nothing reads FROM a thread, so this can't feed Discord-side
+state back into a decision, same posture as every other notify* call.
+
 **Not built yet** (all separate follow-up work, each independent of the
-others once account linking + notifications above exist to build on):
+others once account linking + notifications + auto-thread above exist to
+build on):
 
 - Partner role auto-assign (needs a decision on what marks a client as an
   "active" partner for role purposes — `partners` rows are created for
@@ -149,12 +162,14 @@ others once account linking + notifications above exist to build on):
   registration/invoice/delivery/voucher/referral code, none of which exist
   yet. `notifySystemLog()` (in `packages/discord/src/notify.ts`) is already
   exported and ready for these, just not called anywhere yet.
-- Auto-thread-per-order (needs an `order_id ↔ discord_thread_id` mapping
-  table — deliberately not added in 0025 since nothing consumes it yet).
 - Support ticket creation from a website "Support" button (the button
   itself doesn't exist yet either).
 - `#welcome` / `#announcements` / `#how-to-start` / Partner Program
   channels — informational only, no automation planned for these.
+- Thread updates for later lifecycle stages the spec mentions (Production
+  Started / Revision / Delivery / Invoice Generated / Completed) — none of
+  those website actions exist yet either (production/delivery tracking
+  isn't built), so there's nothing to hook into yet.
 
 ## Server setup notes (manual, one-time)
 

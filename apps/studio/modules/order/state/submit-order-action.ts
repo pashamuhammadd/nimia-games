@@ -238,13 +238,31 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
   // #new-orders"). notifyNewOrder never throws (see
   // packages/discord/src/notify.ts), same fire-and-log posture as
   // sendOrderReceivedEmail right above it.
-  await notifyNewOrder({
+  const { threadId } = await notifyNewOrder({
     orderId: `ORD-${order.id.slice(0, 8).toUpperCase()}`,
     clientName,
     serviceName: service.name,
     amountUsd: negotiationAmount ?? estimate.totalPrice,
     isNegotiation: input.intent === "negotiate",
   });
+
+  // Added 9 Agustus 2026 (auto-thread pass, docs/DISCORD.md's "Order
+  // thread system"). Persists the thread notifyNewOrder just created so
+  // every later negotiation/payment action on this order can post an
+  // update into it — goes through set_order_discord_thread_id (0026,
+  // SECURITY DEFINER) since orders_update_admin_only blocks a client-side
+  // raw UPDATE on `orders` entirely. `threadId` is null when Discord
+  // isn't configured or the API call failed — nothing to persist, and no
+  // error worth surfacing since the order itself is already safely saved.
+  if (threadId) {
+    const { error: threadError } = await supabase.rpc("set_order_discord_thread_id", {
+      p_order_id: order.id,
+      p_thread_id: threadId,
+    });
+    if (threadError) {
+      console.error("[discord] Failed to persist order thread id", order.id, threadError);
+    }
+  }
 
   return { ok: true, orderId: order.id };
 }

@@ -1,4 +1,4 @@
-import { sendChannelMessage, type DiscordEmbed } from "./rest";
+import { sendChannelMessage, createThreadFromMessage, type DiscordEmbed } from "./rest";
 import { getDiscordChannelId } from "./config";
 
 // Notifications phase (9 Agustus 2026) — see docs/DISCORD.md's "Bot
@@ -12,6 +12,17 @@ import { getDiscordChannelId } from "./config";
 // use (see apps/studio's lib/email.tsx / apps/admin's lib/email.tsx file
 // comments) — callers can just `await notifyXxx(...)` with no try/catch of
 // their own.
+//
+// Auto-thread pass (9 Agustus 2026, second pass) — docs/DISCORD.md's
+// "Order thread system": every order gets its own Discord Thread the
+// moment notifyNewOrder below creates it (hanging off the #new-orders
+// notification message — see createThreadFromMessage's comment in
+// rest.ts). Callers are responsible for PERSISTING the returned thread id
+// (on `orders.discord_thread_id`, migration 0026) and passing it back in
+// on every later notify* call for that order via the optional `threadId`
+// param — this package has zero dependencies by design (see README.md's
+// "kenapa tidak pakai discord.js" — same reasoning applies to not adding
+// @nimia/db here), so it can never look the thread id up itself.
 
 const COLOR_NEW = 0x5865f2; // Discord blurple — "something new happened"
 const COLOR_OFFER = 0xf5a623; // amber — "waiting on a decision"
@@ -22,17 +33,34 @@ const COLOR_SYSTEM = 0x99aaab; // neutral grey — plain activity log
 
 type DiscordChannelName = Parameters<typeof getDiscordChannelId>[0];
 
-/** Every notify* function below funnels through this — resolves the target
- * channel's env var, sends the embed, and swallows (logs) any failure
- * rather than throwing. A missing/misconfigured channel env var is exactly
- * as recoverable as a Discord API error from here: neither should be able
- * to break the website action that triggered the notification. */
+/** Every notify* function below funnels through this for its main
+ * (non-thread) send — resolves the target channel's env var, sends the
+ * embed, and swallows (logs) any failure rather than throwing. A
+ * missing/misconfigured channel env var is exactly as recoverable as a
+ * Discord API error from here: neither should be able to break the
+ * website action that triggered the notification. */
 async function safeSend(channel: DiscordChannelName, embed: DiscordEmbed, context: string): Promise<void> {
   try {
     const channelId = getDiscordChannelId(channel);
     await sendChannelMessage(channelId, { embeds: [embed] });
   } catch (error) {
     console.error(`[discord] Failed to send ${context} notification`, error);
+  }
+}
+
+/** Posts a short plain-text update into an order's thread, if it has one.
+ * A no-op (not even an attempt) when `threadId` is null/undefined — most
+ * commonly because the order predates migration 0026, or notifyNewOrder's
+ * thread creation itself failed for that order. Separate try/catch from
+ * safeSend above: an order's thread being unreachable (e.g. deleted
+ * manually in Discord) must never block the operational channel
+ * notification staff actually need. */
+async function postToThread(threadId: string | null | undefined, content: string, context: string): Promise<void> {
+  if (!threadId) return;
+  try {
+    await sendChannelMessage(threadId, { content });
+  } catch (error) {
+    console.error(`[discord] Failed to post to order thread for ${context}`, error);
   }
 }
 
@@ -63,43 +91,58 @@ function formatUsd(amountUsd: number): string {
 /** Fired once from submitOrderAction (apps/studio) right after a new
  * `orders` row (and, for "Negotiate Price" submissions, its first
  * order_negotiations row) is created — see docs/DISCORD.md's Order flow:
- * "website creates the Order → Discord notification to #new-orders". */
+ * "website creates the Order → Discord notification to #new-orders →
+ * bot creates a Thread". Returns the new thread's id so the caller can
+ * save it to `orders.discord_thread_id` (migration 0026) — `null` if
+ * either step failed (missing/bad env vars, Discord API error, etc.),
+ * which callers should treat exactly like "this order has no thread yet"
+ * rather than retrying inline; never throws either way. */
 export async function notifyNewOrder(params: {
   orderId: string;
   clientName: string;
   serviceName: string;
   amountUsd: number | null;
   isNegotiation: boolean;
-}): Promise<void> {
-  await safeSend(
-    "new-orders",
-    {
-      title: `📦 New Order — ${params.orderId}`,
-      description: params.isNegotiation
-        ? `${params.clientName} submitted a new order for **${params.serviceName}** and opened a price negotiation.`
-        : `${params.clientName} submitted a new order for **${params.serviceName}**.`,
-      color: COLOR_NEW,
-      fields: [
-        { name: "Client", value: params.clientName, inline: true },
-        { name: "Service", value: params.serviceName, inline: true },
-        ...(params.amountUsd != null
-          ? [
-              {
-                name: params.isNegotiation ? "Client's Offer" : "Estimated Price",
-                value: formatUsd(params.amountUsd),
-                inline: true,
-              },
-            ]
-          : []),
+}): Promise<{ threadId: string | null }> {
+  let threadId: string | null = null;
+  try {
+    const channelId = getDiscordChannelId("new-orders");
+    const messageId = await sendChannelMessage(channelId, {
+      embeds: [
+        {
+          title: `📦 New Order — ${params.orderId}`,
+          description: params.isNegotiation
+            ? `${params.clientName} submitted a new order for **${params.serviceName}** and opened a price negotiation.`
+            : `${params.clientName} submitted a new order for **${params.serviceName}**.`,
+          color: COLOR_NEW,
+          fields: [
+            { name: "Client", value: params.clientName, inline: true },
+            { name: "Service", value: params.serviceName, inline: true },
+            ...(params.amountUsd != null
+              ? [
+                  {
+                    name: params.isNegotiation ? "Client's Offer" : "Estimated Price",
+                    value: formatUsd(params.amountUsd),
+                    inline: true,
+                  },
+                ]
+              : []),
+          ],
+          timestamp: new Date().toISOString(),
+        },
       ],
-      timestamp: new Date().toISOString(),
-    },
-    "new order",
-  );
+    });
+    threadId = await createThreadFromMessage(channelId, messageId, `📦 ${params.orderId}`);
+  } catch (error) {
+    console.error("[discord] Failed to send new order notification / create its thread", error);
+  }
+
   await logToSystemChannel(
     `📦 Order Created — ${params.orderId} (${params.clientName}, ${params.serviceName})`,
     "system-log (order created)",
   );
+
+  return { threadId };
 }
 
 // ------------------------------------------------------------------
@@ -122,7 +165,9 @@ const NEGOTIATION_COPY: Record<NegotiationEventKind, { title: string; color: num
  * negotiation being closed without agreement (`kind: "rejected"`).
  * Negotiation happens entirely on the website (docs/DISCORD.md: "Discord
  * is notification-only") — this never lets Discord-side state feed back
- * into a decision. */
+ * into a decision. Pass `threadId` (from `orders.discord_thread_id`) to
+ * also mirror a short line into the order's own thread — omit/null if the
+ * order has none (see notifyNewOrder's own comment on why that happens). */
 export async function notifyNegotiationUpdate(params: {
   orderId: string;
   clientName: string;
@@ -131,6 +176,7 @@ export async function notifyNegotiationUpdate(params: {
   proposedBy?: "client" | "staff";
   amountUsd: number | null;
   message?: string | null;
+  threadId?: string | null;
 }): Promise<void> {
   const { title, color } = NEGOTIATION_COPY[params.kind];
   const who = params.proposedBy === "client" ? "Client" : params.proposedBy === "staff" ? "Nimia Studio" : null;
@@ -155,6 +201,11 @@ export async function notifyNegotiationUpdate(params: {
     `💬 Negotiation Updated — ${params.orderId} (${params.kind}${params.amountUsd != null ? `, ${formatUsd(params.amountUsd)}` : ""})`,
     "system-log (negotiation updated)",
   );
+  await postToThread(
+    params.threadId,
+    `${title}${who ? ` (from ${who})` : ""}${params.amountUsd != null ? ` — ${formatUsd(params.amountUsd)}` : ""}`,
+    "negotiation update",
+  );
 }
 
 // ------------------------------------------------------------------
@@ -171,6 +222,7 @@ export async function notifyPaymentSubmitted(params: {
   network: string;
   currency: string;
   txHash: string;
+  threadId?: string | null;
 }): Promise<void> {
   await safeSend(
     "payment-verification",
@@ -191,6 +243,7 @@ export async function notifyPaymentSubmitted(params: {
     `🪙 Payment Submitted — ${params.orderId} (${params.clientName}, ${params.network}/${params.currency})`,
     "system-log (payment submitted)",
   );
+  await postToThread(params.threadId, `🪙 Payment Submitted — ${params.network}/${params.currency}`, "payment submitted");
 }
 
 /** Admin confirmed the submitted TX matches (verifyPaymentAction,
@@ -202,6 +255,7 @@ export async function notifyPaymentVerified(params: {
   amountUsd: number;
   network: string;
   currency: string;
+  threadId?: string | null;
 }): Promise<void> {
   await safeSend(
     "payment-verification",
@@ -222,6 +276,7 @@ export async function notifyPaymentVerified(params: {
     `✅ Payment Approved — ${params.orderId} (${params.clientName}, ${formatUsd(params.amountUsd)})`,
     "system-log (payment approved)",
   );
+  await postToThread(params.threadId, `✅ Payment Verified — ${formatUsd(params.amountUsd)}`, "payment verified");
 }
 
 /** The submitted TX didn't check out (flagUnderpaidPaymentAction,
@@ -230,6 +285,7 @@ export async function notifyPaymentFlagged(params: {
   orderId: string;
   clientName: string;
   note: string;
+  threadId?: string | null;
 }): Promise<void> {
   await safeSend(
     "payment-verification",
@@ -243,6 +299,7 @@ export async function notifyPaymentFlagged(params: {
     "payment flagged",
   );
   await logToSystemChannel(`⚠️ Payment Flagged — ${params.orderId} (${params.clientName})`, "system-log (payment flagged)");
+  await postToThread(params.threadId, `⚠️ Payment Flagged — ${params.note}`, "payment flagged");
 }
 
 // ------------------------------------------------------------------

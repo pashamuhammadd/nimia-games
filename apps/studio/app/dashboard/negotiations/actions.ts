@@ -28,6 +28,7 @@ type OrderNotifyFields = {
   company_name: string | null;
   final_price_usd: number | null;
   services: { name: string } | { name: string }[] | null;
+  discord_thread_id?: string | null;
 };
 
 function resolveServiceName(services: OrderNotifyFields["services"]): string {
@@ -54,7 +55,7 @@ async function notifyBestEffort(
   try {
     const { data: order } = await supabase
       .from("orders")
-      .select("full_name, company_name, final_price_usd, services(name)")
+      .select("full_name, company_name, final_price_usd, services(name), discord_thread_id")
       .eq("id", orderId)
       .single();
     if (!order) return;
@@ -65,6 +66,7 @@ async function notifyBestEffort(
       serviceName: resolveServiceName(fields.services),
       kind,
       amountUsd: kind === "accepted" ? fields.final_price_usd : null,
+      threadId: fields.discord_thread_id,
     });
   } catch (error) {
     console.error(`[discord] Failed to look up order for ${kind} notification`, orderId, error);
@@ -106,7 +108,7 @@ export async function sendClientCounterOfferAction(
   // the Discord notification's fields (added 9 Agustus 2026).
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("status, full_name, company_name, services(name)")
+    .select("status, full_name, company_name, services(name), discord_thread_id")
     .eq("id", orderId)
     .single();
   if (orderError || !order) {
@@ -134,6 +136,7 @@ export async function sendClientCounterOfferAction(
     proposedBy: "client",
     amountUsd,
     message: message?.trim() || null,
+    threadId: fields.discord_thread_id,
   });
 
   return { success: true };
