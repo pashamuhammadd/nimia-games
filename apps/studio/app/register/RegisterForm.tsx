@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useActionState } from "react";
 import Link from "next/link";
-import { Check, Pencil } from "lucide-react";
+import { Check, Pencil, Crown } from "lucide-react";
 import {
   Button,
   Input,
@@ -24,7 +24,22 @@ import { isValidReferralCodeFormat, normalizeReferralCode } from "@/modules/part
 // and Terms of Service pages only exist on apps/www, not here.
 const WWW_URL = process.env.NEXT_PUBLIC_WWW_URL ?? "https://nimiagames.com";
 
-export function RegisterForm({ initialReferralCode = "" }: { initialReferralCode?: string }) {
+export function RegisterForm({
+  initialReferralCode = "",
+  joinedViaPartnerPage = false,
+}: {
+  initialReferralCode?: string;
+  /**
+   * True when this visitor arrived via /register?via=partners (the
+   * "Become a Partner" CTA on app/partners/PartnersMarketingExperience.tsx,
+   * 10 Agustus 2026) — forwarded as a hidden field so signUpAction can
+   * grant the Gold-rate commission floor. Purely a signup-time signal,
+   * shown here only as a reassuring banner; every account becomes a
+   * partner regardless of this flag, this only affects the STARTING
+   * commission rate (see packages/db/migrations/0030_partner_page_signup_bonus.sql).
+   */
+  joinedViaPartnerPage?: boolean;
+}) {
   const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     signUpAction,
     null,
@@ -67,8 +82,20 @@ export function RegisterForm({ initialReferralCode = "" }: { initialReferralCode
           Used to submit orders and track your projects on Nimia Studio.
         </CardDescription>
       </CardHeader>
+      {joinedViaPartnerPage ? (
+        <div className="mx-6 mb-2 flex items-center gap-2.5 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3.5 py-2.5 text-xs text-amber-200">
+          <Crown className="h-4 w-4 shrink-0 text-amber-300" aria-hidden="true" />
+          <span>
+            You&apos;re joining as a partner, your account starts at{" "}
+            <strong className="font-semibold">Gold-tier, 10% commission</strong>.
+          </span>
+        </div>
+      ) : null}
       <form action={formAction}>
         <CardContent className="flex flex-col gap-4">
+          {joinedViaPartnerPage ? (
+            <input type="hidden" name="joined_via_partner_page" value="true" />
+          ) : null}
           <div>
             <Label htmlFor="full_name">Full name</Label>
             <Input id="full_name" name="full_name" autoComplete="name" required />

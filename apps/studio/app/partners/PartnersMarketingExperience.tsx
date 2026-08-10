@@ -118,7 +118,7 @@ function Hero({ isAuthenticated }: { isAuthenticated: boolean }) {
           className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-amber-300"
         >
           <Crown className="h-3.5 w-3.5" aria-hidden="true" />
-          Start at Gold — {GOLD_RATE_PERCENT}% Commission
+          Start at Gold: {GOLD_RATE_PERCENT}% Commission
         </motion.span>
 
         <motion.h1
@@ -134,7 +134,7 @@ function Hero({ isAuthenticated }: { isAuthenticated: boolean }) {
           variants={item}
           className="mx-auto mt-6 max-w-2xl text-lg text-[var(--nimia-muted)] sm:text-xl"
         >
-          Sign up through this page and you start immediately at Gold — {GOLD_RATE_PERCENT}% commission
+          Sign up through this page and you start immediately at Gold ({GOLD_RATE_PERCENT}% commission)
           from day one, no need to build up through Bronze or Silver first. Keep referring paying
           clients and you can still climb all the way to Platinum ({PLATINUM_RATE_PERCENT}%).
         </motion.p>
@@ -144,7 +144,7 @@ function Hero({ isAuthenticated }: { isAuthenticated: boolean }) {
             isAuthenticated={isAuthenticated}
             className="nimia-cta-gradient group inline-flex items-center gap-2 rounded-lg px-8 py-4 text-base font-semibold text-white shadow-[0_20px_60px_-15px_rgba(193,18,77,0.55)] transition-transform hover:scale-[1.03]"
           >
-            {isAuthenticated ? "Go to Your Partner Dashboard" : "Become a Partner — It's Free"}
+            {isAuthenticated ? "Go to Your Partner Dashboard" : "Become a Partner (Free)"}
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
           </PartnerCta>
 
@@ -162,7 +162,7 @@ const STEPS = [
   {
     icon: UserPlus,
     title: "Create your free account",
-    body: `Sign up through this page and you're automatically a partner, starting at Gold (${GOLD_RATE_PERCENT}%) — there's no separate application or approval step to wait on.`,
+    body: `Sign up through this page and you're automatically a partner, starting at Gold (${GOLD_RATE_PERCENT}%). There's no separate application or approval step to wait on.`,
   },
   {
     icon: Share2,
@@ -172,7 +172,7 @@ const STEPS = [
   {
     icon: Gift,
     title: "Earn when they become a client",
-    body: "Once someone you referred pays for a project, a reward is credited to your account automatically — tracked live from your own dashboard.",
+    body: "Once someone you referred pays for a project, a reward is credited to your account automatically, tracked live from your own dashboard.",
   },
 ];
 
@@ -190,7 +190,7 @@ function HowItWorks() {
       >
         <h2 className="nimia-font-display text-3xl font-bold tracking-tight sm:text-4xl">How It Works</h2>
         <p className="mx-auto mt-4 max-w-xl text-[var(--nimia-muted)]">
-          Three steps, all of them automatic — nothing to apply for, nothing to configure.
+          Three steps, all of them automatic. Nothing to apply for, nothing to configure.
         </p>
       </motion.div>
 
@@ -239,7 +239,7 @@ function CommissionTiers() {
           Grow Your <span className="nimia-gradient-text">Commission</span>
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-[var(--nimia-muted)]">
-          Sign up through this page and you start at Gold — already ahead of the normal ladder. Refer
+          Sign up through this page and you start at Gold, already ahead of the normal ladder. Refer
           15+ paying clients and you'll still climb to Platinum.
         </p>
       </motion.div>
@@ -312,7 +312,7 @@ function FoundingPartnerCallout() {
             life.
           </p>
           <p className="mt-1.5 text-sm text-[var(--nimia-muted)]">
-            The Gold rate above is a floor — it can still grow to Platinum with enough referrals. If
+            The Gold rate above is a floor, meaning it can still grow to Platinum with enough referrals. If
             you're also among the first {FOUNDING_PARTNER_QUOTA} partners overall, Founding Partner
             status takes over instead: the same {GOLD_RATE_PERCENT}% rate, but permanent, regardless of
             how many clients you go on to refer.
@@ -326,15 +326,15 @@ function FoundingPartnerCallout() {
 const FAQ_ITEMS = [
   {
     q: "What commission rate do I start at?",
-    a: `Signing up through studio.nimiagames.com/partners starts you at Gold (${GOLD_RATE_PERCENT}%) immediately — no need to build up through Bronze or Silver. Refer 15+ paying clients and you'll still climb to Platinum (${PLATINUM_RATE_PERCENT}%).`,
+    a: `Signing up through studio.nimiagames.com/partners starts you at Gold (${GOLD_RATE_PERCENT}%) immediately, no need to build up through Bronze or Silver. Refer 15+ paying clients and you'll still climb to Platinum (${PLATINUM_RATE_PERCENT}%).`,
   },
   {
     q: "Do I need to apply, or is anyone approved automatically?",
-    a: "Everyone is enrolled automatically the moment you create a Nimia Studio account — there's no separate application, review, or waiting period.",
+    a: "Everyone is enrolled automatically the moment you create a Nimia Studio account. There's no separate application, review, or waiting period.",
   },
   {
     q: "Is there a cost to join?",
-    a: "No. The Partner Program is completely free — there's nothing to pay and nothing to sell to become a partner.",
+    a: "No. The Partner Program is completely free, with nothing to pay and nothing to sell to become a partner.",
   },
   {
     q: "How do I find my referral link?",
@@ -400,7 +400,7 @@ function ClosingCta({ isAuthenticated }: { isAuthenticated: boolean }) {
           <span className="nimia-gradient-text">Nimia Studio?</span>
         </h2>
         <p className="mx-auto mt-5 max-w-2xl text-[var(--nimia-muted)] sm:text-lg">
-          Create your free account, start at Gold, and start earning — it takes less time than reading
+          Create your free account, start at Gold, and start earning. It takes less time than reading
           this page.
         </p>
         <div className="mt-9">
@@ -408,7 +408,7 @@ function ClosingCta({ isAuthenticated }: { isAuthenticated: boolean }) {
             isAuthenticated={isAuthenticated}
             className="nimia-cta-gradient group inline-flex items-center gap-2 rounded-lg px-8 py-4 text-base font-semibold text-white shadow-[0_20px_60px_-15px_rgba(193,18,77,0.55)] transition-transform hover:scale-[1.03]"
           >
-            {isAuthenticated ? "Go to Your Partner Dashboard" : "Become a Partner — It's Free"}
+            {isAuthenticated ? "Go to Your Partner Dashboard" : "Become a Partner (Free)"}
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
           </PartnerCta>
         </div>

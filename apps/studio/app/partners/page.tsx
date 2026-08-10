@@ -8,7 +8,7 @@ import { PartnersMarketingExperience } from "./PartnersMarketingExperience";
 export const metadata: Metadata = {
   title: "Partner Program",
   description:
-    "Earn rewards for introducing new clients to Nimia Studio. Every account is automatically enrolled with a personal referral link — no application, no fees. Join the Nimia Partner Program.",
+    "Earn rewards for introducing new clients to Nimia Studio. Every account is automatically enrolled with a personal referral link, no application, no fees. Join the Nimia Partner Program.",
 };
 
 // Public marketing page for the Nimia Partner Program (10 Agustus 2026,
