@@ -26,6 +26,7 @@ root sudah exclude semua `.env*`).
 | `DISCORD_CHANNEL_NEGOTIATIONS_ID` | Channel #negotiations — notifikasi offer/accept/reject (`notifyNegotiationUpdate`) | `apps/studio`, `apps/admin` |
 | `DISCORD_CHANNEL_PAYMENT_VERIFICATION_ID` | Channel #payment-verification — notifikasi submit/verified/flagged (`notifyPaymentSubmitted`/`notifyPaymentVerified`/`notifyPaymentFlagged`) | `apps/studio`, `apps/admin` |
 | `DISCORD_CHANNEL_SYSTEM_LOG_ID` | Channel #system-log — mirror ringkas dari semua notifikasi di atas | `apps/studio`, `apps/admin` |
+| `DISCORD_CHANNEL_SUPPORT_ID` | Channel #create-ticket — setiap ticket support jadi PRIVATE thread baru di sini (`createSupportTicket`) | `apps/studio` (bikin ticket), `apps/admin` (link "Open in Discord" + close ticket) |
 
 Catatan (fase notifikasi, 9 Agustus 2026): setiap fungsi `notify*` di
 `src/notify.ts` TIDAK PERNAH melempar error — kalau channel ID salah, bot

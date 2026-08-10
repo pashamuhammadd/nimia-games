@@ -106,6 +106,72 @@ export async function sendChannelMessage(
   return data.id;
 }
 
+/** Creates a standalone PRIVATE thread in `channelId` — not hung off any
+ * existing message, unlike createThreadFromMessage below (added 9 Agustus
+ * 2026, support-ticket pass — see docs/DISCORD.md's "Client support": "A
+ * 'Support' button on the website → the bot creates a Private Ticket,
+ * visible only to Founder + Admin + the Client who created it"). A
+ * PRIVATE thread (type 12) is invisible to everyone except the bot,
+ * server members with Manage Threads (Founder/Admin, if that permission
+ * is granted on the target channel — see this package's README), and
+ * whoever is explicitly added via addThreadMember below — this is what
+ * makes it a "ticket" instead of just another public thread anyone in
+ * #create-ticket could read. `invitable: false` stops non-mod thread
+ * members from adding anyone else, so a client can never accidentally
+ * pull a stranger into their own ticket. Requires the bot to have Create
+ * Private Threads in the target channel. */
+export async function createPrivateThread(channelId: string, name: string): Promise<string> {
+  const response = await discordBotFetch(`/channels/${channelId}/threads`, {
+    method: "POST",
+    body: JSON.stringify({ name, type: 12, invitable: false, auto_archive_duration: 10080 }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Discord private thread creation failed (${response.status}): ${await response.text()}`);
+  }
+
+  const data = (await response.json()) as { id: string };
+  return data.id;
+}
+
+/** Adds `discordUserId` as an explicit member of `threadId` — used right
+ * after createPrivateThread above so the client who opened the ticket can
+ * actually see and reply in it (a private thread is otherwise invisible
+ * to them, even though it's about their own ticket). Only possible when
+ * the client has connected Discord (migration 0025) — callers should
+ * treat "no discord_user_id on file" as "skip this call, the ticket still
+ * exists, staff will just need to reach the client another way", never as
+ * a reason to fail ticket creation itself. */
+export async function addThreadMember(threadId: string, discordUserId: string): Promise<void> {
+  const response = await discordBotFetch(`/channels/${threadId}/thread-members/${discordUserId}`, {
+    method: "PUT",
+  });
+
+  if (!response.ok && response.status !== 204) {
+    throw new Error(`Discord add thread member failed (${response.status}): ${await response.text()}`);
+  }
+}
+
+/** Archives AND locks `threadId` — used when staff closes a ticket from
+ * the admin dashboard (added 9 Agustus 2026, support-ticket pass). Locked
+ * (not just archived) so the client can't keep posting into a ticket
+ * that's been marked resolved on the website — matches the same
+ * website-is-the-source-of-truth posture as every other write in this
+ * package: closing must happen here, not by someone manually archiving
+ * the thread in Discord (which this integration would have no way to
+ * notice — see docs/DISCORD.md's "why no persistent bot process is
+ * needed", the flip side being it also never listens for anything). */
+export async function archiveThread(threadId: string): Promise<void> {
+  const response = await discordBotFetch(`/channels/${threadId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ archived: true, locked: true }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Discord thread archive failed (${response.status}): ${await response.text()}`);
+  }
+}
+
 /** Turns an existing message into a Discord Thread — used once per order,
  * right after notifyNewOrder posts the "New Order" embed to #new-orders,
  * so the thread hangs off that message in Discord's UI rather than

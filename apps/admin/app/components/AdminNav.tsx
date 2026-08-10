@@ -13,6 +13,7 @@ import {
   Ticket,
   Target,
   Wallet,
+  LifeBuoy,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@nimia/ui";
@@ -34,6 +35,12 @@ export const ADMIN_NAV_ITEMS: { href: string; label: string; icon: LucideIcon; f
   // these same as Orders/Clients/Projects.
   { href: "/vouchers", label: "Vouchers", icon: Ticket },
   { href: "/quests", label: "Quests", icon: Target },
+  // Tickets (9 Agustus 2026, Discord support-ticket pass) — unlike the
+  // client-facing dashboard, apps/admin's brief never said "don't add
+  // menu items", so this is a real Sidebar entry rather than tucked into
+  // a dropdown. `Ticket` icon is already used for Vouchers above, so
+  // `LifeBuoy` here to keep the two visually distinct.
+  { href: "/tickets", label: "Tickets", icon: LifeBuoy },
   { href: "/finance", label: "Finance", icon: Wallet, founderOnly: true },
 ];
 

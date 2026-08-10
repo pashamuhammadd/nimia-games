@@ -45,7 +45,7 @@ export function getDiscordRoleId(role: "client" | "partner"): string {
 }
 
 export function getDiscordChannelId(
-  channel: "new-orders" | "negotiations" | "payment-verification" | "system-log",
+  channel: "new-orders" | "negotiations" | "payment-verification" | "system-log" | "support",
 ): string {
   const envName =
     {
@@ -53,6 +53,10 @@ export function getDiscordChannelId(
       negotiations: "DISCORD_CHANNEL_NEGOTIATIONS_ID",
       "payment-verification": "DISCORD_CHANNEL_PAYMENT_VERIFICATION_ID",
       "system-log": "DISCORD_CHANNEL_SYSTEM_LOG_ID",
+      // Support-ticket pass (9 Agustus 2026) — docs/DISCORD.md's
+      // "#create-ticket" channel under SUPPORT. Every private ticket
+      // thread is created inside this one channel.
+      support: "DISCORD_CHANNEL_SUPPORT_ID",
     } as const satisfies Record<typeof channel, string>;
   return requireEnv(envName[channel]);
 }

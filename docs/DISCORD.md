@@ -185,3 +185,26 @@ build on):
 - OAuth2 redirect registered: `https://studio.nimiagames.com/api/discord/callback`
   (plus `http://localhost:3000/api/discord/callback` for local dev, as its
   own separate entry).
+- **Support tickets (added 9 Agustus 2026): the 👑 Founder and 🛡 Admin
+  roles need "Manage Threads" permission on the #create-ticket channel
+  specifically** (Server Settings → the channel's own permission
+  overrides, not the server-wide role permissions) — a PRIVATE thread
+  (createPrivateThread, type 12) is invisible even to Founder/Admin unless
+  either they have Manage Threads on that channel, or they're explicitly
+  added as a thread member. Without this, staff would only ever see
+  tickets for clients who happened to have Discord connected (the ones
+  addThreadMember could actually add) — everyone else's ticket would be
+  invisible to everyone. This is the one piece of this pass that can't be
+  verified by testing as the client — please double-check it as Founder.
+
+## Implementation status (support tickets)
+
+**Done (9 Agustus 2026, fourth pass):** support tickets — "A 'Support'
+button on the website → the bot creates a Private Ticket, visible only to
+Founder + Admin + the Client who created it." See:
+
+- `packages/db/migrations/0027_support_tickets.sql` — `support_tickets` table (denormalized client name/email snapshot, same convention as `orders`), `set_support_ticket_discord_thread_id()` RPC.
+- `packages/discord/src/rest.ts` — `createPrivateThread()`, `addThreadMember()`, `archiveThread()`.
+- `packages/discord/src/tickets.ts` (NEW) — `createSupportTicket()` (creates the private thread, posts the initial embed, adds the client if they've connected Discord) and `closeSupportTicketThread()` (archive + lock).
+- `apps/studio/app/dashboard/support/` (NEW page + form + action) — reachable from the Topbar account dropdown (which used to link to a generic external Discord invite — replaced by this in-app flow, since "No general chat channel for support" was always the actual spec).
+- `apps/admin/app/(protected)/tickets/` (NEW page + list + close action) — every open ticket, with a "Close Ticket" button and an "Open in Discord" deep link when a thread exists.

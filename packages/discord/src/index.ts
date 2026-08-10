@@ -8,7 +8,16 @@
 // ID/secret.
 
 export { getDiscordOAuthUrl, exchangeDiscordCode, getDiscordUser, type DiscordUser, type DiscordOAuthToken } from "./oauth";
-export { assignGuildRole, removeGuildRole, sendChannelMessage, createThreadFromMessage, type DiscordEmbed } from "./rest";
+export {
+  assignGuildRole,
+  removeGuildRole,
+  sendChannelMessage,
+  createThreadFromMessage,
+  createPrivateThread,
+  addThreadMember,
+  archiveThread,
+  type DiscordEmbed,
+} from "./rest";
 export { getDiscordRoleId, getDiscordChannelId } from "./config";
 export {
   notifyNewOrder,
@@ -19,3 +28,4 @@ export {
   notifySystemLog,
   type NegotiationEventKind,
 } from "./notify";
+export { createSupportTicket, closeSupportTicketThread } from "./tickets";
