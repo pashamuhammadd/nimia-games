@@ -1,9 +1,10 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Wallet, Receipt, Coins, TrendingUp, AlertTriangle } from "lucide-react";
 import { createServerClient } from "@nimia/db";
 import { isFounderRole } from "../../lib/roles";
-import { formatIDR, formatUSD } from "../../lib/format";
+import { formatUSD } from "../../lib/format";
 import { formatRelativeTime } from "../../lib/relativeTime";
 
 export const metadata = { title: "Finance" };
@@ -43,6 +44,32 @@ function FinanceTile({
   );
 }
 
+// Rewritten 10 Agustus 2026 (launch-readiness audit fix — see
+// [[studio_platform_plan]] memory, "Finance page admin rusak"). This page
+// used to query `invoices`/`commissions`/`ambassadors`, three tables that
+// no longer reflect reality:
+//   - `invoices` has been dead code since migration 0024 (order-based
+//     crypto payments replaced the old manual/IDR invoice flow it
+//     belonged to — see that migration's own comment). The exact same
+//     class of bug was already found and fixed on the Overview page's
+//     "Unpaid Invoices" stat; this page just never got the same fix.
+//   - `commissions` and `ambassadors` were RENAMED to
+//     `commissions_legacy`/`ambassadors_legacy` by migration 0016
+//     (30 Juli 2026) when the old Ambassador Program was merged into the
+//     Partner Program — those table names haven't existed since that date.
+// Because the old queries' Postgres errors were never checked (destructured
+// straight into `?? []`), this page silently rendered $0/empty everywhere
+// instead of failing loudly — a founder reading this page had no way to
+// tell the numbers were wrong.
+//
+// Now reads real revenue from `orders.final_price_usd` (same source the
+// Invoices admin page already uses) and real reward data from
+// `partner_rewards` (same source the Partners admin directory, migration
+// 0028, already uses) — no new tables, just pointed at the ones the rest
+// of the app actually writes to. Revenue is USD-only now (per
+// docs/ARCHITECTURE.md: "Harga selalu dalam USD") — the old two-currency
+// IDR/USD split belonged to the dead `invoices` flow, so `formatIDR` is no
+// longer used here.
 export default async function FinancePage() {
   const supabase = createServerClient(await cookies());
   const {
@@ -65,48 +92,65 @@ export default async function FinancePage() {
   // Aggregates are summed in JS rather than via a Postgres aggregate
   // query — this business is early-stage (low row counts), and summing
   // client-side here sidesteps PostgREST aggregate-function syntax that
-  // varies across Supabase/PostgREST versions.
-  const [{ data: invoices }, { data: commissions }, { data: wallets }, { data: recentCommissions }] =
+  // varies across Supabase/PostgREST versions. Same convention as the
+  // Invoices admin page and the original version of this page.
+  const [{ data: paidOrders }, { data: awaitingOrders }, { data: rewards }, { data: wallets }] =
     await Promise.all([
       supabase
-        .from("invoices")
-        .select("id, invoice_number, status, total, issue_date, created_at, clients(company_name)")
-        .order("created_at", { ascending: false })
-        .limit(500),
-      supabase.from("commissions").select("id, amount_usd, status"),
+        .from("orders")
+        .select(
+          "id, full_name, company_name, final_price_usd, payment_verified_at, services(name), clients(company_name)",
+        )
+        .eq("status", "paid")
+        .order("payment_verified_at", { ascending: false }),
+      supabase
+        .from("orders")
+        .select("id, final_price_usd")
+        .in("status", ["awaiting_payment", "payment_submitted"]),
+      supabase
+        .from("partner_rewards")
+        .select("id, amount_usd, status, created_at, partners(referral_code)")
+        .order("created_at", { ascending: false }),
       supabase
         .from("payment_wallets")
         .select("id, network, address, is_active, stablecoin_symbols, native_symbol, allow_native")
         .order("network"),
-      supabase
-        .from("commissions")
-        .select("id, amount_usd, status, created_at, ambassadors(referral_code)")
-        .order("created_at", { ascending: false })
-        .limit(6),
     ]);
 
-  const allInvoices = invoices ?? [];
-  const totalRevenue = allInvoices
-    .filter((i: any) => i.status === "paid")
-    .reduce((sum: number, i: any) => sum + Number(i.total ?? 0), 0);
-  const outstandingInvoices = allInvoices.filter((i: any) =>
-    ["unpaid", "partially_paid", "overdue"].includes(i.status),
-  );
-  const outstandingTotal = outstandingInvoices.reduce((sum: number, i: any) => sum + Number(i.total ?? 0), 0);
-
-  const allCommissions = commissions ?? [];
-  const pendingCommissions = allCommissions.filter((c: any) => c.status === "pending");
-  const paidCommissions = allCommissions.filter((c: any) => c.status === "paid");
-  const pendingCommissionsTotal = pendingCommissions.reduce(
-    (sum: number, c: any) => sum + Number(c.amount_usd ?? 0),
+  const allPaidOrders = paidOrders ?? [];
+  const totalRevenue = allPaidOrders.reduce(
+    (sum: number, o: any) => sum + Number(o.final_price_usd ?? 0),
     0,
   );
-  const paidCommissionsTotal = paidCommissions.reduce(
-    (sum: number, c: any) => sum + Number(c.amount_usd ?? 0),
+  const now = new Date();
+  const thisMonthRevenue = allPaidOrders
+    .filter((o: any) => {
+      if (!o.payment_verified_at) return false;
+      const verified = new Date(o.payment_verified_at);
+      return verified.getMonth() === now.getMonth() && verified.getFullYear() === now.getFullYear();
+    })
+    .reduce((sum: number, o: any) => sum + Number(o.final_price_usd ?? 0), 0);
+
+  const allAwaitingOrders = awaitingOrders ?? [];
+  const awaitingTotal = allAwaitingOrders.reduce(
+    (sum: number, o: any) => sum + Number(o.final_price_usd ?? 0),
     0,
   );
 
-  const recentInvoices = allInvoices.slice(0, 6);
+  const allRewards = rewards ?? [];
+  const pendingRewards = allRewards.filter((r: any) => r.status === "pending");
+  const availableRewards = allRewards.filter((r: any) => r.status === "available");
+  const pendingRewardsTotal = pendingRewards.reduce(
+    (sum: number, r: any) => sum + Number(r.amount_usd ?? 0),
+    0,
+  );
+  const availableRewardsTotal = availableRewards.reduce(
+    (sum: number, r: any) => sum + Number(r.amount_usd ?? 0),
+    0,
+  );
+
+  const recentPaidOrders = allPaidOrders.slice(0, 6);
+  const recentRewards = allRewards.slice(0, 6);
   const placeholderWallets = (wallets ?? []).filter((w: any) => w.address?.includes("PLACEHOLDER"));
 
   return (
@@ -114,7 +158,7 @@ export default async function FinancePage() {
       <div>
         <h1 className="text-2xl font-bold text-white">Finance</h1>
         <p className="mt-1 text-sm text-white/45">
-          Founder-only: revenue, outstanding invoices, and ambassador commissions across the whole
+          Founder-only: revenue, payments awaiting confirmation, and partner rewards across the whole
           studio.
         </p>
       </div>
@@ -142,89 +186,108 @@ export default async function FinancePage() {
         <FinanceTile
           icon={TrendingUp}
           label="Total Revenue"
-          value={formatIDR(totalRevenue)}
-          caption={`${allInvoices.filter((i: any) => i.status === "paid").length} paid invoices`}
+          value={formatUSD(totalRevenue)}
+          caption={`${allPaidOrders.length} paid order${allPaidOrders.length === 1 ? "" : "s"} · ${formatUSD(thisMonthRevenue)} this month`}
           tone="emerald"
         />
         <FinanceTile
           icon={Receipt}
-          label="Outstanding Invoices"
-          value={formatIDR(outstandingTotal)}
-          caption={`${outstandingInvoices.length} unpaid / overdue`}
+          label="Awaiting Payment"
+          value={formatUSD(awaitingTotal)}
+          caption={`${allAwaitingOrders.length} order${allAwaitingOrders.length === 1 ? "" : "s"} in progress`}
           tone="amber"
         />
         <FinanceTile
           icon={Coins}
-          label="Pending Commissions"
-          value={formatUSD(pendingCommissionsTotal)}
-          caption={`${pendingCommissions.length} owed to ambassadors`}
+          label="Pending Partner Rewards"
+          value={formatUSD(pendingRewardsTotal)}
+          caption={`${pendingRewards.length} reward${pendingRewards.length === 1 ? "" : "s"} owed to partners`}
           tone="purple"
         />
         <FinanceTile
           icon={Wallet}
-          label="Paid Commissions"
-          value={formatUSD(paidCommissionsTotal)}
-          caption={`${paidCommissions.length} paid out`}
+          label="Available Partner Rewards"
+          value={formatUSD(availableRewardsTotal)}
+          caption={`${availableRewards.length} reward${availableRewards.length === 1 ? "" : "s"} available`}
           tone="crimson"
         />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 sm:p-6">
-          <h2 className="mb-4 text-base font-semibold text-white">Recent Invoices</h2>
-          {recentInvoices.length === 0 ? (
-            <p className="py-6 text-center text-sm text-white/35">No invoices yet.</p>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-white">Recent Paid Orders</h2>
+            <Link href="/invoices" className="text-xs font-medium text-[var(--nimia-pink)] hover:underline">
+              View all
+            </Link>
+          </div>
+          {recentPaidOrders.length === 0 ? (
+            <p className="py-6 text-center text-sm text-white/35">No paid orders yet.</p>
           ) : (
             <div className="flex flex-col gap-3">
-              {recentInvoices.map((invoice: any) => (
-                <div
-                  key={invoice.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-white">
-                      {invoice.clients?.company_name || "Client"}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs text-white/45">
-                      {invoice.invoice_number} · {invoice.status}
-                    </p>
+              {recentPaidOrders.map((order: any) => {
+                const client = Array.isArray(order.clients) ? order.clients[0] : order.clients;
+                const service = Array.isArray(order.services) ? order.services[0] : order.services;
+                return (
+                  <div
+                    key={order.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white">
+                        {client?.company_name || order.company_name || order.full_name}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-white/45">
+                        {service?.name ?? "Custom Project"} ·{" "}
+                        {order.payment_verified_at ? formatRelativeTime(order.payment_verified_at) : "—"}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold text-white/80">
+                      {formatUSD(order.final_price_usd)}
+                    </span>
                   </div>
-                  <span className="shrink-0 text-sm font-semibold text-white/80">
-                    {formatIDR(invoice.total)}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
 
         <section className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 sm:p-6">
-          <h2 className="mb-4 text-base font-semibold text-white">Recent Commissions</h2>
-          {(recentCommissions ?? []).length === 0 ? (
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-white">Recent Partner Rewards</h2>
+            <Link href="/partners" className="text-xs font-medium text-[var(--nimia-pink)] hover:underline">
+              View all
+            </Link>
+          </div>
+          {recentRewards.length === 0 ? (
             <p className="py-6 text-center text-sm text-white/35">
-              No ambassador commissions yet. These appear automatically once a referred order is
+              No partner rewards yet. These appear automatically once a referred client&apos;s order is
               marked paid.
             </p>
           ) : (
             <div className="flex flex-col gap-3">
-              {(recentCommissions ?? []).map((c: any) => (
-                <div
-                  key={c.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-white">
-                      {c.ambassadors?.referral_code ?? "Ambassador"}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs text-white/45">
-                      {c.status} · {formatRelativeTime(c.created_at)}
-                    </p>
+              {recentRewards.map((reward: any) => {
+                const partner = Array.isArray(reward.partners) ? reward.partners[0] : reward.partners;
+                return (
+                  <div
+                    key={reward.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white">
+                        {partner?.referral_code ?? "Partner"}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-white/45">
+                        {reward.status === "available" ? "Available" : "Pending"} ·{" "}
+                        {formatRelativeTime(reward.created_at)}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold text-white/80">
+                      {formatUSD(reward.amount_usd)}
+                    </span>
                   </div>
-                  <span className="shrink-0 text-sm font-semibold text-white/80">
-                    {formatUSD(c.amount_usd)}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>

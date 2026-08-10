@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 
 // Slim closing footer for studio.nimiagames.com's public/marketing pages
@@ -26,6 +27,13 @@ const LEGAL_LINKS = [
   { href: `${WWW_URL}/refund-policy`, label: "Refund Policy" },
 ];
 
+// Partner Program link (10 Agustus 2026, launch-readiness audit fix) —
+// internal (this app's own /partners page, see app/partners/page.tsx), so
+// a plain next/link, not an external <a> like LEGAL_LINKS above. Kept
+// separate from that array on purpose: it's not a legal document, and it
+// shouldn't get the same ExternalLink icon since it doesn't leave this app.
+const PARTNER_LINK = { href: "/partners", label: "Partner Program" };
+
 export function Footer() {
   return (
     <footer className="border-t border-[var(--nimia-border)] px-4 py-6 sm:px-6">
@@ -33,6 +41,12 @@ export function Footer() {
         <p>&copy; {new Date().getFullYear()} Nimia Games. All rights reserved.</p>
 
         <nav className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <Link
+            href={PARTNER_LINK.href}
+            className="inline-flex items-center gap-1 transition-colors hover:text-[var(--foreground)]"
+          >
+            {PARTNER_LINK.label}
+          </Link>
           {LEGAL_LINKS.map((link) => (
             <a
               key={link.href}

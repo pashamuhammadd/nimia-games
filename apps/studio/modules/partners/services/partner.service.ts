@@ -35,14 +35,23 @@ export async function getPartnerOverview(
   const rawPartner = await partnerRepository.findByUserId(supabase, userId);
 
   // The repository returns a partner shape with placeholder level/rate;
-  // resolving the REAL level (and the Founding Partner override) is a
-  // business rule that belongs here, not duplicated into every caller.
-  const currentLevel = resolvePartnerLevel(rawPartner.paidClientsCount, rawPartner.isFoundingPartner);
+  // resolving the REAL level (and the Founding Partner / /partners-page
+  // overrides) is a business rule that belongs here, not duplicated into
+  // every caller.
+  const currentLevel = resolvePartnerLevel(
+    rawPartner.paidClientsCount,
+    rawPartner.isFoundingPartner,
+    rawPartner.joinedViaPartnerPage,
+  );
   const commissionRate = resolveCommissionRate(currentLevel, rawPartner.isFoundingPartner);
   const partner: Partner = { ...rawPartner, currentLevel, commissionRate };
 
   const referrals = await partnerRepository.findReferralsByPartnerId(supabase, partner.id);
-  const levelProgress = calculateLevelProgress(partner.paidClientsCount, partner.isFoundingPartner);
+  const levelProgress = calculateLevelProgress(
+    partner.paidClientsCount,
+    partner.isFoundingPartner,
+    partner.joinedViaPartnerPage,
+  );
   const foundingProgram = await partnerRepository.getFoundingProgramStatus(supabase);
 
   const stats: PartnerStatsSummary = {

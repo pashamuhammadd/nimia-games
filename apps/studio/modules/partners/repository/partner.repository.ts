@@ -34,7 +34,9 @@ export const partnerRepository: PartnerRepository = {
   async findByUserId(supabase, userId) {
     const { data: partnerRow, error: partnerError } = await supabase
       .from("partners")
-      .select("id, user_id, referral_code, is_founding_partner, founding_partner_number, created_at")
+      .select(
+        "id, user_id, referral_code, is_founding_partner, founding_partner_number, joined_via_partner_page, created_at",
+      )
       .eq("user_id", userId)
       .single();
 
@@ -81,6 +83,7 @@ export const partnerRepository: PartnerRepository = {
       commissionRate: 0.05,
       isFoundingPartner: partnerRow.is_founding_partner,
       foundingPartnerNumber: partnerRow.founding_partner_number ?? undefined,
+      joinedViaPartnerPage: partnerRow.joined_via_partner_page ?? false,
       rewardBalance: {
         pendingUsd: Number(metrics.pending_reward_usd),
         availableUsd: Number(metrics.available_reward_usd),

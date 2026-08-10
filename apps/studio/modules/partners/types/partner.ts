@@ -46,6 +46,17 @@ export interface Partner {
   /** 1-based join order, e.g. 72 of the Founding Partner quota. Only set when isFoundingPartner. */
   foundingPartnerNumber?: number;
 
+  /**
+   * True if this account registered through studio.nimiagames.com/partners
+   * (10 Agustus 2026, per user decision) rather than a plain /register
+   * visit or a referral link. Grants a Gold-rate (10%) commission FLOOR —
+   * unlike isFoundingPartner, this does NOT lock the level; enough paid
+   * clients still carries the partner on up to Platinum. See
+   * utils/level-calculator.ts#resolvePartnerLevel for how the floor is
+   * applied.
+   */
+  joinedViaPartnerPage: boolean;
+
   rewardBalance: {
     pendingUsd: number;
     availableUsd: number;

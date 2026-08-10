@@ -20,20 +20,28 @@ import { StartProjectButton } from "./StartProjectButton";
 // /contact page (a contact form) was removed entirely, not just relabeled.
 // /how-to-start is a full guide to Nimia Studio's order/negotiate/pay/
 // verify/deliver process — see app/how-to-start/page.tsx.
+//
+// Partners (10 Agustus 2026, launch-readiness audit fix): this used to say
+// "/ambassador/apply once that's built" right here — that page never got
+// built under that name. It's now live at /partners instead (see
+// app/partners/page.tsx), a public page explaining the Nimia Partner
+// Program with a CTA into /register (every account auto-enrolls as a
+// partner, so there's no separate apply step). Added as the 6th nav item.
 const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/why-nimia", label: "Why Nimia" },
   { href: "/services", label: "Services" },
   { href: "/portfolio", label: "Portfolio" },
   { href: "/how-to-start", label: "How to Start" },
+  { href: "/partners", label: "Partners" },
 ];
 
 // Public navbar for the unauthenticated/marketing side of studio.nimiagames.com
-// (/, /services, /login, /register — and /ambassador/apply once that's
-// built). Deliberately separate from the dashboard's sidebar (DashboardNav)
-// — the two areas were confirmed with the user to have opposite nav
-// patterns: public pages get a top navbar with NO sidebar, dashboard pages
-// keep their existing sidebar with NO top navbar.
+// (/, /services, /login, /register, /partners). Deliberately separate from
+// the dashboard's sidebar (DashboardNav) — the two areas were confirmed
+// with the user to have opposite nav patterns: public pages get a top
+// navbar with NO sidebar, dashboard pages keep their existing sidebar with
+// NO top navbar.
 //
 // Redesigned dark (29 Juli 2026, per user reference image) to match
 // apps/www's cinematic dark brand instead of the dashboard's light theme.
