@@ -84,13 +84,16 @@ export interface ServiceDetailBlock {
   description: string;
   items: string[];
   /**
-   * 4:3 thumbnail shown next to this block's copy (11 Agustus 2026, per
-   * user request — replaces the abstract SVG visual that used to fill
-   * this spot, see app/components/services/visuals.tsx). Files aren't in
-   * the repo yet — the user is preparing 3 real 4:3 images; until each
-   * one is dropped in at this exact path, ExploreServicesSection.tsx will
-   * render a broken image here (next/image doesn't fail the build for a
-   * missing public/ file, it just 404s at request time).
+   * 1:1 (square) thumbnail shown next to this block's copy (11 Agustus
+   * 2026, per user request — replaces the abstract SVG visual that used to
+   * fill this spot, see app/components/services/visuals.tsx; ratio
+   * corrected from an initial 4:3 to 1:1 the same day, per user's actual
+   * image dimensions — see `aspect-square` on the container in
+   * ExploreServicesSection.tsx). Files aren't in the repo yet — the user
+   * is preparing 3 real 1:1 images; until each one is dropped in at this
+   * exact path, ExploreServicesSection.tsx will render a broken image here
+   * (next/image doesn't fail the build for a missing public/ file, it just
+   * 404s at request time).
    */
   thumbnailSrc: string;
 }

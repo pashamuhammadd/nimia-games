@@ -5,13 +5,14 @@ import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
 import { CORE_SERVICES, SERVICE_DETAILS } from "../data";
 
-// Real 4:3 thumbnails (11 Agustus 2026, per user request) — replaces the
-// abstract SVG "ambient visual" (app/components/services/visuals.tsx) this
-// section used to render here. Same next/image + `fill` inside an
-// `aspect-[ratio]` container pattern modules/order/components/option-card.tsx
-// already established for package thumbnails, just `aspect-[4/3]` instead
-// of that component's `aspect-video` — matches the 4:3 size the user is
-// preparing these images at (see SERVICE_DETAILS[].thumbnailSrc in ../data.ts).
+// Real 1:1 thumbnails (11 Agustus 2026, per user request; ratio corrected
+// from 4:3 to 1:1 same day) — replaces the abstract SVG "ambient visual"
+// (app/components/services/visuals.tsx) this section used to render here.
+// Same next/image + `fill` inside an `aspect-[ratio]` container pattern
+// modules/order/components/option-card.tsx already established for package
+// thumbnails, just `aspect-square` instead of that component's
+// `aspect-video` — matches the 1:1 size the user is preparing these images
+// at (see SERVICE_DETAILS[].thumbnailSrc in ../data.ts).
 
 // SECTION 3 — Explore Our Services. One large block per core service, in
 // the same fixed order as Section 2, each carrying an id so the matching
@@ -76,7 +77,7 @@ export function ExploreServicesSection() {
                     {block.description}
                   </p>
 
-                  <div className="relative mt-8 aspect-[4/3] w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                  <div className="relative mt-8 aspect-square w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20">
                     <Image
                       src={block.thumbnailSrc}
                       alt={block.title}
