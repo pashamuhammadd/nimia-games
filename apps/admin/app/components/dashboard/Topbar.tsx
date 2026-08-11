@@ -4,6 +4,7 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 import { ChevronDown, LogOut, Menu, ExternalLink } from "lucide-react";
 import { getActiveNavItem } from "../AdminNav";
+import { Avatar } from "./Avatar";
 import { NotificationsBell } from "./NotificationsBell";
 import type { NotificationRow } from "../../lib/notifications";
 
@@ -39,6 +40,7 @@ export function Topbar({
   onMenuClick,
   userName,
   userEmail,
+  userAvatarUrl,
   onSignOut,
   initialNotifications,
   initialUnreadCount,
@@ -46,13 +48,13 @@ export function Topbar({
   onMenuClick: () => void;
   userName: string;
   userEmail: string;
+  userAvatarUrl?: string | null;
   onSignOut: () => void;
   initialNotifications: NotificationRow[];
   initialUnreadCount: number;
 }) {
   const pathname = usePathname();
   const pageTitle = getActiveNavItem(pathname)?.label ?? "Overview";
-  const initial = (userName || userEmail || "?").trim().charAt(0).toUpperCase();
 
   const [avatarOpen, setAvatarOpen] = React.useState(false);
   const avatarRef = useClickOutside<HTMLDivElement>(() => setAvatarOpen(false));
@@ -91,9 +93,7 @@ export function Topbar({
             aria-expanded={avatarOpen}
             className="flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 transition-colors hover:bg-white/[0.06]"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[var(--nimia-crimson)] to-[var(--nimia-pink)] text-sm font-semibold text-white">
-              {initial}
-            </span>
+            <Avatar avatarUrl={userAvatarUrl} name={userName || userEmail} size="sm" />
             <span className="hidden max-w-[9rem] truncate text-sm font-medium text-white/90 sm:inline">
               {userName || userEmail}
             </span>

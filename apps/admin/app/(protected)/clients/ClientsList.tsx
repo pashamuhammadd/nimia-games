@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Search, Mail, MessageCircle, Globe2 } from "lucide-react";
+import { Search, Mail, MessageCircle, Globe2, UserRound } from "lucide-react";
 import { Modal, cn } from "@nimia/ui";
 import { orderStatusMeta } from "../../lib/orderStatus";
 import { formatRelativeTime } from "../../lib/relativeTime";
@@ -16,6 +16,7 @@ export type ClientOrderSummary = {
 export type ClientRow = {
   id: string;
   name: string;
+  avatarUrl: string | null;
   email: string | null;
   whatsapp: string | null;
   country: string | null;
@@ -35,15 +36,40 @@ const THUMBNAIL_GRADIENTS = [
 
 // Same deterministic per-client accent trick as
 // apps/admin/app/(protected)/orders/OrdersList.tsx — picks from a fixed
-// on-brand palette so the same client always gets the same "avatar" color.
+// on-brand palette so the same client always gets the same "avatar" color
+// when they have no uploaded photo yet.
 function thumbnailGradient(seed: string) {
   const hash = Array.from(seed).reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
   return THUMBNAIL_GRADIENTS[hash % THUMBNAIL_GRADIENTS.length];
 }
 
-function initialsFor(text: string) {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  return (words[0]?.[0] ?? "?").toUpperCase() + (words[1]?.[0] ?? "").toUpperCase();
+// Client thumbnail — parity fix (11 Agustus 2026, user report: profile
+// pictures here should look like apps/studio's, not letters). Used to
+// always render two-letter initials on a colored square regardless of
+// whether the client had actually uploaded a photo; now prefers the real
+// `users.avatar_url` (same field apps/studio's own Avatar.tsx reads) and
+// only falls back to a plain silhouette icon — never text — on the same
+// deterministic gradient as before.
+function ClientThumbnail({ client }: { client: ClientRow }) {
+  if (client.avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- a user-uploaded
+      // photo is an arbitrary remote URL, same reasoning as apps/studio's Avatar.tsx.
+      <img
+        src={client.avatarUrl}
+        alt={`${client.name}'s profile picture`}
+        className="h-12 w-12 shrink-0 rounded-xl object-cover"
+      />
+    );
+  }
+  return (
+    <div
+      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white ${thumbnailGradient(client.name)}`}
+      aria-hidden="true"
+    >
+      <UserRound className="h-6 w-6 text-white/90" strokeWidth={1.75} />
+    </div>
+  );
 }
 
 export function ClientsList({ clients }: { clients: ClientRow[] }) {
@@ -95,12 +121,7 @@ export function ClientsList({ clients }: { clients: ClientRow[] }) {
               onClick={() => setSelected(client)}
               className="flex flex-col gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-left transition-colors hover:border-white/[0.12] sm:flex-row sm:items-center"
             >
-              <div
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold text-white ${thumbnailGradient(client.name)}`}
-                aria-hidden="true"
-              >
-                {initialsFor(client.name)}
-              </div>
+              <ClientThumbnail client={client} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-3">
                   <p className="truncate text-sm font-semibold text-white">{client.name}</p>

@@ -59,7 +59,10 @@ export default async function PartnersPage() {
         <div className="lg:col-span-2">
           <ReferralActivityTable referrals={overview.referrals} />
         </div>
-        <RewardsCard rewards={overview.rewardSummary} />
+        <RewardsCard
+          rewards={overview.rewardSummary}
+          hasOpenWithdrawalRequest={overview.partner.openWithdrawalRequest !== null}
+        />
       </div>
 
       <ReferralKit />

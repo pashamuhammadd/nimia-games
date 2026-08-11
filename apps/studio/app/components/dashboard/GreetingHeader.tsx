@@ -3,7 +3,15 @@
 import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Rocket } from "lucide-react";
+import { Rocket, Globe } from "lucide-react";
+
+// The public marketing homepage (studio.nimiagames.com's "/") — added 11
+// Agustus 2026 per user report: the client dashboard had no way back to
+// the marketing site once a client signed in, only the avatar menu's
+// Logout. There's no dedicated "/home" route in this app (the marketing
+// homepage lives at the root "/", same as PublicNavbar.tsx's own logo
+// link), so this CTA points there.
+const HOMEPAGE_HREF = "/";
 
 function greetingForHour(hour: number) {
   if (hour >= 5 && hour < 12) return "Good Morning";
@@ -56,15 +64,27 @@ export function GreetingHeader({ name, ctaHref }: { name: string; ctaHref: strin
           </p>
         </div>
 
-        <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} className="w-fit">
-          <Link
-            href={ctaHref}
-            className="inline-flex items-center gap-2 rounded-xl bg-[var(--nimia-crimson)] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[var(--nimia-crimson)]/25 transition-colors hover:bg-[var(--nimia-crimson-hover)]"
-          >
-            <Rocket className="h-4 w-4" aria-hidden="true" />
-            Start a Project
-          </Link>
-        </motion.div>
+        <div className="flex flex-wrap items-center gap-3">
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} className="w-fit">
+            <Link
+              href={ctaHref}
+              className="inline-flex items-center gap-2 rounded-xl bg-[var(--nimia-crimson)] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[var(--nimia-crimson)]/25 transition-colors hover:bg-[var(--nimia-crimson-hover)]"
+            >
+              <Rocket className="h-4 w-4" aria-hidden="true" />
+              Start a Project
+            </Link>
+          </motion.div>
+
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} className="w-fit">
+            <Link
+              href={HOMEPAGE_HREF}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-white/80 backdrop-blur transition-colors hover:bg-white/[0.08] hover:text-white"
+            >
+              <Globe className="h-4 w-4" aria-hidden="true" />
+              Back to Home
+            </Link>
+          </motion.div>
+        </div>
       </div>
     </motion.div>
   );

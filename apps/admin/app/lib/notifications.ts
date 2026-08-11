@@ -11,6 +11,7 @@ export type NotificationType =
   | "order_negotiation_offer"
   | "order_payment_submitted"
   | "support_ticket_new"
+  | "partner_withdrawal_requested"
   | (string & {});
 
 export const NOTIFICATION_TYPE_META: Record<string, { icon: LucideIcon; accentClass: string }> = {
@@ -19,6 +20,9 @@ export const NOTIFICATION_TYPE_META: Record<string, { icon: LucideIcon; accentCl
   order_payment_submitted: { icon: Wallet, accentClass: "bg-sky-500/15 text-sky-400" },
   support_ticket_new: { icon: LifeBuoy, accentClass: "bg-emerald-500/15 text-emerald-400" },
   referral_signup: { icon: Handshake, accentClass: "bg-pink-500/15 text-[var(--nimia-pink)]" },
+  // Withdrawal system (11 Agustus 2026, migration 0033) — fired when a
+  // partner requests a payout; founders act on it from the Partners page.
+  partner_withdrawal_requested: { icon: Wallet, accentClass: "bg-amber-500/15 text-amber-400" },
 };
 
 export function notificationTypeMeta(type: string) {

@@ -11,3 +11,4 @@ export {
   commissionRateForLevel,
 } from "./commission";
 export { FOUNDING_PARTNER_QUOTA } from "./founding-partner";
+export { WALLET_NETWORK_LABELS, WALLET_NETWORK_OPTIONS } from "./wallet-network";

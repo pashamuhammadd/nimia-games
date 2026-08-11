@@ -18,6 +18,7 @@ export function AdminShell({
   children,
   userName,
   userEmail,
+  userAvatarUrl,
   role,
   signOutAction,
   initialNotifications,
@@ -26,6 +27,7 @@ export function AdminShell({
   children: React.ReactNode;
   userName: string;
   userEmail: string;
+  userAvatarUrl?: string | null;
   role: string;
   signOutAction: () => void | Promise<void>;
   initialNotifications: NotificationRow[];
@@ -43,6 +45,7 @@ export function AdminShell({
           onMenuClick={() => setMobileOpen(true)}
           userName={userName}
           userEmail={userEmail}
+          userAvatarUrl={userAvatarUrl}
           onSignOut={() => void signOutAction()}
           initialNotifications={initialNotifications}
           initialUnreadCount={initialUnreadCount}

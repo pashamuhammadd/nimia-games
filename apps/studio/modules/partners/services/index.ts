@@ -1,1 +1,1 @@
-export { getPartnerOverview, type PartnerOverview } from "./partner.service";
+export { getPartnerOverview, requestPartnerWithdrawal, type PartnerOverview } from "./partner.service";

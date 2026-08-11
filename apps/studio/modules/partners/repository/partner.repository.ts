@@ -3,6 +3,7 @@ import { deriveReferralStatus } from "../utils/derive-referral-status";
 import { FOUNDING_PARTNER_QUOTA } from "../constants/founding-partner";
 import type { Partner, FoundingPartnerProgramStatus } from "../types/partner";
 import type { Referral } from "../types/referral";
+import type { WalletNetwork } from "../types/reward";
 
 // ------------------------------------------------------------------
 // Real data-access layer (30 Juli 2026, migration
@@ -28,6 +29,21 @@ export interface PartnerRepository {
   findByUserId(supabase: SupabaseClient, userId: string): Promise<Partner>;
   findReferralsByPartnerId(supabase: SupabaseClient, partnerId: string): Promise<Referral[]>;
   getFoundingProgramStatus(supabase: SupabaseClient): Promise<FoundingPartnerProgramStatus>;
+  /**
+   * Claims the caller's entire current Available Reward balance for
+   * payout to `walletAddress`. Wraps request_partner_withdrawal()
+   * (packages/db/migrations/0033_partner_reward_withdrawals.sql) — that
+   * RPC does the real validation (must be a partner, must have an
+   * available balance, must not already have an open request) and raises
+   * a plain-text exception otherwise, which Supabase surfaces as
+   * `error.message` — rethrown here as-is so the calling server action
+   * can show it directly to the partner.
+   */
+  requestWithdrawal(
+    supabase: SupabaseClient,
+    walletNetwork: WalletNetwork,
+    walletAddress: string,
+  ): Promise<{ id: string; amountUsd: number }>;
 }
 
 export const partnerRepository: PartnerRepository = {
@@ -62,7 +78,10 @@ export const partnerRepository: PartnerRepository = {
       paid_clients_count: 0,
       pending_reward_usd: 0,
       available_reward_usd: 0,
+      withdrawing_reward_usd: 0,
       lifetime_reward_usd: 0,
+      open_withdrawal_request_id: null,
+      open_withdrawal_amount_usd: null,
     };
 
     return {
@@ -87,8 +106,15 @@ export const partnerRepository: PartnerRepository = {
       rewardBalance: {
         pendingUsd: Number(metrics.pending_reward_usd),
         availableUsd: Number(metrics.available_reward_usd),
+        withdrawingUsd: Number(metrics.withdrawing_reward_usd ?? 0),
         lifetimeUsd: Number(metrics.lifetime_reward_usd),
       },
+      openWithdrawalRequest: metrics.open_withdrawal_request_id
+        ? {
+            id: metrics.open_withdrawal_request_id,
+            amountUsd: Number(metrics.open_withdrawal_amount_usd ?? 0),
+          }
+        : null,
       createdAt: partnerRow.created_at,
     };
   },
@@ -138,5 +164,29 @@ export const partnerRepository: PartnerRepository = {
       claimed,
       isOpen: claimed < FOUNDING_PARTNER_QUOTA,
     };
+  },
+
+  async requestWithdrawal(supabase, walletNetwork, walletAddress) {
+    const { data, error } = await supabase.rpc("request_partner_withdrawal", {
+      p_wallet_network: walletNetwork,
+      p_wallet_address: walletAddress,
+    });
+
+    // Same "PostgREST may hand back a single composite row as either a
+    // bare object or a one-element array" defensive unwrap
+    // applyVoucherAction (app/dashboard/orders/payment-actions.ts) already
+    // uses for apply_voucher_to_order — request_partner_withdrawal returns
+    // `public.partner_withdrawal_requests` (a single row), same shape.
+    const row = Array.isArray(data) ? data[0] : data;
+
+    if (error || !row) {
+      // error.message here is the plain-text RAISE EXCEPTION body from
+      // request_partner_withdrawal() (e.g. "no available reward to
+      // withdraw", "you already have a withdrawal request in review") —
+      // already a sentence a partner can read as-is, no mapping needed.
+      throw new Error(error?.message ?? "Couldn't submit your withdrawal request. Please try again.");
+    }
+
+    return { id: (row as { id: string }).id, amountUsd: Number((row as { amount_usd: number | string }).amount_usd) };
   },
 };

@@ -1,21 +1,17 @@
 "use client";
 
+import Image from "next/image";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
 import { CORE_SERVICES, SERVICE_DETAILS } from "../data";
-import { AnimationVisual, GameDevVisual, WebsiteVisual } from "../../components/services/visuals";
 
-// Abstract ambient visuals (pure CSS/SVG, no screenshots or gameplay
-// mockups) reused from the previous Services build — they were already
-// exactly the kind of non-literal, per-category visual this redesign wants
-// for a section like this one. Section 2's cards deliberately drop this
-// panel per the new brief; this section keeps it as texture next to each
-// detail block instead of a wall of text/chips.
-const VISUALS = {
-  animation: AnimationVisual,
-  "game-development": GameDevVisual,
-  "website-development": WebsiteVisual,
-} as const;
+// Real 4:3 thumbnails (11 Agustus 2026, per user request) — replaces the
+// abstract SVG "ambient visual" (app/components/services/visuals.tsx) this
+// section used to render here. Same next/image + `fill` inside an
+// `aspect-[ratio]` container pattern modules/order/components/option-card.tsx
+// already established for package thumbnails, just `aspect-[4/3]` instead
+// of that component's `aspect-video` — matches the 4:3 size the user is
+// preparing these images at (see SERVICE_DETAILS[].thumbnailSrc in ../data.ts).
 
 // SECTION 3 — Explore Our Services. One large block per core service, in
 // the same fixed order as Section 2, each carrying an id so the matching
@@ -55,7 +51,6 @@ export function ExploreServicesSection() {
 
       <div className="mx-auto mt-16 max-w-6xl space-y-20 sm:mt-20 sm:space-y-28">
         {SERVICE_DETAILS.map((block, index) => {
-          const Visual = VISUALS[block.id];
           const Icon = CORE_SERVICES.find((s) => s.id === block.id)?.icon;
           const visualFirst = index % 2 === 0;
 
@@ -81,8 +76,14 @@ export function ExploreServicesSection() {
                     {block.description}
                   </p>
 
-                  <div className="relative mt-8 h-48 overflow-hidden rounded-2xl border border-white/10 bg-black/20 sm:h-56">
-                    <Visual />
+                  <div className="relative mt-8 aspect-[4/3] w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                    <Image
+                      src={block.thumbnailSrc}
+                      alt={block.title}
+                      fill
+                      sizes="(min-width: 768px) 50vw, 100vw"
+                      className="object-cover"
+                    />
                   </div>
                 </motion.div>
 

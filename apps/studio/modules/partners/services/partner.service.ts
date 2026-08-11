@@ -3,7 +3,7 @@ import { partnerRepository } from "../repository/partner.repository";
 import { resolvePartnerLevel, resolveCommissionRate, calculateLevelProgress, type LevelProgress } from "../utils/level-calculator";
 import type { Partner, PartnerStatsSummary, FoundingPartnerProgramStatus } from "../types/partner";
 import type { Referral } from "../types/referral";
-import type { RewardSummary } from "../types/reward";
+import type { RewardSummary, WalletNetwork } from "../types/reward";
 
 /**
  * Everything the Partners dashboard page needs, pre-assembled. This is the
@@ -64,8 +64,24 @@ export async function getPartnerOverview(
   const rewardSummary: RewardSummary = {
     pendingUsd: partner.rewardBalance.pendingUsd,
     availableUsd: partner.rewardBalance.availableUsd,
+    withdrawingUsd: partner.rewardBalance.withdrawingUsd,
     lifetimeUsd: partner.rewardBalance.lifetimeUsd,
   };
 
   return { partner, stats, levelProgress, referrals, rewardSummary, foundingProgram };
+}
+
+/**
+ * Claims the caller's entire current Available Reward balance for payout
+ * to `walletAddress`. Called from
+ * app/dashboard/partners/withdraw/actions.ts — never directly from a
+ * component, same "server action -> service -> repository" layering as
+ * every other write path in this module.
+ */
+export async function requestPartnerWithdrawal(
+  supabase: SupabaseClient,
+  walletNetwork: WalletNetwork,
+  walletAddress: string,
+): Promise<{ id: string; amountUsd: number }> {
+  return partnerRepository.requestWithdrawal(supabase, walletNetwork, walletAddress);
 }

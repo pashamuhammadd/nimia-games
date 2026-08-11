@@ -28,6 +28,8 @@ export type NotificationType =
   | "project_status"
   | "project_deliverable"
   | "referral_signup"
+  | "partner_withdrawal_sent"
+  | "partner_withdrawal_rejected"
   | (string & {});
 
 export const NOTIFICATION_TYPE_META: Record<string, { icon: LucideIcon; accentClass: string }> = {
@@ -38,6 +40,10 @@ export const NOTIFICATION_TYPE_META: Record<string, { icon: LucideIcon; accentCl
   project_status: { icon: FolderKanban, accentClass: "bg-violet-500/15 text-violet-400" },
   project_deliverable: { icon: FileText, accentClass: "bg-emerald-500/15 text-emerald-400" },
   referral_signup: { icon: Handshake, accentClass: "bg-pink-500/15 text-[var(--nimia-pink)]" },
+  // Withdrawal system (11 Agustus 2026, migration 0033) — sent when a
+  // founder approves/rejects a partner's withdrawal request.
+  partner_withdrawal_sent: { icon: Wallet, accentClass: "bg-emerald-500/15 text-emerald-400" },
+  partner_withdrawal_rejected: { icon: Wallet, accentClass: "bg-red-500/15 text-red-400" },
 };
 
 export function notificationTypeMeta(type: string) {

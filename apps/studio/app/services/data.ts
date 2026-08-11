@@ -83,6 +83,16 @@ export interface ServiceDetailBlock {
   title: string;
   description: string;
   items: string[];
+  /**
+   * 4:3 thumbnail shown next to this block's copy (11 Agustus 2026, per
+   * user request — replaces the abstract SVG visual that used to fill
+   * this spot, see app/components/services/visuals.tsx). Files aren't in
+   * the repo yet — the user is preparing 3 real 4:3 images; until each
+   * one is dropped in at this exact path, ExploreServicesSection.tsx will
+   * render a broken image here (next/image doesn't fail the build for a
+   * missing public/ file, it just 404s at request time).
+   */
+  thumbnailSrc: string;
 }
 
 // SECTION 3 — Explore Our Services. Anchor ids match CORE_SERVICES ids so
@@ -94,6 +104,7 @@ export const SERVICE_DETAILS: ServiceDetailBlock[] = [
     title: "Animation",
     description:
       "Expressive, production-ready animation for games, brands, and marketing.",
+    thumbnailSrc: "/services/explore/animation.webp",
     items: [
       "Character Animation",
       "Logo Animation",
@@ -110,6 +121,7 @@ export const SERVICE_DETAILS: ServiceDetailBlock[] = [
     title: "Game Development",
     description:
       "Full-cycle game development from first prototype to a shipped, polished build.",
+    thumbnailSrc: "/services/explore/game-development.webp",
     items: [
       "Full Game Development",
       "Unity Development",
@@ -125,6 +137,7 @@ export const SERVICE_DETAILS: ServiceDetailBlock[] = [
     title: "Website Development",
     description:
       "Fast, modern, and responsive websites built to convert and scale.",
+    thumbnailSrc: "/services/explore/website-development.webp",
     items: [
       "Landing Page",
       "Company Website",

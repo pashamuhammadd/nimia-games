@@ -21,9 +21,12 @@ export default async function ClientsPage() {
   const supabase = createServerClient(await cookies());
 
   const [{ data: clients }, { data: orders }] = await Promise.all([
+    // avatar_url added 11 Agustus 2026 (parity fix — this list used to
+    // always render two-letter initials, never the client's real photo;
+    // see ClientsList.tsx's ClientThumbnail).
     supabase
       .from("clients")
-      .select("id, company_name, whatsapp, country, created_at, users(full_name)")
+      .select("id, company_name, whatsapp, country, created_at, users(full_name, avatar_url)")
       .order("created_at", { ascending: false }),
     supabase
       .from("orders")
@@ -56,6 +59,7 @@ export default async function ClientsPage() {
         latestOrder?.company_name ||
         latestOrder?.full_name ||
         "Unnamed client",
+      avatarUrl: usersRow?.avatar_url ?? null,
       email: latestOrder?.email ?? null,
       whatsapp: c.whatsapp || latestOrder?.whatsapp || null,
       country: c.country || latestOrder?.country || null,

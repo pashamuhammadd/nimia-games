@@ -17,6 +17,8 @@
 // for audit, no longer read by the app). There is now only ONE referral
 // system — this one, self-serve, every account gets a code automatically.
 
+import type { OpenWithdrawalRequest } from "./reward";
+
 /** The four partner tiers, ordered lowest to highest. */
 export type PartnerLevel = "bronze" | "silver" | "gold" | "platinum";
 
@@ -60,8 +62,13 @@ export interface Partner {
   rewardBalance: {
     pendingUsd: number;
     availableUsd: number;
+    /** Locked into an open withdrawal request — see types/reward.ts. */
+    withdrawingUsd: number;
     lifetimeUsd: number;
   };
+
+  /** This partner's currently open (in-review) withdrawal request, if any. */
+  openWithdrawalRequest: OpenWithdrawalRequest | null;
 
   createdAt: string;
 }

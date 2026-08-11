@@ -20,8 +20,11 @@ export default async function ProtectedLayout({
     redirect("/login");
   }
 
+  // avatar_url added 11 Agustus 2026 (parity fix — this query used to
+  // select only full_name/role, so Topbar never had a photo to show and
+  // always fell back to a plain letter; see components/dashboard/Avatar.tsx).
   const [{ data: profile }, notifications] = await Promise.all([
-    supabase.from("users").select("full_name, role").eq("id", user.id).single(),
+    supabase.from("users").select("full_name, role, avatar_url").eq("id", user.id).single(),
     getNotificationsAction(),
   ]);
 
@@ -40,6 +43,7 @@ export default async function ProtectedLayout({
     <AdminShell
       userName={profile.full_name ?? ""}
       userEmail={user.email ?? ""}
+      userAvatarUrl={profile.avatar_url ?? null}
       role={profile.role}
       signOutAction={signOutAction}
       initialNotifications={notifications.notifications}
