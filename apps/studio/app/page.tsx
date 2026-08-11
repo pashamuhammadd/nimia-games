@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { createServerClient } from "@nimia/db";
 import { buttonVariants, cn } from "@nimia/ui";
 import { Play, Rocket, Smile, Wrench, Headphones } from "lucide-react";
@@ -46,13 +45,22 @@ export default async function StudioHomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user) {
-    redirect("/dashboard");
-  }
-
+  // Removed the old `if (user) redirect("/dashboard")` guard here (11
+  // Agustus 2026, per user bug report) — it made this page unreachable for
+  // signed-in clients, so the dashboard's new "Back to Home" CTA
+  // (GreetingHeader.tsx, added earlier the same day) just bounced straight
+  // back to /dashboard instead of showing the marketing homepage. Every
+  // OTHER public page in this app (services/page.tsx, portfolio, etc.)
+  // already follows the pattern used below — render normally for everyone
+  // and pass `isAuthenticated={!!user}` down so PublicNavbar/StartProjectButton
+  // adapt (e.g. "Start a Project" goes straight to /order instead of
+  // opening the login modal) — this page just hadn't been brought in line
+  // with that pattern yet. If a signed-in user lands here (via this CTA, a
+  // bookmark, or typing the bare domain), they now see the same homepage a
+  // logged-out visitor does, just with CTAs pointed at the right place.
   return (
     <div className="nimia-dark">
-      <PublicNavbar isAuthenticated={false} />
+      <PublicNavbar isAuthenticated={!!user} />
 
       <main>
         {/* HERO — redesigned 10 Agustus 2026 per user brief: outcome-focused

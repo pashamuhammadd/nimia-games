@@ -84,13 +84,25 @@ export function ExploreServicesSection() {
                       instead of the previous `object-cover` so the full
                       transparent artwork always shows uncropped, regardless
                       of the exact pixel dimensions of the file the user
-                      drops in. */}
-                  <div className="relative mt-8 aspect-square w-full">
+                      drops in.
+
+                      Width capped at 65% of the column (11 Agustus 2026,
+                      later same day — user said the images were rendering
+                      too large, ~35% smaller requested). Was `w-full`
+                      (filled the whole column); shrinking the WIDTH by 35%
+                      is what actually reads as "35% smaller" — `aspect-square`
+                      still drives the height off whatever width results, so
+                      the thumbnail just gets proportionally smaller, not
+                      cropped or stretched. Left-aligned within its column
+                      (no `mx-auto`) so it stays flush with the heading/copy
+                      above it, on whichever side (left or right) that
+                      column falls per `visualFirst`. */}
+                  <div className="relative mt-8 aspect-square w-[65%]">
                     <Image
                       src={block.thumbnailSrc}
                       alt={block.title}
                       fill
-                      sizes="(min-width: 768px) 50vw, 100vw"
+                      sizes="(min-width: 768px) 33vw, 65vw"
                       className="object-contain"
                     />
                   </div>
