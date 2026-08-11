@@ -8,7 +8,18 @@ import {
   sendPaymentVerifiedEmail,
   sendPaymentFlaggedEmail,
 } from "../../../lib/email";
-import { notifyNegotiationUpdate, notifyPaymentVerified, notifyPaymentFlagged } from "@nimia/discord";
+import {
+  notifyNegotiationUpdate,
+  notifyPaymentVerified,
+  notifyPaymentFlagged,
+  notifyReferralReward,
+  notifyPartnerLevelChanged,
+  postOrUpdateLeaderboard,
+  resolvePublicPartnerName,
+  getDiscordChannelId,
+  type LeaderboardRow,
+} from "@nimia/discord";
+import { resolvePartnerLevelDisplay, nextPartnerLevelDisplay } from "../partners/partner-level";
 
 export type OrderActionResult = { success: true } | { success: false; error: string };
 
@@ -407,6 +418,187 @@ export async function rejectNegotiationAction(orderId: string): Promise<OrderAct
 // point.
 // ------------------------------------------------------------------
 
+// ------------------------------------------------------------------
+// Discord Partner Program gamification (11 Agustus 2026) — everything
+// below this comment supports verifyPaymentAction's PAYMENT CONFIRMED
+// transition, which is the ONLY place in this whole app a
+// partner_rewards row gets created (handle_order_paid_partner_reward(),
+// migration 0016, an AFTER UPDATE trigger on orders.status). Per the
+// original Discord brief (sections 6/7/25/29): registration, order
+// creation, and a submitted-but-unverified payment must NEVER trigger a
+// reward or a public Discord post — this code only ever runs from inside
+// verifyPaymentAction, so that's structurally guaranteed, not just a
+// naming convention.
+// ------------------------------------------------------------------
+
+type PartnerDiscordSnapshot = {
+  partnerId: string;
+  fullName: string | null;
+  isFoundingPartner: boolean;
+  joinedViaPartnerPage: boolean;
+  discordUserId: string | null;
+  beforePaidClientsCount: number;
+};
+
+/** Looks up whether `clientId` was referred by a Partner, and if so
+ * snapshots that partner's paid-clients count and display info BEFORE the
+ * orders UPDATE below runs. This has to happen BEFORE, not after: the
+ * reward trigger recomputes partner_paid_clients_count() inside the SAME
+ * UPDATE statement (an AFTER UPDATE trigger, same transaction) — by the
+ * time verifyPaymentAction's own `.update()` call returns, the "before"
+ * count is already gone, there's no way to recover it after the fact.
+ * Best-effort and never throws: any failure here just means the
+ * Discord-side reward/level-up/leaderboard notifications get silently
+ * skipped for this one payment — it must never block payment verification
+ * itself, which has already fully succeeded by the time this is called. */
+async function getReferringPartnerSnapshot(
+  supabase: ReturnType<typeof createServerClient>,
+  clientId: string | null,
+): Promise<PartnerDiscordSnapshot | null> {
+  if (!clientId) return null;
+  try {
+    const { data: partnerId, error: partnerIdError } = await supabase.rpc("get_referring_partner_id", {
+      p_client_id: clientId,
+    });
+    if (partnerIdError || !partnerId) return null;
+
+    const [{ data: profileRows }, { data: metricsRows }] = await Promise.all([
+      supabase.rpc("get_partner_discord_profile", { p_partner_id: partnerId }),
+      supabase.rpc("get_partner_metrics", { p_partner_id: partnerId }),
+    ]);
+    const profile = profileRows?.[0];
+    const metrics = metricsRows?.[0];
+    if (!profile || !metrics) return null;
+
+    return {
+      partnerId: partnerId as string,
+      fullName: profile.full_name,
+      isFoundingPartner: profile.is_founding_partner,
+      joinedViaPartnerPage: profile.joined_via_partner_page,
+      discordUserId: profile.discord_user_id,
+      beforePaidClientsCount: Number(metrics.paid_clients_count),
+    };
+  } catch (error) {
+    console.error("[discord] Failed to snapshot the referring partner before payment confirmation", error);
+    return null;
+  }
+}
+
+/** Recomputes the top-10 public leaderboard (get_partner_leaderboard_public,
+ * migration 0035 — SUCCESSFUL PAID REFERRALS only, per brief section 13)
+ * and edits the one pinned message in #partner-leaderboard rather than
+ * posting a new one (brief section 24). Persists whatever message id
+ * postOrUpdateLeaderboard returns back to discord_leaderboard_state so the
+ * NEXT call knows which message to edit. Best-effort, never throws. */
+async function refreshPartnerLeaderboard(supabase: ReturnType<typeof createServerClient>): Promise<void> {
+  try {
+    const [{ data: rows, error: rowsError }, { data: state }] = await Promise.all([
+      supabase.rpc("get_partner_leaderboard_public", { p_limit: 10 }),
+      supabase.from("discord_leaderboard_state").select("message_id").eq("id", true).maybeSingle(),
+    ]);
+
+    // If the leaderboard query itself failed (RLS/permission issue, RPC
+    // not deployed yet, etc.), bail out rather than editing the pinned
+    // message down to an empty "no referrals yet" state — an outdated
+    // leaderboard is much less harmful than a WRONG one that contradicts
+    // what #recent-rewards is showing right above it.
+    if (rowsError) {
+      console.error("[discord] get_partner_leaderboard_public failed, leaving the leaderboard message as-is", rowsError);
+      return;
+    }
+
+    const leaderboardRows: LeaderboardRow[] = (rows ?? []).map((row: any) => {
+      const level = resolvePartnerLevelDisplay(
+        Number(row.paid_clients_count),
+        row.is_founding_partner,
+        row.joined_via_partner_page,
+      );
+      return {
+        displayName: resolvePublicPartnerName({
+          discordUserId: row.discord_user_id,
+          fullName: row.full_name,
+        }),
+        paidClientsCount: Number(row.paid_clients_count),
+        levelLabel: level.label,
+        levelEmoji: level.emoji,
+      };
+    });
+
+    const existingMessageId = (state as { message_id: string | null } | null)?.message_id ?? null;
+    const channelId = getDiscordChannelId("partner-leaderboard");
+    const { messageId } = await postOrUpdateLeaderboard(channelId, existingMessageId, leaderboardRows);
+
+    if (messageId && messageId !== existingMessageId) {
+      const { error: upsertError } = await supabase
+        .from("discord_leaderboard_state")
+        .upsert({ id: true, message_id: messageId, updated_at: new Date().toISOString() });
+      if (upsertError) {
+        console.error("[discord] Failed to persist the new leaderboard message id", upsertError);
+      }
+    }
+  } catch (error) {
+    console.error("[discord] Failed to refresh the partner leaderboard", error);
+  }
+}
+
+/** REFERRAL_REWARD_CREATED + PARTNER_LEVEL_CHANGED, both derived from
+ * comparing `snapshot.beforePaidClientsCount` (captured before the payment
+ * UPDATE by getReferringPartnerSnapshot above) against the partner's
+ * CURRENT count (re-read here, after the UPDATE has committed and the
+ * reward trigger has already run). If the count didn't move, no reward was
+ * actually created for this order (e.g. this referred client had already
+ * been counted from an earlier paid order) — nothing to announce, and the
+ * leaderboard doesn't need a refresh either. Best-effort, never throws —
+ * called after verifyPaymentAction's own response-critical work is done. */
+async function handlePartnerDiscordEvents(
+  supabase: ReturnType<typeof createServerClient>,
+  snapshot: PartnerDiscordSnapshot,
+): Promise<void> {
+  try {
+    const { data: metricsRows } = await supabase.rpc("get_partner_metrics", {
+      p_partner_id: snapshot.partnerId,
+    });
+    const afterPaidClientsCount = Number(metricsRows?.[0]?.paid_clients_count ?? snapshot.beforePaidClientsCount);
+    if (afterPaidClientsCount <= snapshot.beforePaidClientsCount) return;
+
+    const beforeLevel = resolvePartnerLevelDisplay(
+      snapshot.beforePaidClientsCount,
+      snapshot.isFoundingPartner,
+      snapshot.joinedViaPartnerPage,
+    );
+    const afterLevel = resolvePartnerLevelDisplay(
+      afterPaidClientsCount,
+      snapshot.isFoundingPartner,
+      snapshot.joinedViaPartnerPage,
+    );
+
+    await notifyReferralReward({
+      fullName: snapshot.fullName ?? "A Nimia Partner",
+      discordUserId: snapshot.discordUserId,
+      paidClientsCount: afterPaidClientsCount,
+      levelLabel: afterLevel.label,
+      levelEmoji: afterLevel.emoji,
+    });
+
+    if (afterLevel.label !== beforeLevel.label) {
+      const next = nextPartnerLevelDisplay(afterLevel);
+      await notifyPartnerLevelChanged({
+        fullName: snapshot.fullName ?? "A Nimia Partner",
+        discordUserId: snapshot.discordUserId,
+        newLevelLabel: afterLevel.label,
+        newLevelEmoji: afterLevel.emoji,
+        paidClientsCount: afterPaidClientsCount,
+        nextLevelLabel: next?.label ?? null,
+        paidClientsToNext: next?.minPaidClients ?? null,
+      });
+    }
+
+    await refreshPartnerLeaderboard(supabase);
+  } catch (error) {
+    console.error("[discord] Failed to send partner reward/level-up notification", error);
+  }
+}
+
 // Confirms the submitted tx actually matches (checked manually against a
 // block explorer — this app has no on-chain verification of its own) and
 // marks the order 'paid'. payment_verified_by/payment_verified_at (0013)
@@ -428,7 +620,7 @@ export async function verifyPaymentAction(orderId: string): Promise<OrderActionR
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("status")
+    .select("status, client_id")
     .eq("id", orderId)
     .single();
   if (orderError || !order) {
@@ -437,6 +629,11 @@ export async function verifyPaymentAction(orderId: string): Promise<OrderActionR
   if ((order as any).status !== "payment_submitted") {
     return { success: false, error: "Only orders with a submitted payment can be verified." };
   }
+
+  // Added 11 Agustus 2026 (Discord gamification phase) — see
+  // getReferringPartnerSnapshot's own comment for why this MUST happen
+  // before the UPDATE below, not after.
+  const partnerSnapshot = await getReferringPartnerSnapshot(supabase, (order as any).client_id ?? null);
 
   const { data: updated, error } = await supabase
     .from("orders")
@@ -479,6 +676,17 @@ export async function verifyPaymentAction(orderId: string): Promise<OrderActionR
       currency: fields.payment_token,
       threadId: fields.discord_thread_id,
     });
+  }
+
+  // Added 11 Agustus 2026 (Discord gamification phase) — REFERRAL_REWARD_CREATED
+  // / PARTNER_LEVEL_CHANGED / leaderboard refresh, all keyed off this exact
+  // PAYMENT CONFIRMED transition. Only runs when a referring partner was
+  // actually found before the update AND this order has a final price (the
+  // same two conditions handle_order_paid_partner_reward(), 0016, itself
+  // requires to create a reward row) — see handlePartnerDiscordEvents's own
+  // comment for the rest.
+  if (partnerSnapshot && fields?.final_price_usd != null) {
+    await handlePartnerDiscordEvents(supabase, partnerSnapshot);
   }
 
   revalidatePath("/orders");

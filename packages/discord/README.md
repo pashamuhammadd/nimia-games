@@ -21,12 +21,16 @@ root sudah exclude semua `.env*`).
 | `DISCORD_BOT_TOKEN` | Semua REST call sebagai bot (assign role, kirim notifikasi channel, dst) — **RAHASIA, paling sensitif dari semua** | `apps/studio`, `apps/admin` |
 | `DISCORD_GUILD_ID` | Server Discord Nimia Studio | `apps/studio`, `apps/admin` |
 | `DISCORD_ROLE_CLIENT_ID` | Role ⭐ Client yang di-assign otomatis | `apps/studio` |
-| `DISCORD_ROLE_PARTNER_ID` | Role 🤝 Partner (belum dipakai di fase ini — disiapkan untuk fase berikutnya) | `apps/studio` |
+| `DISCORD_ROLE_PARTNER_ID` | Role 🤝 Partner (belum dipakai — auto-assign masih deferred, lihat docs/DISCORD.md) | `apps/studio` |
 | `DISCORD_CHANNEL_NEW_ORDERS_ID` | Channel #new-orders — notifikasi order baru (`notifyNewOrder`) | `apps/studio` |
 | `DISCORD_CHANNEL_NEGOTIATIONS_ID` | Channel #negotiations — notifikasi offer/accept/reject (`notifyNegotiationUpdate`) | `apps/studio`, `apps/admin` |
 | `DISCORD_CHANNEL_PAYMENT_VERIFICATION_ID` | Channel #payment-verification — notifikasi submit/verified/flagged (`notifyPaymentSubmitted`/`notifyPaymentVerified`/`notifyPaymentFlagged`) | `apps/studio`, `apps/admin` |
 | `DISCORD_CHANNEL_SYSTEM_LOG_ID` | Channel #system-log — mirror ringkas dari semua notifikasi di atas | `apps/studio`, `apps/admin` |
 | `DISCORD_CHANNEL_SUPPORT_ID` | Channel #create-ticket — setiap ticket support jadi PRIVATE thread baru di sini (`createSupportTicket`) | `apps/studio` (bikin ticket), `apps/admin` (link "Open in Discord" + close ticket) |
+| `DISCORD_CHANNEL_PARTNER_JOINED_ID` | Channel #partner-joined — signup dengan niat partner eksplisit (`notifyPartnerJoined`, 11 Agustus 2026) | `apps/studio` |
+| `DISCORD_CHANNEL_RECENT_REWARDS_ID` | Channel #recent-rewards — setiap successful paid referral (`notifyReferralReward`, 11 Agustus 2026) | `apps/admin` |
+| `DISCORD_CHANNEL_PARTNER_LEADERBOARD_ID` | Channel #partner-leaderboard — satu pesan pinned, di-EDIT setiap update (`postOrUpdateLeaderboard`, 11 Agustus 2026) | `apps/admin` |
+| `DISCORD_CHANNEL_PARTNER_SUCCESS_ID` | Channel #partner-success — partner naik level (`notifyPartnerLevelChanged`, 11 Agustus 2026) | `apps/admin` |
 
 Catatan (fix 10 Agustus 2026, guild-join): sebelumnya OAuth cuma minta
 scope `identify`, dan asumsinya client SUDAH jadi member server (join
@@ -53,6 +57,17 @@ saja, tidak pernah menggagalkan order/pembayaran/negosiasi yang memicunya.
 Kalau notifikasi tidak muncul di Discord padahal aksinya di website
 berhasil, cek log server (Vercel) untuk baris `[discord] Failed to send
 ...`, bukan periksa order/pembayarannya — itu sudah pasti tersimpan aman.
+
+Catatan (fase gamification Partner Program, 11 Agustus 2026): 4 channel
+publik baru (`partner-joined`/`recent-rewards`/`partner-leaderboard`/
+`partner-success`) ada di modul TERPISAH, `src/gamification.ts` — bukan di
+`src/notify.ts` — karena event-nya beda titik pemicu (signup & payment
+confirmed, bukan lifecycle order). Sama seperti `notify.ts`/`tickets.ts`,
+semua fungsinya TIDAK PERNAH melempar error. Channel-channel ini harus
+DIBUAT DULU secara manual di Discord (lihat `docs/DISCORD.md`'s "Server
+setup notes") sebelum mengisi env var-nya — package ini tidak pernah punya
+kode yang membuat channel/kategori baru, cuma yang posting ke channel yang
+sudah ada.
 
 ## Cara ambil setiap nilai
 

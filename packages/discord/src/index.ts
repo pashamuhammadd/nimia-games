@@ -13,6 +13,7 @@ export {
   removeGuildRole,
   addGuildMember,
   sendChannelMessage,
+  editChannelMessage,
   createThreadFromMessage,
   createPrivateThread,
   addThreadMember,
@@ -30,3 +31,11 @@ export {
   type NegotiationEventKind,
 } from "./notify";
 export { createSupportTicket, closeSupportTicketThread } from "./tickets";
+export {
+  notifyPartnerJoined,
+  notifyReferralReward,
+  notifyPartnerLevelChanged,
+  postOrUpdateLeaderboard,
+  resolvePublicPartnerName,
+  type LeaderboardRow,
+} from "./gamification";

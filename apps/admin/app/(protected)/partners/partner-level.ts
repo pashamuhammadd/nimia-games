@@ -23,11 +23,44 @@ const PARTNER_LEVELS = [
 // before the normal ladder).
 const FOUNDING_PARTNER_LEVEL = PARTNER_LEVELS[2]; // Gold
 
-export function resolvePartnerLevelDisplay(paidClientsCount: number, isFoundingPartner: boolean) {
+/** `joinedViaPartnerPage` added 11 Agustus 2026 (Discord gamification
+ * phase) — this file previously only mirrored the Founding Partner
+ * override (see header comment above), missing the /partners-page
+ * Gold-rate FLOOR migration 0030 added the same day as this file's own
+ * "3rd place" comment was written. That gap meant this admin-side helper
+ * could under-report a floor partner's level (e.g. showing Bronze for
+ * someone who's actually guaranteed at least Gold) anywhere it's called —
+ * including the Partners directory list this file was originally built
+ * for. Third parameter defaults to `false` so every existing call site
+ * keeps compiling and behaving exactly as before; pass the partner's real
+ * `joined_via_partner_page` flag (from get_all_partners_admin, 0028/0030,
+ * or get_partner_discord_profile, 0035) to get the correct floor applied,
+ * same floor logic as apps/studio's resolvePartnerLevel. */
+export function resolvePartnerLevelDisplay(
+  paidClientsCount: number,
+  isFoundingPartner: boolean,
+  joinedViaPartnerPage: boolean = false,
+) {
   if (isFoundingPartner) return FOUNDING_PARTNER_LEVEL;
   let resolved: (typeof PARTNER_LEVELS)[number] = PARTNER_LEVELS[0];
   for (const config of PARTNER_LEVELS) {
     if (paidClientsCount >= config.minPaidClients) resolved = config;
   }
+  if (joinedViaPartnerPage) {
+    const floorIndex = PARTNER_LEVELS.indexOf(FOUNDING_PARTNER_LEVEL);
+    const resolvedIndex = PARTNER_LEVELS.indexOf(resolved);
+    if (resolvedIndex < floorIndex) resolved = FOUNDING_PARTNER_LEVEL;
+  }
   return resolved;
+}
+
+/** The level immediately after `level`, or null if already at the top
+ * tier — added 11 Agustus 2026 alongside joinedViaPartnerPage above,
+ * needed by verifyPaymentAction (apps/admin/app/(protected)/orders/actions.ts)
+ * to build the "Next milestone: N Successful Paid Referrals → Level" line
+ * for #partner-success, mirroring apps/studio's nextPartnerLevel(). */
+export function nextPartnerLevelDisplay(level: (typeof PARTNER_LEVELS)[number]) {
+  const index = PARTNER_LEVELS.indexOf(level);
+  if (index === -1 || index === PARTNER_LEVELS.length - 1) return null;
+  return PARTNER_LEVELS[index + 1];
 }

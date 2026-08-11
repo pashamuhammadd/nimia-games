@@ -14,6 +14,10 @@ the whole system. The official Nimia Studio Discord server is ONLY:
 - a **Notification Center**
 - a **Support Center**
 - an **Internal Activity Log**
+- (since 11 Agustus 2026) a **Public Community + Partner Program social
+  proof layer** — see "Public Community" and "Partner Discord Channel"
+  below. Still never where data is managed or a business decision is made
+  — the same core principle just extended to a public audience.
 
 Discord is never where data is managed or business processes run. Every
 business decision (negotiation, approval, assignment) happens on the
@@ -40,16 +44,45 @@ below currently needs that.
 
 ## Server purpose & roles
 
-Not a community server. Only: 👑 Founder, 🛡 Admin, 🤝 Partner, ⭐ Client, 🤖
-Bot. No Animator/Artist/Game Developer/Web Developer/Freelancer roles —
-production is managed internally by Admin via the Dashboard.
+Started as a private server for Founder/Admin/Client/Partner only. Since 11
+Agustus 2026 the server is OPEN TO THE PUBLIC (anyone can join) — but the
+role set is unchanged: 👑 Founder, 🛡 Admin, 🤝 Partner, ⭐ Client, 🤖 Bot,
+plus everyone else as a plain (roleless) member. Still no
+Animator/Artist/Game Developer/Web Developer/Freelancer roles — production
+is managed internally by Admin via the Dashboard, and this integration
+never @mentions production staff (see "Order thread system" below).
 
 ## Server structure
 
 - 📢 INFORMATION: `#welcome`, `#announcements`, `#how-to-start`
+- 🌐 COMMUNITY (added 11 Agustus 2026, public): `#general`, `#ask-nimia`, `#project-ideas`
 - 🎫 SUPPORT: `#create-ticket`
-- 🤝 PARTNER PROGRAM: `#partner-announcements`, `#partner-rewards`, `#partner-support`
-- 🔒 OPERATIONS: `#new-orders`, `#negotiations`, `#payment-verification`, `#system-log`
+- 🤝 PARTNER PROGRAM (public since 11 Agustus 2026): `#partner-announcements`, `#partner-joined`, `#recent-rewards`, `#partner-leaderboard`, `#partner-success`, `#partner-support`
+- 🔒 OPERATIONS (internal, staff-only): `#new-orders`, `#negotiations`, `#payment-verification`, `#system-log`
+
+## Public Community
+
+Added 11 Agustus 2026. Three plain informational channels, no bot
+automation — every member can read and post in all three. Purely a
+community/marketing layer (brief: "COMMUNITY + MARKETING + CLIENT
+ACQUISITION + PARTNER ACQUISITION + SOCIAL PROOF"), set up manually in
+Discord (categories/channels aren't something code creates — there's no
+Discord API call anywhere in this integration that creates channels, only
+ones that post into or thread off EXISTING channel ids configured via env
+vars).
+
+- `#general` — general chat about Nimia, game dev, animation, digital
+  assets, website dev.
+- `#ask-nimia` — pricing/workflow/service questions from prospective
+  clients or partners.
+- `#project-ideas` — members discuss project ideas; a natural place to
+  spot prospective clients.
+
+Deliberately NO `#showcase` channel — portfolio is video/animation, and a
+public upload channel would let anyone download the full-resolution
+originals. If a showcase is ever built, it should show short
+preview/teaser clips only, through its own dedicated system — not part of
+this phase.
 
 ## Order thread system
 
@@ -63,14 +96,16 @@ Started → Revision → Delivery → Invoice Generated → Completed.
 
 Send notifications (new order, negotiation, payment, invoice, delivery),
 create order Threads automatically, send system activity logs, create
-Support Tickets, grant Client/Partner roles. The bot never makes business
-decisions.
+Support Tickets, grant Client/Partner roles, and (since 11 Agustus 2026)
+post Partner Program social-proof events to the public channels below. The
+bot never makes business decisions.
 
 ## Client support
 
 A "Support" button on the website → the bot creates a Private Ticket,
 visible only to Founder + Admin + the Client who created it. No general
-chat channel for support.
+chat channel for support — `#ask-nimia` (Public Community, above) is for
+general/pre-sales questions only, never account-specific support.
 
 ## Client/Partner registration
 
@@ -78,9 +113,12 @@ Client registers on the website → connects Discord via OAuth (website gets
 the Discord User ID, username, avatar, and — since the 10 Agustus 2026
 guild-join fix — a `guilds.join`-scoped access token) → bot adds the
 client to the server if they aren't already a member → bot auto-assigns
-the ⭐ Client role. If the user joins the Nimia Partner Program, the
-website updates their status → bot auto-assigns the 🤝 Partner role (a
-user can hold both Client and Partner roles at once).
+the ⭐ Client role. Partner role auto-assign remains deferred (see
+"Implementation status" below) — every account technically becomes a
+Partner on signup (self-serve, migration 0016), so "row exists" was never
+a valid signal for granting the 🤝 Partner Discord role; the gamification
+phase below covers PUBLIC social-proof posts instead, which needed no role
+decision (they're channel posts naming a partner, not a role grant).
 
 ## Order flow
 
@@ -98,7 +136,9 @@ company wallet → client sends payment + TX hash → Discord notification to
 `#payment-verification` → Admin verifies via the Dashboard → website
 updates payment status, generates the invoice PDF, sends the email, and
 shows a Dashboard notification. Discord only ever receives the "payment
-verified" update after the fact.
+verified" update after the fact. Since 11 Agustus 2026, THIS is also the
+exact moment (verifyPaymentAction, apps/admin) that drives the Partner
+Program gamification events below — see "Partner Discord Channel".
 
 ## Negotiation & production
 
@@ -113,6 +153,77 @@ Animator/Developer/Artist; Discord only sends status updates.
 Registered, Order Created, Negotiation Updated, Payment Submitted, Payment
 Approved, Invoice Generated, Delivery Uploaded, Voucher Claimed, Referral
 Commission, etc.
+
+## Partner Discord Channel
+
+Added 11 Agustus 2026 — the public-facing half of the Nimia Partner
+Program, per the brief's own rule (section 25): only a **SUCCESSFUL PAID
+REFERRAL** (a referred client whose payment has been verified AND
+confirmed by an admin) ever produces a public post. Registration, a used
+referral code, a submitted order, or an unverified/pending payment never
+do — structurally guaranteed by WHERE this code runs, not just a naming
+convention: every reward/level-up/leaderboard post below is only ever
+triggered from `apps/admin/app/(protected)/orders/actions.ts`'s
+`verifyPaymentAction`, the one function that flips `orders.status` to
+`'paid'`.
+
+- **`#partner-joined`** — 🎉 fires from `apps/studio/app/actions.ts`'s
+  `signUpAction`, right after signup, but ONLY for signups that showed
+  explicit partner intent (arrived via the `/partners` marketing page, or
+  entered a referral code) — per an explicit product decision (11 Agustus
+  2026), NOT every signup, even though every account technically becomes a
+  Partner (self-serve, migration 0016). Posting this for every single
+  registration would flood the channel with people who only ever wanted to
+  order a service.
+- **`#recent-rewards`** — 💰 fires from `verifyPaymentAction` whenever a
+  referring partner's paid-clients count goes up. Shows the partner's
+  display name, their new Successful Paid Referrals count, and their
+  level. Per an explicit product decision (11 Agustus 2026), **never shows
+  a dollar amount** — avoids indirectly revealing order prices or
+  commission math to the public, brief section 11's "if reward amount is
+  safe to show" question resolved as "no" here.
+- **`#partner-leaderboard`** — 🏆 ONE pinned message, ranked by
+  `get_partner_leaderboard_public()` (migration 0035 — SUCCESSFUL PAID
+  REFERRALS only, never registration/click count, per brief section 13).
+  Recomputed and the SAME message EDITED (never a new post) every time
+  `#recent-rewards` fires — see "Leaderboard update strategy" in migration
+  0035's own comments and `packages/discord/src/gamification.ts`'s
+  `postOrUpdateLeaderboard`. The message id lives in
+  `discord_leaderboard_state` (0035), a tiny singleton table — this is the
+  one piece of Discord-side state the website itself tracks, and it's
+  purely "which message am I supposed to edit next", never partner/reward
+  data itself (that stays 100% in `partners`/`partner_rewards`, 0016).
+- **`#partner-success`** — 🚀 fires from `verifyPaymentAction` only when a
+  partner's resolved level actually changes (Bronze→Silver→Gold→Platinum).
+  Per an explicit product decision (11 Agustus 2026), a level-up IS the
+  milestone definition here — not an arbitrary round number of referrals.
+- **`#partner-announcements`** / **`#partner-support`** — informational
+  only, no automation (same as `#welcome`/`#announcements`/`#how-to-start`
+  under INFORMATION).
+
+**Displaying a partner publicly** — per an explicit product decision (11
+Agustus 2026): if the partner has connected Discord (0025), an `<@id>`
+mention is used (Discord renders their live server display name and pings
+them); otherwise their site full name is used as a fallback (see
+`resolvePublicPartnerName` in `packages/discord/src/gamification.ts`).
+Never email, wallet address, or any other field from this integration's
+"never send to public Discord" list (see Security below).
+
+## Security
+
+Never send to public Discord:
+- email client
+- wallet address / payment address
+- TX hash
+- invoice / full order form
+- private project brief / negotiation details
+- a client's payment amount if considered confidential
+- any other private client information
+
+Public Discord (including the gamification channels above) only ever
+shows achievement/social proof: a partner's own display name, level, and
+successful-paid-referral count — never a client's identity, an order's
+details, or (per the 11 Agustus 2026 decision) a reward's dollar amount.
 
 ## Implementation status
 
@@ -150,15 +261,22 @@ Threads only ever show updates (per the Order thread system section
 above) — nothing reads FROM a thread, so this can't feed Discord-side
 state back into a decision, same posture as every other notify* call.
 
-**Not built yet** (all separate follow-up work, each independent of the
-others once account linking + notifications + auto-thread above exist to
-build on):
+**Done (11 Agustus 2026, gamification phase):** Public Community
+(informational, no code — see "Public Community" above, set up manually in
+Discord) + the full Partner Discord Channel section above. See:
 
-- Partner role auto-assign (needs a decision on what marks a client as an
-  "active" partner for role purposes — `partners` rows are created for
-  every signup per `0016_partner_program.sql`'s trigger, so "row exists"
-  alone isn't the right signal; needs clarifying before implementing).
-- `#system-log` events beyond the notifications-phase mirror above: User
+- `packages/db/migrations/0035_discord_partner_gamification.sql` — `discord_leaderboard_state` (singleton table, the pinned leaderboard message id), `get_referring_partner_id()`, `get_partner_discord_profile()`, `get_partner_leaderboard_public()` — all admin-gated RPCs, none of which touch or expose money/PII beyond what's already public-safe elsewhere in this schema.
+- `packages/discord/src/gamification.ts` (NEW module, same never-throwing posture as notify.ts/tickets.ts) — `notifyPartnerJoined`, `notifyReferralReward`, `notifyPartnerLevelChanged`, `postOrUpdateLeaderboard`, `resolvePublicPartnerName`.
+- `packages/discord/src/rest.ts` — new `editChannelMessage()` (PATCH an existing message — what makes the "one pinned leaderboard message, edited in place" requirement possible).
+- `packages/discord/src/config.ts` — 4 new channel names: `partner-joined` / `recent-rewards` / `partner-leaderboard` / `partner-success`.
+- `apps/studio/app/actions.ts` (`signUpAction`) — `notifyPartnerJoined` for explicit-intent signups. Also fixed a real pre-existing gap found while wiring this up: `joined_via_partner_page` was never actually being forwarded to `supabase.auth.signUp()`'s metadata, so migration 0030's Gold-rate floor for `/partners`-page signups was silently not being applied on the currently-deployed code — this migration and RegisterForm.tsx already expected it, this was the missing link.
+- `apps/admin/app/(protected)/orders/actions.ts` (`verifyPaymentAction`) — snapshots the referring partner's paid-clients count BEFORE the payment-confirming UPDATE (has to happen before — the reward trigger recomputes it inside the same UPDATE statement), then after the update: `notifyReferralReward`, `notifyPartnerLevelChanged` (only on an actual level change), and a leaderboard refresh — all best-effort, wrapped so a Discord failure can never affect payment verification itself.
+- `apps/admin/app/(protected)/partners/partner-level.ts` — `resolvePartnerLevelDisplay` gained the `joinedViaPartnerPage` floor parameter it was missing (a real pre-existing display gap, found and fixed while building the level-change comparison this phase needs) + new `nextPartnerLevelDisplay()`.
+
+**Not built yet** (all separate follow-up work):
+
+- Partner role auto-assign in Discord — still deferred, see "Client/Partner registration" above for why "row exists" was never the right signal; the gamification phase above didn't need to resolve this (it's public channel posts, not a role grant).
+- `#system-log` events beyond the notifications-phase mirror: User
   Registered, Partner Registered, Invoice Generated, Delivery Uploaded,
   Voucher Claimed, Referral Commission — each needs its own hook into the
   registration/invoice/delivery/voucher/referral code, none of which exist
@@ -166,8 +284,6 @@ build on):
   exported and ready for these, just not called anywhere yet.
 - Support ticket creation from a website "Support" button (the button
   itself doesn't exist yet either).
-- `#welcome` / `#announcements` / `#how-to-start` / Partner Program
-  channels — informational only, no automation planned for these.
 - Thread updates for later lifecycle stages the spec mentions (Production
   Started / Revision / Delivery / Invoice Generated / Completed) — none of
   those website actions exist yet either (production/delivery tracking
@@ -182,6 +298,9 @@ build on):
   Agustus 2026 — required by `addGuildMember()`, see the guild-join entry
   below; if the bot was invited before this date, check Server Settings →
   Roles → the bot's own role → Permissions and grant it there if missing.)
+  No NEW bot permission is needed for the 11 Agustus 2026 gamification
+  phase — editing a message the bot itself posted (`editChannelMessage`)
+  only ever needs Send Messages, which it already has.
 - **The bot's own auto-created role (named after the Application, e.g.
   "Nimia Studio" — NOT any manually-created "Bot" role that predates the
   actual bot account) must sit ABOVE Client and Partner in Server Settings
@@ -201,6 +320,16 @@ build on):
   addThreadMember could actually add) — everyone else's ticket would be
   invisible to everyone. This is the one piece of this pass that can't be
   verified by testing as the client — please double-check it as Founder.
+- **Gamification phase (added 11 Agustus 2026): the 🌐 COMMUNITY and
+  public 🤝 PARTNER PROGRAM channels above need to actually be created in
+  Discord first** — this integration only ever posts into an EXISTING
+  channel id (via the new `DISCORD_CHANNEL_*_ID` env vars, see
+  `apps/studio/.env.example` / `apps/admin/.env.example`), it has no code
+  path that creates a channel or category. Create the category + channels
+  in Discord, copy each new channel's id the same way every existing
+  `DISCORD_CHANNEL_*_ID` was obtained (see `packages/discord/README.md`),
+  then fill in the env vars before the new notifications will actually
+  post anywhere.
 
 ## Implementation status (guild-join fix)
 

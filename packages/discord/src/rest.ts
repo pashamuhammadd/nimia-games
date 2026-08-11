@@ -130,7 +130,9 @@ export type DiscordEmbed = {
  * thread (see createThreadFromMessage below) is the exact same call as
  * posting to a top-level channel. Returns the created message's own id
  * (added in the auto-thread pass, 9 Agustus 2026) so a caller can turn
- * THAT message into a thread — see createThreadFromMessage. */
+ * THAT message into a thread — see createThreadFromMessage — or, since the
+ * gamification phase (11 Agustus 2026), edit it later via
+ * editChannelMessage below (e.g. the leaderboard's one pinned message). */
 export async function sendChannelMessage(
   channelId: string,
   payload: { content?: string; embeds?: DiscordEmbed[] },
@@ -146,6 +148,31 @@ export async function sendChannelMessage(
 
   const data = (await response.json()) as { id: string };
   return data.id;
+}
+
+/** Edits a previously-sent message in place — added 11 Agustus 2026,
+ * gamification phase, specifically for #partner-leaderboard's "one pinned
+ * message, edited on every update" requirement (docs/DISCORD.md's
+ * "Leaderboard update strategy": "Bot melakukan EDIT terhadap pesan
+ * tersebut ... Jangan membuat ratusan pesan leaderboard"). Throws on a
+ * non-2xx response same as every other low-level call here — including
+ * when `messageId` no longer exists (e.g. someone deleted it manually in
+ * Discord, 404) — see gamification.ts's postOrUpdateLeaderboard for how
+ * the caller falls back to posting a fresh message when this throws,
+ * rather than leaving the leaderboard silently stuck. */
+export async function editChannelMessage(
+  channelId: string,
+  messageId: string,
+  payload: { content?: string; embeds?: DiscordEmbed[] },
+): Promise<void> {
+  const response = await discordBotFetch(`/channels/${channelId}/messages/${messageId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Discord message edit failed (${response.status}): ${await response.text()}`);
+  }
 }
 
 /** Creates a standalone PRIVATE thread in `channelId` — not hung off any

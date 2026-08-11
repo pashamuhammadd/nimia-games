@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@nimia/db";
 import { signInSchema, signUpSchema } from "@nimia/validators";
 import { isValidReferralCodeFormat, normalizeReferralCode } from "@/modules/partners";
+import { notifyPartnerJoined } from "@nimia/discord";
 
 export type ActionState = { error?: string } | null;
 
@@ -98,6 +99,16 @@ export async function signUpAction(
   const validReferralCode =
     referralCode && isValidReferralCodeFormat(referralCode) ? referralCode : undefined;
 
+  // Discord gamification phase (11 Agustus 2026) — "explicit partner
+  // intent" per user decision: a visitor who came through the /partners
+  // marketing page (Gold-floor bonus, migration 0030) or who entered a
+  // referral code. Every account technically becomes a Partner on signup
+  // regardless (self-serve, migration 0016) — this flag is ONLY used
+  // below to decide whether to post to Discord's #partner-joined, never to
+  // gate anything about the account itself.
+  const joinedViaPartnerPage = formData.get("joined_via_partner_page") === "true";
+  const showedPartnerIntent = joinedViaPartnerPage || Boolean(validReferralCode);
+
   const supabase = createServerClient(await cookies());
   const { error } = await supabase.auth.signUp({
     email: parsed.data.email,
@@ -109,6 +120,7 @@ export async function signUpAction(
         whatsapp: str(formData.get("whatsapp")),
         country: str(formData.get("country")),
         referral_code: validReferralCode,
+        joined_via_partner_page: joinedViaPartnerPage || undefined,
       },
       emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/login`,
     },
@@ -120,6 +132,25 @@ export async function signUpAction(
           ? "This email is already registered. Try logging in."
           : error.message,
     };
+  }
+
+  // Added 11 Agustus 2026 (Discord gamification phase) — docs/DISCORD.md's
+  // "Partner Discord Channel" #partner-joined: "Ketika seseorang berhasil
+  // mendaftar sebagai Partner ... Bot otomatis mengirim notification."
+  // Fired here (not from a DB trigger — handle_new_auth_user(), 0016,
+  // can't call out to Discord's REST API) right after signUp() succeeds,
+  // same fire-and-log posture as every other Discord notification in this
+  // app. Only for signups that showed explicit partner intent — see this
+  // function's own comment above and notifyPartnerJoined's comment in
+  // @nimia/discord for why NOT every signup. `level` is only ever passed
+  // for the /partners-page floor (always Gold) — see notifyPartnerJoined's
+  // comment for why a plain referral-code signup's level is left
+  // unstated rather than guessed.
+  if (showedPartnerIntent) {
+    await notifyPartnerJoined({
+      fullName: parsed.data.full_name,
+      level: joinedViaPartnerPage ? "🥇 Gold" : undefined,
+    });
   }
 
   redirect("/register/check-email");

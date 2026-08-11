@@ -45,7 +45,23 @@ export function getDiscordRoleId(role: "client" | "partner"): string {
 }
 
 export function getDiscordChannelId(
-  channel: "new-orders" | "negotiations" | "payment-verification" | "system-log" | "support",
+  channel:
+    | "new-orders"
+    | "negotiations"
+    | "payment-verification"
+    | "system-log"
+    | "support"
+    // Public Community + Partner Program gamification phase (11 Agustus
+    // 2026) — see docs/DISCORD.md's "Public Community" and "Partner
+    // Discord Channel" sections. "partner-joined" only fires for signups
+    // with explicit partner intent (via the /partners page or a referral
+    // code — see notifyPartnerJoined's own comment in gamification.ts for
+    // why NOT every signup, even though every account technically becomes
+    // a Partner per 0016).
+    | "partner-joined"
+    | "recent-rewards"
+    | "partner-leaderboard"
+    | "partner-success",
 ): string {
   const envName =
     {
@@ -57,6 +73,12 @@ export function getDiscordChannelId(
       // "#create-ticket" channel under SUPPORT. Every private ticket
       // thread is created inside this one channel.
       support: "DISCORD_CHANNEL_SUPPORT_ID",
+      // Gamification phase (11 Agustus 2026) — the 4 new channels under
+      // docs/DISCORD.md's "Partner Discord Channel" section.
+      "partner-joined": "DISCORD_CHANNEL_PARTNER_JOINED_ID",
+      "recent-rewards": "DISCORD_CHANNEL_RECENT_REWARDS_ID",
+      "partner-leaderboard": "DISCORD_CHANNEL_PARTNER_LEADERBOARD_ID",
+      "partner-success": "DISCORD_CHANNEL_PARTNER_SUCCESS_ID",
     } as const satisfies Record<typeof channel, string>;
   return requireEnv(envName[channel]);
 }
