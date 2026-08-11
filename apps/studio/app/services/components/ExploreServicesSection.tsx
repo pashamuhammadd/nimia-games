@@ -77,13 +77,21 @@ export function ExploreServicesSection() {
                     {block.description}
                   </p>
 
-                  <div className="relative mt-8 aspect-square w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                  {/* No border/background frame around this image (11
+                      Agustus 2026, per user request) — the 3 thumbnails are
+                      transparent artwork, not photos, so a visible
+                      card/frame around them looked wrong. `object-contain`
+                      instead of the previous `object-cover` so the full
+                      transparent artwork always shows uncropped, regardless
+                      of the exact pixel dimensions of the file the user
+                      drops in. */}
+                  <div className="relative mt-8 aspect-square w-full">
                     <Image
                       src={block.thumbnailSrc}
                       alt={block.title}
                       fill
                       sizes="(min-width: 768px) 50vw, 100vw"
-                      className="object-cover"
+                      className="object-contain"
                     />
                   </div>
                 </motion.div>

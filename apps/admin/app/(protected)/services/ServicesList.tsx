@@ -67,25 +67,20 @@ const CATEGORY_LABELS: Record<ServiceCategory, string> = {
   custom_project: "Custom Project",
 };
 
-// The two "generations" of rows are priced in different currencies — see
-// 0018_order_catalog_services_seed.sql's own comment on why (0008's legacy
-// rows are IDR, matching the old Order Service form; 0018's live-catalog
-// rows are plain USD, matching the /order configurator and every
-// _usd-suffixed orders column). Formatting each with its real currency
-// rather than picking one avoids silently misrepresenting the other set's
-// numbers.
-function formatPrice(basePrice: number | null, isLive: boolean) {
+// Both "generations" of rows are USD now (11 Agustus 2026, migration
+// 0034_fix_legacy_service_prices_currency.sql) — 0008's legacy rows used
+// to store base_price in raw IDR while 0018's live-catalog rows were
+// already plain USD (see 0018's own comment, which flagged this exact
+// mismatch), and this page rendered the two groups with two different
+// Intl currency formatters (id-ID/IDR vs en-US/USD) to paper over it.
+// Migration 0034 converted the legacy rows' stored `base_price` to USD
+// once, at the data layer, so every row in `services` is USD from here
+// on — a single formatter is correct again, no `isLive` branch needed.
+function formatPrice(basePrice: number | null) {
   if (basePrice === null) return "Custom pricing";
-  if (isLive) {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(basePrice);
-  }
-  return new Intl.NumberFormat("id-ID", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "IDR",
+    currency: "USD",
     maximumFractionDigits: 0,
   }).format(basePrice);
 }
@@ -97,7 +92,6 @@ function ServiceRowItem({ service }: { service: ServiceRow }) {
     service.base_price != null ? String(service.base_price) : "",
   );
   const [error, setError] = React.useState<string | null>(null);
-  const isLive = LIVE_CATEGORIES.has(service.category);
 
   function toggleActive() {
     setError(null);
@@ -180,7 +174,7 @@ function ServiceRowItem({ service }: { service: ServiceRow }) {
             onClick={() => setIsEditing(true)}
             className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white"
           >
-            <span className="text-sm font-semibold text-white">{formatPrice(service.base_price, isLive)}</span>
+            <span className="text-sm font-semibold text-white">{formatPrice(service.base_price)}</span>
             <Pencil className="h-3 w-3" aria-hidden="true" />
           </button>
         )}
