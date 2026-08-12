@@ -39,3 +39,18 @@ export {
   resolvePublicPartnerName,
   type LeaderboardRow,
 } from "./gamification";
+// In-Discord ticket button (added 12 Agustus 2026) — see interactions.ts's
+// own top comment and docs/DISCORD.md's "In-Discord ticket button" section.
+export {
+  verifyDiscordInteractionRequest,
+  postCreateTicketButtonMessage,
+  buildTicketModal,
+  modalResponse,
+  readTicketModalValues,
+  deferredEphemeralResponse,
+  editInteractionResponse,
+  pongResponse,
+  InteractionType,
+  CREATE_TICKET_BUTTON_CUSTOM_ID,
+  TICKET_MODAL_CUSTOM_ID,
+} from "./interactions";

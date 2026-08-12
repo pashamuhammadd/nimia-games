@@ -31,6 +31,7 @@ root sudah exclude semua `.env*`).
 | `DISCORD_CHANNEL_RECENT_REWARDS_ID` | Channel #recent-rewards — setiap successful paid referral (`notifyReferralReward`, 11 Agustus 2026) | `apps/admin` |
 | `DISCORD_CHANNEL_PARTNER_LEADERBOARD_ID` | Channel #partner-leaderboard — satu pesan pinned, di-EDIT setiap update (`postOrUpdateLeaderboard`, 11 Agustus 2026) | `apps/admin` |
 | `DISCORD_CHANNEL_PARTNER_SUCCESS_ID` | Channel #partner-success — partner naik level (`notifyPartnerLevelChanged`, 11 Agustus 2026) | `apps/admin` |
+| `DISCORD_PUBLIC_KEY` | Verifikasi request Interactions HTTP endpoint (`app/api/discord/interactions/route.ts`) — bukan rahasia, tapi wajib diisi | `apps/studio` |
 
 Catatan (fix 10 Agustus 2026, guild-join): sebelumnya OAuth cuma minta
 scope `identify`, dan asumsinya client SUDAH jadi member server (join
@@ -69,6 +70,21 @@ setup notes") sebelum mengisi env var-nya — package ini tidak pernah punya
 kode yang membuat channel/kategori baru, cuma yang posting ke channel yang
 sudah ada.
 
+Catatan (fase tombol ticket di Discord, 12 Agustus 2026): ini SATU-SATUNYA
+bagian dari integrasi ini yang menerima request MASUK dari Discord (lihat
+`docs/DISCORD.md`'s bagian baru "In-Discord ticket button") — client klik
+tombol "Open a Ticket" di `#create-ticket` → isi modal (Subject + Message)
+→ Discord POST ke `app/api/discord/interactions/route.ts` →
+`src/interactions.ts` verifikasi signature-nya, lalu route itu (bukan
+package ini) yang cari client berdasarkan `discord_user_id`, insert baris
+`support_tickets`, dan panggil `createSupportTicket` yang sama persis
+dipakai form Support di website. Masih TIDAK BUTUH koneksi Gateway —
+Discord's Interactions HTTP endpoint tetap satu route serverless biasa,
+diverifikasi per-request (lihat "Kenapa tidak pakai discord.js" di bawah).
+Setelah env var `DISCORD_PUBLIC_KEY` terisi dan route-nya sudah live, jalan
+tombol "Post Ticket Button" di halaman Tickets `admin.nimiagames.com`
+sekali untuk memasang pesannya di `#create-ticket`.
+
 ## Cara ambil setiap nilai
 
 ### Client ID & Client Secret (OAuth2)
@@ -84,6 +100,12 @@ sudah ada.
 1. Sidebar kiri → **Bot**.
 2. **Reset Token** / **Copy Token**. Simpan baik-baik, jangan pernah share (termasuk ke chat AI manapun) — siapa pun yang pegang token ini bisa mengendalikan bot Anda sepenuhnya di server Discord itu.
 3. Pastikan **Server Members Intent** aktif di halaman yang sama (dibutuhkan supaya assign role jalan benar).
+
+### Public Key & Interactions Endpoint URL (fase tombol ticket)
+1. https://discord.com/developers/applications → application "Nimia Studio Bot" → **General Information** (halaman pertama, bukan OAuth2/Bot).
+2. **Public Key** ada di sana — copy langsung ke `DISCORD_PUBLIC_KEY`, bukan rahasia (boleh terlihat siapa saja) tapi tetap wajib diisi supaya `verifyDiscordInteractionRequest` bisa jalan.
+3. Di halaman yang sama, field **Interactions Endpoint URL** — isi dengan `https://studio.nimiagames.com/api/discord/interactions` lalu **Save Changes**. Discord langsung mengirim satu request PING ke URL ini saat disimpan untuk memverifikasi endpoint hidup dan signature-nya valid — kalau `DISCORD_PUBLIC_KEY` belum di-deploy dengan benar, Save akan gagal dengan error di halaman itu sendiri (jangan bingung dengan error terpisah).
+4. Kalau mau test di local dev, Discord TIDAK BISA mengirim request ke `localhost` — perlu tunnel (ngrok/cloudflared) dan isi Interactions Endpoint URL dengan URL tunnel itu SEMENTARA saat testing, lalu kembalikan ke URL production setelah selesai.
 
 ### Guild ID, Role ID, Channel ID
 Semua ini BUKAN rahasia (cuma angka ID internal Discord, tidak bisa dipakai untuk apa pun tanpa bot token-nya juga) — aman ditaruh langsung di `.env.local`, tidak perlu hati-hati seperti Client Secret/Bot Token di atas.
@@ -113,3 +135,10 @@ sini berarti butuh hosting proses terpisah yang jalan 24/7 (Railway,
 Render, VPS, dst), padahal semua kebutuhan integrasi ini bisa dipenuhi
 dari serverless functions yang sudah ada (`apps/studio`, `apps/admin` di
 Vercel), sama seperti Resend (`@nimia/email`) dan Cloudinary.
+
+Satu-satunya dependency non-`fetch` di package ini adalah
+`discord-interactions` (dipakai di `src/interactions.ts`, fungsi
+`verifyKey`) — bukan SDK Discord, cuma helper resmi dari Discord sendiri
+untuk verifikasi signature Ed25519 pada request Interactions HTTP endpoint
+(lihat catatan "fase tombol ticket" di atas). Tetap bukan Gateway/websocket
+— alasan yang sama di atas masih berlaku penuh.

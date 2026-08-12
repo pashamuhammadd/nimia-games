@@ -132,10 +132,15 @@ export type DiscordEmbed = {
  * (added in the auto-thread pass, 9 Agustus 2026) so a caller can turn
  * THAT message into a thread — see createThreadFromMessage — or, since the
  * gamification phase (11 Agustus 2026), edit it later via
- * editChannelMessage below (e.g. the leaderboard's one pinned message). */
+ * editChannelMessage below (e.g. the leaderboard's one pinned message).
+ * `components` (added 12 Agustus 2026, in-Discord ticket button — see
+ * docs/DISCORD.md's "In-Discord ticket button" section) accepts Discord's
+ * raw message-component tree (action rows / buttons) — not modeled as its
+ * own type here since only interactions.ts's buildCreateTicketButtonMessage
+ * builds one today; add a real type if a second caller ever needs one. */
 export async function sendChannelMessage(
   channelId: string,
-  payload: { content?: string; embeds?: DiscordEmbed[] },
+  payload: { content?: string; embeds?: DiscordEmbed[]; components?: unknown[] },
 ): Promise<string> {
   const response = await discordBotFetch(`/channels/${channelId}/messages`, {
     method: "POST",

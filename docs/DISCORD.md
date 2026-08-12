@@ -39,8 +39,15 @@ separate hosting (Railway/Render/VPS) is needed for any of this.
 
 The only scenario that WOULD need either a persistent Gateway connection or
 Discord's serverless-friendly Interactions HTTP endpoint is a command or
-button *inside Discord itself* triggering an action — nothing in the spec
-below currently needs that.
+button *inside Discord itself* triggering an action. As of 12 Agustus 2026
+one thing in the spec below now needs exactly that — see "In-Discord ticket
+button" below — and it went with the Interactions HTTP endpoint, NOT a
+Gateway connection: `apps/studio/app/api/discord/interactions/route.ts` is
+an ordinary serverless route (same shape as the OAuth callback route),
+Discord calls it once per click/submit and verifies it via a signed request
+rather than a live socket, so this section's core claim ("no long-running
+process, no separate hosting") still holds — only the *direction* of that
+one route is new (inbound instead of outbound).
 
 ## Server purpose & roles
 
@@ -106,6 +113,49 @@ A "Support" button on the website → the bot creates a Private Ticket,
 visible only to Founder + Admin + the Client who created it. No general
 chat channel for support — `#ask-nimia` (Public Community, above) is for
 general/pre-sales questions only, never account-specific support.
+
+Since 12 Agustus 2026, a ticket can also be opened from **inside Discord
+itself** — see "In-Discord ticket button" immediately below — as a second
+entry point into the exact same `support_tickets` table and Private Thread
+flow, not a separate ticket system.
+
+## In-Discord ticket button
+
+Added 12 Agustus 2026. A 🎫 **Open a Ticket** button, permanently pinned as
+a message in `#create-ticket`, lets a client start a ticket without ever
+leaving Discord — the counterpart to the website's own Support page
+(`studio.nimiagames.com/dashboard/support`), not a replacement for it. Both
+paths write to the same `support_tickets` table and produce the identical
+kind of Private Thread; the admin Tickets page (`admin.nimiagames.com/tickets`)
+shows both with no distinction between them.
+
+Flow: client clicks **Open a Ticket** → Discord shows a modal (Subject +
+"How can we help?", mirroring the website form's two fields) → client
+submits it → Discord POSTs the submission to this integration's
+Interactions HTTP endpoint (`apps/studio/app/api/discord/interactions/route.ts`)
+→ that route looks up which Nimia client this Discord account belongs to
+(`clients.discord_user_id`, migration 0025), inserts the `support_tickets`
+row, and calls the SAME `createSupportTicket()` (`packages/discord/src/tickets.ts`)
+the website's own `createSupportTicketAction` calls → a private thread is
+created in `#create-ticket`, the client is added to it, staff see it in
+`#create-ticket` and on the admin Tickets page exactly like any other
+ticket.
+
+**This only works for a Discord account already connected to a Nimia
+account** (Profile → Connect Discord, migration 0025) — the click itself
+never creates an account or a guest ticket. Someone who clicks the button
+without having connected Discord gets an ephemeral (only-they-can-see-it)
+message telling them to log in on the website and connect Discord first,
+then try again.
+
+Technically, this is the one place in the whole integration that receives
+an inbound request FROM Discord rather than only ever calling out to it —
+see "Why no persistent bot process (Gateway) is needed" above for why this
+still doesn't need a Gateway connection, and `packages/discord/src/interactions.ts`
+for the Discord-side mechanics (signature verification, the button/modal
+payloads, deferring the response since the actual work — client lookup,
+ticket insert, thread creation — can plausibly cross Discord's 3-second
+response window).
 
 ## Client/Partner registration
 
@@ -330,6 +380,25 @@ Discord) + the full Partner Discord Channel section above. See:
   `DISCORD_CHANNEL_*_ID` was obtained (see `packages/discord/README.md`),
   then fill in the env vars before the new notifications will actually
   post anywhere.
+- **In-Discord ticket button (added 12 Agustus 2026), three manual steps,
+  in this order:**
+  1. Set `DISCORD_PUBLIC_KEY` and register the **Interactions Endpoint
+     URL** (`https://studio.nimiagames.com/api/discord/interactions`) in
+     the Developer Portal's General Information page — see
+     `packages/discord/README.md` for exactly where. Discord PINGs the URL
+     the moment you click Save; if `DISCORD_PUBLIC_KEY` isn't deployed and
+     correct yet, Save fails right there with its own error.
+  2. Deploy the app with that env var set (step 1's Save literally cannot
+     succeed against a not-yet-deployed endpoint).
+  3. Once both of the above are done, open `admin.nimiagames.com/tickets`
+     and click **Post Ticket Button** once — this posts the actual "Open a
+     Ticket" message into `#create-ticket`. Nothing shows up in Discord
+     until this manual click happens; registering the Interactions
+     Endpoint URL alone only makes the endpoint reachable, it doesn't post
+     anything.
+- **In-Discord ticket button — same "Manage Threads" requirement as the
+  website-originated tickets above applies here too**, no separate setup
+  needed — both paths call the exact same `createPrivateThread()`.
 
 ## Implementation status (guild-join fix)
 
@@ -368,3 +437,26 @@ Founder + Admin + the Client who created it." See:
 - `packages/discord/src/tickets.ts` (NEW) — `createSupportTicket()` (creates the private thread, posts the initial embed, adds the client if they've connected Discord) and `closeSupportTicketThread()` (archive + lock).
 - `apps/studio/app/dashboard/support/` (NEW page + form + action) — reachable from the Topbar account dropdown (which used to link to a generic external Discord invite — replaced by this in-app flow, since "No general chat channel for support" was always the actual spec).
 - `apps/admin/app/(protected)/tickets/` (NEW page + list + close action) — every open ticket, with a "Close Ticket" button and an "Open in Discord" deep link when a thread exists.
+
+## Implementation status (in-Discord ticket button)
+
+**Done (12 Agustus 2026):** the button itself — "In-Discord ticket button"
+above. The first (and so far only) inbound half of this integration; every
+other piece of `@nimia/discord` only ever calls OUT to Discord's REST API.
+See:
+
+- `packages/discord/src/interactions.ts` (NEW) — `verifyDiscordInteractionRequest()` (Ed25519 signature check against `DISCORD_PUBLIC_KEY`, using the `discord-interactions` package — Discord's own small helper for exactly this, not a Gateway SDK, see `packages/discord/README.md`'s "Kenapa tidak pakai discord.js"), `buildCreateTicketButtonMessage()` / `postCreateTicketButtonMessage()` (the button message itself), `buildTicketModal()` / `modalResponse()` / `readTicketModalValues()` (the Subject + Message modal), `deferredEphemeralResponse()` / `editInteractionResponse()` (ack-then-edit pattern for the 3-second response window).
+- `packages/discord/src/rest.ts` — `sendChannelMessage()`'s payload widened with an optional `components` field (message buttons).
+- `packages/discord/src/config.ts` — `getDiscordPublicKey()`, `getDiscordApplicationId()` (reuses `DISCORD_CLIENT_ID` — same value, no new secret).
+- `packages/db/src/service.ts` (NEW) — `createServiceRoleClient()`, exported from `@nimia/db`. The interactions route has no signed-in website session to work with (Discord calls it directly), so it's the one caller in this codebase with a genuine reason to bypass RLS via the service-role key rather than go through `createServerClient` or a `SECURITY DEFINER` RPC — the route does its own authorization check by hand instead (does a `clients` row with this `discord_user_id` exist).
+- `apps/studio/app/api/discord/interactions/route.ts` (NEW) — the actual Interactions HTTP endpoint. Verifies the request, responds to the button click with the modal, and on modal submit: looks up the client by `discord_user_id`, inserts the `support_tickets` row, calls the same `createSupportTicket()` the website's Support form already uses, and edits the deferred response with the result.
+- `apps/admin/app/(protected)/tickets/actions.ts` (`postTicketButtonAction`, NEW) + `apps/admin/app/(protected)/tickets/PostTicketButtonCta.tsx` (NEW) — the one-time "post the button into #create-ticket" admin action, wired into the existing Tickets page.
+- `apps/studio/.env.example` / `packages/discord/README.md` — `DISCORD_PUBLIC_KEY`, and the Developer Portal steps ("Server setup notes" above) for registering the Interactions Endpoint URL.
+
+**Manual follow-up required (can't be done from code) — see the three
+numbered steps under "Server setup notes" above:** set `DISCORD_PUBLIC_KEY`
++ register the Interactions Endpoint URL in the Developer Portal, deploy,
+then click **Post Ticket Button** once on `admin.nimiagames.com/tickets`.
+None of this has been run yet — the button will not appear in
+`#create-ticket` and clicking a not-yet-registered endpoint's button (if
+one somehow existed) would fail until all three steps are done.

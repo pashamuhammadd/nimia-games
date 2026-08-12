@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
 import { TicketsList, type TicketRow } from "./TicketsList";
+import { PostTicketButtonCta } from "./PostTicketButtonCta";
 
 export const metadata = { title: "Tickets" };
 
@@ -54,6 +55,8 @@ export default async function TicketsPage() {
             : "No open tickets right now."}
         </p>
       </div>
+
+      <PostTicketButtonCta />
 
       <TicketsList tickets={rows} />
     </div>

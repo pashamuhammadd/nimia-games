@@ -36,6 +36,35 @@ export function getDiscordBotConfig() {
   };
 }
 
+// Interactions endpoint pair (added 12 Agustus 2026, in-Discord ticket
+// button — see docs/DISCORD.md's "In-Discord ticket button" section and
+// interactions.ts). Neither of these is the bot token — they're the OTHER
+// two credentials Discord's Interactions HTTP endpoint model needs: a
+// public key to verify a request actually came from Discord, and the
+// Application ID to address the per-interaction webhook used to edit a
+// deferred response. Kept separate from getDiscordBotConfig above (not
+// bundled in) so apps/admin, which never receives interactions, doesn't
+// need either of these set.
+
+/** Discord Developer Portal → General Information → "Public Key" — not a
+ * secret (Discord shows it in plaintext), but still required: this is what
+ * verifyDiscordInteractionRequest (interactions.ts) checks every incoming
+ * request against before trusting anything in its body. */
+export function getDiscordPublicKey(): string {
+  return requireEnv("DISCORD_PUBLIC_KEY");
+}
+
+/** The bot Application's own snowflake id. This is the EXACT SAME value as
+ * DISCORD_CLIENT_ID (same field, Discord just labels it differently
+ * depending which page of the Developer Portal you're on) — reused here
+ * rather than adding a second env var for the same number. Needed to edit a
+ * deferred interaction response (interactions.ts's editInteractionResponse)
+ * — that endpoint is scoped by application id + interaction token, not by
+ * bot token. */
+export function getDiscordApplicationId(): string {
+  return requireEnv("DISCORD_CLIENT_ID");
+}
+
 // Individual role/channel IDs are read where they're used (not bundled
 // into getDiscordBotConfig above) so a missing one only breaks the ONE
 // feature that needs it — e.g. DISCORD_ROLE_PARTNER_ID not being set yet
