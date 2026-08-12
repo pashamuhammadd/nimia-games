@@ -1,7 +1,16 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutGrid, Package, Layers, SlidersHorizontal, FileText, Upload, ClipboardCheck } from "lucide-react";
+import {
+  LayoutGrid,
+  Package,
+  Layers,
+  SlidersHorizontal,
+  FileText,
+  Upload,
+  ClipboardCheck,
+  Wallet,
+} from "lucide-react";
 import type { ServiceDefinition, StepId } from "../types";
-import { BUNDLE_STEPS } from "../types/order-state";
+import { BUNDLE_STEPS, CUSTOM_ORDER_STEPS } from "../types/order-state";
 
 export const STEP_META: Record<StepId, { label: string; shortLabel: string; icon: LucideIcon }> = {
   category: { label: "Category", shortLabel: "Category", icon: LayoutGrid },
@@ -17,6 +26,12 @@ export const STEP_META: Record<StepId, { label: string; shortLabel: string; icon
   // rule.
   browse: { label: "Browse Packages", shortLabel: "Browse", icon: Package },
   "package-detail": { label: "Package Details", shortLabel: "Customize", icon: SlidersHorizontal },
+  // Custom Order Builder (12 Agustus 2026) — see CUSTOM_ORDER_STEPS'
+  // own comment in types/order-state.ts for why only 2 new ids were
+  // needed here (brief/upload/review are reused verbatim).
+  "custom-services": { label: "Select Services", shortLabel: "Services", icon: Layers },
+  "custom-configure": { label: "Configure Services", shortLabel: "Configure", icon: SlidersHorizontal },
+  "custom-payment": { label: "Payment Method", shortLabel: "Payment", icon: Wallet },
 };
 
 /**
@@ -41,4 +56,13 @@ export function getStepsForService(service: ServiceDefinition | null): StepId[] 
  * -> Brief -> Upload -> Review flow. */
 export function getStepsForBundle(): StepId[] {
   return [...BUNDLE_STEPS];
+}
+
+/** Custom Order Builder's step sequence (12 Agustus 2026) — same "fixed
+ * sequence" shape as getStepsForBundle above (no service-dependent
+ * branching): every Custom Order goes through Select Services -> Configure
+ * Services -> Brief -> Upload -> Payment Method -> Review, regardless of
+ * which/how many services were picked. */
+export function getStepsForCustomOrder(): StepId[] {
+  return [...CUSTOM_ORDER_STEPS];
 }

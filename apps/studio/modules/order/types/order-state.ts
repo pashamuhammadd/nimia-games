@@ -1,3 +1,5 @@
+import type { CustomServiceSelection, CustomOrderPaymentMethod } from "./custom-order";
+
 /** A configFields[i].id -> value map. The value's shape depends on that
  * field's `type`: "select" -> option id string, "toggle" -> boolean,
  * "multi-select" -> array of option ids. */
@@ -51,7 +53,36 @@ export const ORDER_STEPS = [
  * for a bundle order (see ../data/bundle-packages.ts). */
 export const BUNDLE_STEPS = ["browse", "package-detail", "brief", "upload", "review"] as const;
 
-export type StepId = (typeof ORDER_STEPS)[number] | (typeof BUNDLE_STEPS)[number];
+/** Custom Order Builder's own step sequence (12 Agustus 2026) — reuses
+ * "brief"/"upload"/"review" from ORDER_STEPS verbatim (identical meaning:
+ * the same brief form, the same file upload, the same final review+submit
+ * pattern — exactly how BUNDLE_STEPS above already reuses those same three
+ * ids), but mints two brand-new ids for the parts that are genuinely
+ * different: "custom-services" (Step 1, multi-select across all 4
+ * categories at once — unlike ORDER_STEPS' single-category "category"/
+ * "service" pair) and "custom-configure" (Step 2, configuring EVERY
+ * selected service in one step — spec's Step 2 "Configure Services" and
+ * Step 3 "Additional Options" collapse into this single step, since this
+ * catalog's existing ConfigField model already mixes base options and paid
+ * add-ons together per service, see ../data/fields.ts's toggleField/
+ * countField helpers — Rush Delivery, Source File, Additional Character
+ * etc. are already "additional options" in that same list, not a separate
+ * concept). Payment Method (spec Step 10) is its own step, "custom-payment",
+ * deliberately placed right before Review, after every configuration
+ * decision — never earlier, per spec section 10's explicit instruction. */
+export const CUSTOM_ORDER_STEPS = [
+  "custom-services",
+  "custom-configure",
+  "brief",
+  "upload",
+  "custom-payment",
+  "review",
+] as const;
+
+export type StepId =
+  | (typeof ORDER_STEPS)[number]
+  | (typeof BUNDLE_STEPS)[number]
+  | (typeof CUSTOM_ORDER_STEPS)[number];
 
 /** Which entry path a visitor picked on /order's Step 0 ("Choose Order
  * Type", added 3 Agustus 2026, per user request). Deliberately NOT part of
@@ -81,6 +112,13 @@ export interface OrderWizardState {
   /** Selected BundleCreativeOption ids for the current bundlePackageId's
    * slot system. Only meaningful when orderType === "packages". */
   bundleCreativeContentIds: string[];
+  /** Custom Order Builder (12 Agustus 2026) — one entry per service the
+   * client has added, only meaningful when orderType === "custom". See
+   * ./custom-order.ts. */
+  customServiceSelections: CustomServiceSelection[];
+  /** Custom Order Builder — chosen at Step "custom-payment", null until
+   * then. Only meaningful when orderType === "custom". */
+  customPaymentMethod: CustomOrderPaymentMethod | null;
   brief: ProjectBrief;
   files: UploadedFileMeta[];
   agreedToTerms: boolean;
@@ -106,6 +144,8 @@ export const INITIAL_ORDER_STATE: OrderWizardState = {
   configSelections: {},
   bundlePackageId: null,
   bundleCreativeContentIds: [],
+  customServiceSelections: [],
+  customPaymentMethod: null,
   brief: EMPTY_BRIEF,
   files: [],
   agreedToTerms: false,

@@ -25,7 +25,13 @@ export interface StepNavigationProps {
 // slot is filled), and Review ends in two buttons instead of Continue:
 // Submit Order (accept the estimate as-is) and Negotiate Price (3 Agustus
 // 2026, per user request — attaches the offer typed into ReviewSection's
-// negotiation field instead).
+// negotiation field instead). Custom Order Builder (12 Agustus 2026) adds
+// three more explicit-Continue steps of its own: "custom-services" (needs
+// at least one service picked), "custom-configure" (nothing to validate
+// here beyond having selections, which the previous step already
+// guarantees — still an explicit Continue since it's a multi-service page,
+// not an auto-advancing single choice), and "custom-payment" (needs a
+// payment method chosen — see useOrderWizard#canGoNext).
 export function StepNavigation({
   step,
   canGoBack,
@@ -36,7 +42,14 @@ export function StepNavigation({
   onSubmit,
   onNegotiate,
 }: StepNavigationProps) {
-  const showContinue = step === "configure" || step === "package-detail" || step === "brief" || step === "upload";
+  const showContinue =
+    step === "configure" ||
+    step === "package-detail" ||
+    step === "brief" ||
+    step === "upload" ||
+    step === "custom-services" ||
+    step === "custom-configure" ||
+    step === "custom-payment";
   const showSubmit = step === "review";
 
   if (!showContinue && !showSubmit && !canGoBack) return null;

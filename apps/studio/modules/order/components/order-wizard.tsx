@@ -8,7 +8,6 @@ import { useOrderWizard } from "../state/use-order-wizard";
 import { BUNDLE_PACKAGES } from "../data/bundle-packages";
 import { OrderHeader } from "./order-header";
 import { OrderTypeSelector } from "./order-type-selector";
-import { CustomOrderPlaceholder } from "./custom-order-placeholder";
 import { ProgressIndicator } from "./progress-indicator";
 import { StepNavigation } from "./step-navigation";
 import { CategorySelector } from "./category-selector";
@@ -21,6 +20,13 @@ import { ReviewSection } from "./review-section";
 import { PriceEstimator } from "./price-estimator";
 import { PackageBrowseGrid } from "./package-browse-grid";
 import { PackageDetail } from "./package-detail";
+// Custom Order Builder (12 Agustus 2026) — replaces the earlier
+// CustomOrderPlaceholder screen with the real step machine below.
+import { CustomServiceMultiSelector } from "./custom-service-multi-selector";
+import { CustomOrderConfigureStep } from "./custom-order-configure-step";
+import { PaymentMethodStep } from "./payment-method-step";
+import { CustomOrderReviewSection } from "./custom-order-review-section";
+import { CustomOrderPriceEstimator } from "./custom-order-price-estimator";
 
 export interface OrderWizardProps {
   isAuthenticated: boolean;
@@ -74,9 +80,6 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
   // point (ProgressIndicator, the step machine, StepNavigation, submit())
   // changed at all: "project-builder" is the only orderType that reaches
   // it, exactly the same wizard that existed before this addition.
-  // "custom" still renders a placeholder screen — see
-  // components/order-type-selector.tsx's comment for why this lives
-  // outside ORDER_STEPS/StepId entirely.
   if (!wizard.orderType) {
     return (
       <div className="nimia-dark min-h-screen">
@@ -88,12 +91,122 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
     );
   }
 
+  // Custom Order Builder (12 Agustus 2026) — replaces the earlier
+  // CustomOrderPlaceholder screen. Same layout shell (OrderHeader,
+  // ProgressIndicator, StepNavigation) as the "packages" branch below, just
+  // driven by CUSTOM_ORDER_STEPS/wizard.state.customServiceSelections
+  // instead of BUNDLE_STEPS/wizard.bundlePackage. See
+  // state/use-order-wizard.ts for how `steps`/`customEstimate`/`canGoNext`/
+  // `submit` all branch on orderType === "custom".
   if (wizard.orderType === "custom") {
     return (
       <div className="nimia-dark min-h-screen">
         <OrderHeader isAuthenticated={isAuthenticated} />
-        <main className="mx-auto max-w-5xl px-4 sm:px-6">
-          <CustomOrderPlaceholder onBack={wizard.resetOrderType} />
+
+        <div className="border-b border-white/10 bg-white/[0.02] px-4 py-4 sm:px-6">
+          <div className="mx-auto max-w-6xl">
+            <ProgressIndicator
+              steps={wizard.steps}
+              currentStepIndex={wizard.currentStepIndex}
+              maxStepIndexReached={wizard.state.maxStepIndexReached}
+              onSelectStep={wizard.goToStep}
+            />
+          </div>
+        </div>
+
+        <main className="mx-auto flex max-w-6xl flex-col gap-10 px-4 pb-28 pt-10 sm:px-6 lg:flex-row lg:items-start lg:pb-16">
+          <div className="min-w-0 flex-1">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={wizard.state.step}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              >
+                {wizard.state.step === "custom-services" ? (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={wizard.resetOrderType}
+                      className="mb-4 text-sm font-medium text-white/45 transition-colors hover:text-white"
+                    >
+                      ← Change order type
+                    </button>
+                    <CustomServiceMultiSelector
+                      selections={wizard.state.customServiceSelections}
+                      onAdd={wizard.addCustomService}
+                      onRemove={wizard.removeCustomService}
+                    />
+                  </div>
+                ) : null}
+
+                {wizard.state.step === "custom-configure" ? (
+                  <CustomOrderConfigureStep
+                    selections={wizard.state.customServiceSelections}
+                    onRemove={wizard.removeCustomService}
+                    onUpdateConfig={wizard.updateCustomServiceConfig}
+                    onSetPackageTier={wizard.setCustomServicePackageTier}
+                  />
+                ) : null}
+
+                {wizard.state.step === "brief" ? (
+                  <ProjectBriefForm brief={wizard.state.brief} onChange={wizard.updateBrief} />
+                ) : null}
+
+                {wizard.state.step === "upload" ? (
+                  <UploadSection
+                    files={wizard.state.files}
+                    onAddFiles={wizard.addFiles}
+                    onRemoveFile={wizard.removeFile}
+                  />
+                ) : null}
+
+                {wizard.state.step === "custom-payment" ? (
+                  <PaymentMethodStep
+                    paymentMethod={wizard.state.customPaymentMethod}
+                    onSelect={wizard.setCustomPaymentMethod}
+                    estimate={wizard.customEstimate}
+                    installmentFeePercentage={wizard.installmentFeePercentage}
+                  />
+                ) : null}
+
+                {wizard.state.step === "review" ? (
+                  <CustomOrderReviewSection
+                    selections={wizard.state.customServiceSelections}
+                    paymentMethod={wizard.state.customPaymentMethod}
+                    estimate={wizard.customEstimate}
+                    brief={wizard.state.brief}
+                    files={wizard.state.files}
+                    agreedToTerms={wizard.state.agreedToTerms}
+                    onAgreedToTermsChange={wizard.setAgreedToTerms}
+                    onEditStep={wizard.goToStep}
+                    submitError={wizard.submitError}
+                    negotiationOffer={wizard.state.negotiationOffer}
+                    onNegotiationOfferChange={wizard.updateNegotiationOffer}
+                  />
+                ) : null}
+              </motion.div>
+            </AnimatePresence>
+
+            <div className="mt-10">
+              <StepNavigation
+                step={wizard.state.step}
+                canGoBack={wizard.currentStepIndex > 0}
+                canGoNext={wizard.canGoNext}
+                isSubmitting={wizard.isSubmitting}
+                onBack={wizard.goBack}
+                onNext={wizard.goNext}
+                onSubmit={() => wizard.submit("submit")}
+                onNegotiate={() => wizard.submit("negotiate")}
+              />
+            </div>
+          </div>
+
+          <CustomOrderPriceEstimator
+            estimate={wizard.customEstimate}
+            paymentMethod={wizard.state.customPaymentMethod}
+          />
         </main>
       </div>
     );

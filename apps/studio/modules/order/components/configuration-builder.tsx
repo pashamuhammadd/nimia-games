@@ -10,6 +10,14 @@ export interface ConfigurationBuilderProps {
   service: ServiceDefinition | null;
   selections: ConfigSelections;
   onChange: (fieldId: string, value: string | boolean | string[]) => void;
+  /** Custom Order Builder (12 Agustus 2026) — when true, skips this
+   * component's own "Configure your project" heading/intro copy, which is
+   * written for Project Builder's single-service Step 4 and would repeat
+   * awkwardly once per service inside CustomOrderConfigureStep's
+   * multi-service section. Field rendering below is completely unaffected
+   * either way — same data-driven switch on field.type as always. Defaults
+   * to false so Project Builder's own Step 4 renders exactly as before. */
+  hideIntro?: boolean;
 }
 
 // STEP 4 — entirely data-driven: this component never knows what
@@ -17,7 +25,7 @@ export interface ConfigurationBuilderProps {
 // field.type (3 fixed cases). Every service's actual configuration lives
 // in ../data/categories/*.ts as plain ConfigField objects — adding a new
 // service, or changing an existing one's options, never touches this file.
-export function ConfigurationBuilder({ service, selections, onChange }: ConfigurationBuilderProps) {
+export function ConfigurationBuilder({ service, selections, onChange, hideIntro = false }: ConfigurationBuilderProps) {
   const shouldReduceMotion = useReducedMotion();
 
   if (!service) return null;
@@ -33,12 +41,21 @@ export function ConfigurationBuilder({ service, selections, onChange }: Configur
 
   return (
     <div>
-      <h2 className="nimia-font-display text-2xl font-bold text-white sm:text-3xl">
-        Configure your project
-      </h2>
-      <p className="mt-2 text-white/55">{service.name}: tune the details below.</p>
+      {!hideIntro ? (
+        <>
+          <h2 className="nimia-font-display text-2xl font-bold text-white sm:text-3xl">
+            Configure your project
+          </h2>
+          <p className="mt-2 text-white/55">{service.name}: tune the details below.</p>
+        </>
+      ) : null}
 
-      <motion.div variants={container} initial="hidden" animate="visible" className="mt-8 flex flex-col gap-4">
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="visible"
+        className={hideIntro ? "flex flex-col gap-4" : "mt-8 flex flex-col gap-4"}
+      >
         {service.configFields.map((field) => (
           <motion.div key={field.id} variants={item}>
             {field.type === "select" ? (

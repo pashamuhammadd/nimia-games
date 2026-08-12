@@ -13,14 +13,24 @@ import {
   type StepId,
   type UploadedFileMeta,
   type BundlePackage,
+  type CustomServiceSelection,
+  type CustomOrderPaymentMethod,
 } from "../types";
 import { getCategory, findServiceById } from "../data/catalog";
 import { findBundlePackageById } from "../data/bundle-packages";
-import { calculateEstimate, calculateBundleEstimate, type Estimate } from "../pricing";
+import {
+  calculateEstimate,
+  calculateBundleEstimate,
+  calculateCustomOrderEstimate,
+  type Estimate,
+  type CustomOrderEstimate,
+} from "../pricing";
 import { getDefaultSelections } from "./default-selections";
-import { getStepsForService, getStepsForBundle } from "./steps";
+import { getStepsForService, getStepsForBundle, getStepsForCustomOrder } from "./steps";
 import { clearOrderState, loadOrderState, saveOrderState } from "./storage";
 import { submitOrderAction } from "./submit-order-action";
+import { submitCustomOrderAction } from "./submit-custom-order-action";
+import { getInstallmentFeePercentageAction } from "./get-installment-fee-action";
 import { getUploadSignatureAction } from "./get-upload-signature-action";
 import { uploadFileToCloudinary } from "./upload-to-cloudinary";
 
@@ -46,6 +56,13 @@ function usedSlotsFor(pkg: BundlePackage | null, selectedOptionIds: string[]): n
 }
 
 const BUNDLE_ONLY_STEPS: StepId[] = ["browse", "package-detail"];
+const CUSTOM_ORDER_ONLY_STEPS: StepId[] = ["custom-services", "custom-configure", "custom-payment"];
+
+function generateLocalId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `local-${Date.now()}-${Math.random()}`;
+}
 
 /** Repairs a raw parse of localStorage against the CURRENT catalog — if a
  * service/category referenced in an old save no longer exists (data file
@@ -96,9 +113,28 @@ function sanitizeRestoredState(raw: unknown): OrderWizardState {
         maxStepIndexReached: 0,
       };
     }
-  } else if (BUNDLE_ONLY_STEPS.includes(restored.step)) {
-    // Corrupted/cross-flow state (shouldn't normally happen) — a bundle-only
-    // step id without orderType === "packages" has nowhere valid to render.
+  } else if (restored.orderType === "custom") {
+    // Custom Order Builder (12 Agustus 2026) — same defensive re-validation
+    // as the bundle branch above: drop any restored selection whose
+    // category/service no longer resolves against the current static
+    // catalog, rather than letting a stale localStorage entry crash the
+    // page. Doesn't bounce all the way back to Step 0 — losing one bad
+    // selection while keeping the rest (and the brief/files/step already
+    // reached) is a much softer landing than the single-service case above,
+    // since there's no single "the" service this flow depends on.
+    restored = {
+      ...restored,
+      customServiceSelections: (restored.customServiceSelections ?? []).filter(
+        (selection) => getCategory(selection.categoryId) && findServiceById(selection.serviceId),
+      ),
+    };
+    if (BUNDLE_ONLY_STEPS.includes(restored.step)) {
+      restored = { ...restored, step: "custom-services", maxStepIndexReached: 0 };
+    }
+  } else if (BUNDLE_ONLY_STEPS.includes(restored.step) || CUSTOM_ORDER_ONLY_STEPS.includes(restored.step)) {
+    // Corrupted/cross-flow state (shouldn't normally happen) — a bundle- or
+    // custom-order-only step id without the matching orderType has nowhere
+    // valid to render.
     restored = { ...restored, step: "category", maxStepIndexReached: 0 };
   }
 
@@ -124,6 +160,17 @@ export interface UseOrderWizardResult {
   steps: StepId[];
   currentStepIndex: number;
   estimate: Estimate;
+  /** Custom Order Builder (12 Agustus 2026) — the multi-service estimate,
+   * only meaningful (non-empty) when orderType === "custom". Kept separate
+   * from `estimate` above rather than force-fitting a different shape into
+   * the single-service Estimate type Project Builder/Packages already
+   * share. */
+  customEstimate: CustomOrderEstimate;
+  /** Admin-configurable installment fee percentage (default 30, see
+   * packages/db/migrations/0038), fetched once when orderType becomes
+   * "custom". Preview only — submitCustomOrderAction re-reads the real
+   * value server-side before ever computing a price that gets saved. */
+  installmentFeePercentage: number;
   isHydrated: boolean;
   canGoNext: boolean;
   isSubmitting: boolean;
@@ -135,7 +182,7 @@ export interface UseOrderWizardResult {
   orderType: OrderType | null;
   selectOrderType: (type: OrderType) => void;
   /** Returns to Step 0 (the "← Back to order type" link on Browse Packages/
-   * the Custom Order placeholder, and available from Category too). */
+   * Custom Order, and available from Category too). */
   resetOrderType: () => void;
   selectCategory: (categoryId: string) => void;
   selectService: (serviceId: string) => void;
@@ -150,6 +197,15 @@ export interface UseOrderWizardResult {
    * (components/package-detail.tsx) also disables that option so this
    * over-cap guard is defense-in-depth, not the only thing enforcing it. */
   toggleBundleCreativeContent: (optionId: string) => void;
+  /** Custom Order Builder — adds a service to the order (a no-op if that
+   * exact category+service pair is already present). Seeds configSelections
+   * from the service's own declared defaults, same as selectService does
+   * for Project Builder. */
+  addCustomService: (categoryId: string, serviceId: string) => void;
+  removeCustomService: (selectionId: string) => void;
+  updateCustomServiceConfig: (selectionId: string, fieldId: string, value: string | boolean | string[]) => void;
+  setCustomServicePackageTier: (selectionId: string, packageId: string) => void;
+  setCustomPaymentMethod: (method: CustomOrderPaymentMethod) => void;
   updateConfigValue: (fieldId: string, value: string | boolean | string[]) => void;
   updateBrief: (patch: Partial<ProjectBrief>) => void;
   updateNegotiationOffer: (value: string) => void;
@@ -173,6 +229,11 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [submitted, setSubmitted] = React.useState(false);
   const [submittedIntent, setSubmittedIntent] = React.useState<SubmitIntent | null>(null);
+  // Custom Order Builder (12 Agustus 2026) — default matches
+  // installment_settings.fee_percentage's own DB default (0038) so the
+  // Payment Method step never shows "+0%" during the brief window before
+  // the real value has loaded.
+  const [installmentFeePercentage, setInstallmentFeePercentage] = React.useState(30);
 
   // Restore a previous session (including one interrupted by the login
   // redirect) exactly once, after mount — reading localStorage during
@@ -190,21 +251,52 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     saveOrderState(state);
   }, [state, isHydrated]);
 
+  // Custom Order Builder — fetch the real (admin-configurable) installment
+  // fee percentage once the visitor actually enters this flow, rather than
+  // on every /order page load regardless of which order type they pick.
+  React.useEffect(() => {
+    if (state.orderType !== "custom") return;
+    let cancelled = false;
+    getInstallmentFeePercentageAction().then((pct) => {
+      if (!cancelled) setInstallmentFeePercentage(pct);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.orderType]);
+
   const category = getCategory(state.categoryId);
   const service = findServiceById(state.serviceId);
   const bundlePackage = findBundlePackageById(state.bundlePackageId);
   const isBundleOrder = state.orderType === "packages";
-  const steps = isBundleOrder ? getStepsForBundle() : getStepsForService(service);
+  const isCustomOrder = state.orderType === "custom";
+  const steps = isBundleOrder
+    ? getStepsForBundle()
+    : isCustomOrder
+      ? getStepsForCustomOrder()
+      : getStepsForService(service);
   const currentStepIndex = Math.max(0, steps.indexOf(state.step));
   const estimate = isBundleOrder
     ? calculateBundleEstimate(bundlePackage)
-    : calculateEstimate(service, state.packageId, state.configSelections);
+    : calculateEstimate(isCustomOrder ? null : service, state.packageId, state.configSelections);
+  const customEstimate = calculateCustomOrderEstimate(
+    state.customServiceSelections,
+    state.customPaymentMethod,
+    installmentFeePercentage,
+  );
 
   const selectOrderType = React.useCallback((type: OrderType) => {
     setState((prev) => ({
       ...prev,
       orderType: type,
-      step: type === "packages" ? "browse" : type === "project-builder" ? "category" : prev.step,
+      step:
+        type === "packages"
+          ? "browse"
+          : type === "project-builder"
+            ? "category"
+            : type === "custom"
+              ? "custom-services"
+              : prev.step,
       maxStepIndexReached: 0,
     }));
   }, []);
@@ -276,6 +368,59 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
       if (used + option.slots > pkg.creativeSlotCount) return prev; // over cap — see toggleBundleCreativeContent's doc comment
       return { ...prev, bundleCreativeContentIds: [...prev.bundleCreativeContentIds, optionId] };
     });
+  }, []);
+
+  const addCustomService = React.useCallback((categoryId: string, serviceId: string) => {
+    setState((prev) => {
+      const alreadyAdded = prev.customServiceSelections.some(
+        (selection) => selection.categoryId === categoryId && selection.serviceId === serviceId,
+      );
+      if (alreadyAdded) return prev;
+
+      const svc = findServiceById(serviceId);
+      const entry: CustomServiceSelection = {
+        id: generateLocalId(),
+        categoryId,
+        serviceId,
+        packageId: svc?.pricingModel === "packages" ? svc.packages?.[0]?.id ?? null : null,
+        configSelections: getDefaultSelections(svc),
+      };
+      return { ...prev, customServiceSelections: [...prev.customServiceSelections, entry] };
+    });
+  }, []);
+
+  const removeCustomService = React.useCallback((selectionId: string) => {
+    setState((prev) => ({
+      ...prev,
+      customServiceSelections: prev.customServiceSelections.filter((selection) => selection.id !== selectionId),
+    }));
+  }, []);
+
+  const updateCustomServiceConfig = React.useCallback(
+    (selectionId: string, fieldId: string, value: string | boolean | string[]) => {
+      setState((prev) => ({
+        ...prev,
+        customServiceSelections: prev.customServiceSelections.map((selection) =>
+          selection.id === selectionId
+            ? { ...selection, configSelections: { ...selection.configSelections, [fieldId]: value } }
+            : selection,
+        ),
+      }));
+    },
+    [],
+  );
+
+  const setCustomServicePackageTier = React.useCallback((selectionId: string, packageId: string) => {
+    setState((prev) => ({
+      ...prev,
+      customServiceSelections: prev.customServiceSelections.map((selection) =>
+        selection.id === selectionId ? { ...selection, packageId } : selection,
+      ),
+    }));
+  }, []);
+
+  const setCustomPaymentMethod = React.useCallback((method: CustomOrderPaymentMethod) => {
+    setState((prev) => ({ ...prev, customPaymentMethod: method }));
   }, []);
 
   const updateConfigValue = React.useCallback(
@@ -372,8 +517,25 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
       if (!bundlePackage) return false;
       return usedSlotsFor(bundlePackage, state.bundleCreativeContentIds) === bundlePackage.creativeSlotCount;
     }
+    // Custom Order Builder (12 Agustus 2026) — Select Services needs at
+    // least one service added; Payment Method needs an explicit choice
+    // (spec section 10 — never defaults to one silently).
+    if (state.step === "custom-services") {
+      return state.customServiceSelections.length > 0;
+    }
+    if (state.step === "custom-payment") {
+      return state.customPaymentMethod !== null;
+    }
     return true;
-  }, [state.step, state.brief.projectTitle, state.brief.projectDescription, state.bundleCreativeContentIds, bundlePackage]);
+  }, [
+    state.step,
+    state.brief.projectTitle,
+    state.brief.projectDescription,
+    state.bundleCreativeContentIds,
+    state.customServiceSelections,
+    state.customPaymentMethod,
+    bundlePackage,
+  ]);
 
   const submit = React.useCallback(
     (intent: SubmitIntent) => {
@@ -382,10 +544,20 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
         return;
       }
 
+      if (isCustomOrder && state.customServiceSelections.length === 0) {
+        setSubmitError("Add at least one service before submitting.");
+        return;
+      }
+      if (isCustomOrder && !state.customPaymentMethod) {
+        setSubmitError("Choose a payment method before submitting.");
+        return;
+      }
+
       // Negotiating requires an actual number to send the team — "Submit
       // Order" alone (accepting the calculated estimate) has no such
-      // requirement. (submitOrderAction re-validates this server-side too —
-      // this is just so a visitor doesn't wait on a round trip to find out.)
+      // requirement. (submitOrderAction/submitCustomOrderAction re-validate
+      // this server-side too — this is just so a visitor doesn't wait on a
+      // round trip to find out.)
       if (intent === "negotiate") {
         const parsedOffer = Number(state.negotiationOffer.trim());
         if (!state.negotiationOffer.trim() || Number.isNaN(parsedOffer) || parsedOffer <= 0) {
@@ -456,39 +628,35 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
           }
         }
 
-        // Real submission (3 Agustus 2026, per user request — this used to
-        // be a window.setTimeout local-only simulation that never wrote to
-        // `orders`/`order_negotiations`, which is why a negotiated order
-        // never showed up under /dashboard's Negotiations menu). See
-        // submit-order-action.ts for the actual insert logic; "submit" ->
-        // orders.status = 'pending_review', "negotiate" ->
-        // orders.status = 'negotiating' + an order_negotiations row (per
-        // packages/db/migrations/0012 and 0013). `uploadedFiles` (added
-        // 4 Agustus 2026) becomes one `order_files` row per attachment.
-        // `agreedToTerms` (added 9 Agustus 2026, launch-readiness audit
-        // finding) is forwarded so submitOrderAction can re-check it
-        // server-side too — the check at the top of this callback is only
-        // a client-side nicety, same defense-in-depth pattern as the
-        // negotiation-offer validation above.
-        //
-        // Package/Bundle system (10 Agustus 2026) — for a bundle order,
-        // categoryId/serviceId/packageId/configSelections are sent as
-        // null/empty and bundlePackageId/bundleCreativeContentIds carry the
-        // real selection instead; submitOrderAction branches on whether
-        // bundlePackageId is set (see that file's isBundleOrder check).
-        submitOrderAction({
-          intent,
-          categoryId: isBundleOrder ? null : state.categoryId,
-          serviceId: isBundleOrder ? null : state.serviceId,
-          packageId: isBundleOrder ? null : state.packageId,
-          configSelections: isBundleOrder ? {} : state.configSelections,
-          bundlePackageId: isBundleOrder ? state.bundlePackageId : null,
-          bundleCreativeContentIds: isBundleOrder ? state.bundleCreativeContentIds : [],
-          brief: state.brief,
-          negotiationOffer: state.negotiationOffer,
-          uploadedFiles,
-          agreedToTerms: state.agreedToTerms,
-        })
+        // Custom Order Builder (12 Agustus 2026) branches to its own submit
+        // action entirely — different shape of input (N services, a payment
+        // method) than Project Builder/Packages share. See
+        // submit-custom-order-action.ts for the actual insert logic.
+        const submission = isCustomOrder
+          ? submitCustomOrderAction({
+              intent,
+              selections: state.customServiceSelections,
+              paymentMethod: state.customPaymentMethod,
+              brief: state.brief,
+              negotiationOffer: state.negotiationOffer,
+              uploadedFiles,
+              agreedToTerms: state.agreedToTerms,
+            })
+          : submitOrderAction({
+              intent,
+              categoryId: isBundleOrder ? null : state.categoryId,
+              serviceId: isBundleOrder ? null : state.serviceId,
+              packageId: isBundleOrder ? null : state.packageId,
+              configSelections: isBundleOrder ? {} : state.configSelections,
+              bundlePackageId: isBundleOrder ? state.bundlePackageId : null,
+              bundleCreativeContentIds: isBundleOrder ? state.bundleCreativeContentIds : [],
+              brief: state.brief,
+              negotiationOffer: state.negotiationOffer,
+              uploadedFiles,
+              agreedToTerms: state.agreedToTerms,
+            });
+
+        submission
           .then((result) => {
             setIsSubmitting(false);
             if (!result.ok) {
@@ -509,6 +677,7 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
       isAuthenticated,
       router,
       isBundleOrder,
+      isCustomOrder,
       state.agreedToTerms,
       state.negotiationOffer,
       state.categoryId,
@@ -517,6 +686,8 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
       state.configSelections,
       state.bundlePackageId,
       state.bundleCreativeContentIds,
+      state.customServiceSelections,
+      state.customPaymentMethod,
       state.brief,
       state.files,
       fileBlobs,
@@ -540,6 +711,8 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     steps,
     currentStepIndex,
     estimate,
+    customEstimate,
+    installmentFeePercentage,
     isHydrated,
     canGoNext,
     isSubmitting,
@@ -554,6 +727,11 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     selectPackage,
     selectBundlePackage,
     toggleBundleCreativeContent,
+    addCustomService,
+    removeCustomService,
+    updateCustomServiceConfig,
+    setCustomServicePackageTier,
+    setCustomPaymentMethod,
     updateConfigValue,
     updateBrief,
     updateNegotiationOffer,

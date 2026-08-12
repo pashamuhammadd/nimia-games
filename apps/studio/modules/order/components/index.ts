@@ -16,3 +16,9 @@ export { SummaryCard } from "./summary-card";
 export { OptionCard } from "./option-card";
 export { PackageBrowseGrid } from "./package-browse-grid";
 export { PackageDetail } from "./package-detail";
+// Custom Order Builder (12 Agustus 2026)
+export { CustomServiceMultiSelector } from "./custom-service-multi-selector";
+export { CustomOrderConfigureStep } from "./custom-order-configure-step";
+export { PaymentMethodStep } from "./payment-method-step";
+export { CustomOrderReviewSection } from "./custom-order-review-section";
+export { CustomOrderPriceEstimator } from "./custom-order-price-estimator";
