@@ -245,6 +245,14 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
     .insert({
       client_id: client.id,
       service_id: isBundleOrder ? null : service!.dbServiceId,
+      // Added 12 Agustus 2026 (order-flow audit fix) — a bundle order has
+      // no service_id (see above), and the package's name previously only
+      // lived inside `description`'s free text. Every "which
+      // service/package is this order for" read site (receipt PDFs, both
+      // apps' Orders lists/detail) fell back to a hardcoded "Custom
+      // Project" for these, which is wrong for a paying package order.
+      // See packages/db/migrations/0036_order_package_name.sql.
+      package_name: isBundleOrder ? bundlePkg!.name : null,
       full_name: clientName,
       company_name: client.company_name,
       email: user.email ?? "",

@@ -153,7 +153,10 @@ export function OrderDetailPanel({
 
       <div>
         <span className="text-xs font-semibold uppercase tracking-wider text-white/35">Service</span>
-        <p className="mt-1 text-sm text-white/80">{order.services?.name ?? "Custom Project"}</p>
+        {/* package_name fallback (12 Agustus 2026, order-flow audit fix) —
+            a Package/Bundle order has services=null; see
+            packages/db/migrations/0036_order_package_name.sql. */}
+        <p className="mt-1 text-sm text-white/80">{order.services?.name ?? order.package_name ?? "Custom Project"}</p>
       </div>
 
       <div>

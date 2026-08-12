@@ -22,7 +22,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .select(
-      "id, full_name, company_name, email, final_price_usd, payment_network, payment_token, payment_tx_hash, payment_verified_at, services(name)",
+      "id, full_name, company_name, email, final_price_usd, payment_network, payment_token, payment_tx_hash, payment_verified_at, services(name), package_name",
     )
     .eq("id", orderId)
     .single();
@@ -49,7 +49,12 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     issuedAt: receipt.created_at,
     billedToName: (order as any).company_name || (order as any).full_name,
     billedToEmail: (order as any).email,
-    serviceName: service?.name ?? "Custom Project",
+    // package_name (12 Agustus 2026, order-flow audit fix — see
+    // packages/db/migrations/0036_order_package_name.sql) covers a
+    // Package/Bundle order, which has service_id/services null instead of
+    // a service row — without this fallback every bundle-order receipt
+    // read "Custom Project" instead of the package actually purchased.
+    serviceName: service?.name ?? (order as any).package_name ?? "Custom Project",
     amountUsd: Number((order as any).final_price_usd ?? 0),
     network: (order as any).payment_network,
     currency: (order as any).payment_token,

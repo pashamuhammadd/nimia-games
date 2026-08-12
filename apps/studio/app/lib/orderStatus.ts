@@ -20,9 +20,10 @@ export type OrderStatus =
 
 export const ORDER_STATUS_META: Record<OrderStatus, { label: string; dotClass: string }> = {
   pending_review: { label: "Pending Review", dotClass: "bg-slate-400" },
-  // Legacy value (0012's comment: no longer produced by new orders, but
-  // existing rows may still carry it) — kept labeled rather than falling
-  // through to the raw-string fallback below.
+  // Live status, not legacy (corrected 12 Agustus 2026, order-flow audit —
+  // see 0012's own updated comment) — every direct/non-negotiated order
+  // still passes through here via approveOrderAction ("Approve & Send
+  // Quotation") in apps/admin.
   quotation_sent: { label: "Quotation Sent", dotClass: "bg-sky-400" },
   negotiating: { label: "Negotiating", dotClass: "bg-amber-400" },
   awaiting_payment: { label: "Awaiting Payment", dotClass: "bg-purple-400" },

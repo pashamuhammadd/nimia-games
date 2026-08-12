@@ -13,6 +13,12 @@ export const metadata = { title: "Orders" };
 // modules/order) — not this page anymore.
 const NEW_ORDER_HREF = "/order";
 
+// Page size for the range-based pagination below (added 12 Agustus 2026,
+// order-flow audit fix — bounded per-client today, but this query used to
+// fetch a client's ENTIRE order history, unbounded, on every page load;
+// same fix as apps/admin's Orders page for the same reason).
+const PAGE_SIZE = 20;
+
 // Rewritten (3 Agustus 2026, per user request): this page used to always
 // render OrderForm, a generic "submit a new order" form, regardless of
 // whether the client already had orders in flight. Now that /order is the
@@ -25,7 +31,16 @@ const NEW_ORDER_HREF = "/order";
 // nothing else in the app still links to them (the public /services page's
 // "Explore Service" CTAs and the navbar/home/why-nimia/how-to-start CTAs
 // all point at /order now).
-export default async function OrdersPage() {
+export default async function OrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, Number.parseInt(pageParam ?? "1", 10) || 1);
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
   const supabase = createServerClient(await cookies());
   const {
     data: { user },
@@ -38,9 +53,10 @@ export default async function OrdersPage() {
     .single();
 
   let orders: OrderListItem[] = [];
+  let totalCount = 0;
 
   if (client) {
-    const { data } = await supabase
+    const { data, count } = await supabase
       .from("orders")
       .select(
         // payment_* columns added (3 Agustus 2026, per user request —
@@ -52,10 +68,16 @@ export default async function OrdersPage() {
         // this order instead of re-offering the redeem box — order_id is
         // UNIQUE on voucher_redemptions (packages/db/migrations/
         // 0021_vouchers.sql), so there's at most one row per order.
-        "id, description, status, budget, final_price_usd, proposed_price_usd, created_at, services(name), payment_network, payment_token, payment_wallet_address, payment_expected_amount, payment_tx_hash, payment_submitted_at, payment_verified_at, payment_underpaid_note, voucher_redemptions(discount_percent, original_price_usd, discounted_price_usd, vouchers(code))",
+        // package_name added (12 Agustus 2026, order-flow audit fix) — see
+        // packages/db/migrations/0036_order_package_name.sql.
+        "id, description, status, budget, final_price_usd, proposed_price_usd, created_at, services(name), package_name, payment_network, payment_token, payment_wallet_address, payment_expected_amount, payment_tx_hash, payment_submitted_at, payment_verified_at, payment_underpaid_note, voucher_redemptions(discount_percent, original_price_usd, discounted_price_usd, vouchers(code))",
+        { count: "exact" },
       )
       .eq("client_id", client.id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    totalCount = count ?? 0;
 
     orders = (data ?? []).map((o: any) => {
       // PostgREST embeds a to-one FK relationship as a plain object, but
@@ -73,7 +95,10 @@ export default async function OrdersPage() {
 
       return {
         id: o.id,
-        title: service?.name ?? "Custom Project",
+        // package_name fallback covers a Package/Bundle order, which has
+        // services=null (see 0036 above) — only a genuinely custom order
+        // falls all the way through to "Custom Project".
+        title: service?.name ?? o.package_name ?? "Custom Project",
         description: o.description,
         status: o.status,
         budget: o.budget,
@@ -140,6 +165,37 @@ export default async function OrdersPage() {
       ) : (
         <EmptyOrdersState ctaHref={NEW_ORDER_HREF} />
       )}
+
+      {totalCount > PAGE_SIZE ? (
+        <div className="flex items-center justify-between gap-3 pt-2">
+          <p className="text-xs text-[var(--nimia-muted)]">
+            Page {page} of {Math.max(1, Math.ceil(totalCount / PAGE_SIZE))} · {totalCount} order
+            {totalCount === 1 ? "" : "s"}
+          </p>
+          <div className="flex gap-2">
+            <Link
+              href={`/dashboard/orders?page=${Math.max(1, page - 1)}`}
+              aria-disabled={page <= 1}
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                page <= 1 && "pointer-events-none opacity-40",
+              )}
+            >
+              Previous
+            </Link>
+            <Link
+              href={`/dashboard/orders?page=${Math.min(Math.max(1, Math.ceil(totalCount / PAGE_SIZE)), page + 1)}`}
+              aria-disabled={page >= Math.ceil(totalCount / PAGE_SIZE)}
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                page >= Math.ceil(totalCount / PAGE_SIZE) && "pointer-events-none opacity-40",
+              )}
+            >
+              Next
+            </Link>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

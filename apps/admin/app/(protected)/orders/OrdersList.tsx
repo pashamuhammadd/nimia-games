@@ -36,6 +36,12 @@ export type OrderListItem = {
   final_price_usd: number | null;
   created_at: string;
   services: { name: string } | null;
+  // Added 12 Agustus 2026 (order-flow audit fix) — set for Package/Bundle
+  // orders only, which have services=null (see
+  // packages/db/migrations/0036_order_package_name.sql). Falls back to
+  // "Custom Project" only when BOTH this and services are null, i.e. a
+  // genuinely custom order.
+  package_name: string | null;
   clients: { company_name: string | null } | null;
   order_files: { id: string; file_name: string; file_url: string }[];
   order_negotiations: NegotiationOfferRow[];
@@ -128,7 +134,7 @@ export function OrdersList({ orders }: { orders: OrderListItem[] }) {
                   </span>
                 </div>
                 <p className="mt-0.5 truncate text-xs text-white/45">
-                  {order.services?.name ?? "Custom Project"}
+                  {order.services?.name ?? order.package_name ?? "Custom Project"}
                   {order.budget ? ` · ${order.budget}` : ""}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
