@@ -133,6 +133,17 @@ export function LeadDetailPanel({ lead, onClose }: { lead: LeadRow; onClose: () 
         </p>
       </div>
 
+      {lead.platform.startsWith("CoinGecko") ? (
+        <a
+          href="https://www.coingecko.com"
+          target="_blank"
+          rel="noreferrer"
+          className="self-start text-sm font-medium text-white/50 underline hover:text-white/70"
+        >
+          Powered by CoinGecko
+        </a>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-2">
         <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-bold ring-1 ring-inset ${tone.ringClass} ${tone.textClass}`}>
           Lead Score: {lead.lead_score}/100

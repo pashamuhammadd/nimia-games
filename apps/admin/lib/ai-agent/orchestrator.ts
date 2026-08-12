@@ -5,6 +5,7 @@ import { dedupeCandidatesInBatch, buildDedupeKey } from "./tools/dedupe";
 import { extractProjectInformation } from "./tools/extract";
 import { classifyBuyingIntent } from "./tools/qualify";
 import { scoreLead, buildEvidence } from "./tools/score";
+import { scoreFirmographicLead, buildFirmographicEvidence, firmographicBuyingIntent, TYPICAL_SERVICES } from "./tools/scoreFirmographic";
 import { saveLead } from "./tools/save";
 import { truncate } from "./tools/text";
 import { QUALIFIED_SCORE_THRESHOLD, POSSIBLE_SCORE_THRESHOLD } from "./constants";
@@ -97,6 +98,62 @@ function analyzeCandidate(candidate: Candidate, runId: string | null): AnalyzedL
   };
 }
 
+// Firmographic sibling of analyzeCandidate() above — routes any candidate
+// carrying a `firmographic` signal (CoinGecko's memecoin/NFT providers)
+// through tools/scoreFirmographic.ts instead of tools/qualify.ts +
+// tools/score.ts. See that module's header comment for why the two paths
+// must stay separate rather than one branching inside the other: an
+// inferred "this project's profile suggests it's a prospect" signal must
+// never be presented — in code or in the UI's qualification_reason — as
+// an expressed "this person asked to hire an animator" one.
+function analyzeFirmographicCandidate(candidate: Candidate, runId: string | null): AnalyzedLead {
+  const signal = candidate.firmographic!;
+  const { breakdown } = scoreFirmographicLead(candidate, signal);
+  const evidence = buildFirmographicEvidence(candidate, signal);
+  const services = TYPICAL_SERVICES[signal.projectType];
+  const topService = services[0];
+
+  const status = decideQualificationStatus(breakdown.total, false);
+
+  const reasonParts: string[] = [
+    "No explicit request for animation was found for this prospect — qualification is based on the project's " +
+      "public profile (category, channels, activity), not a stated need. Review manually before any outreach.",
+  ];
+  if (breakdown.serviceFit.reasons[0]) reasonParts.push(breakdown.serviceFit.reasons[0]);
+
+  const projectDescription = candidate.title
+    ? `${candidate.title} — ${truncate(candidate.text, 260)}`
+    : truncate(candidate.text, 280);
+
+  return {
+    runId,
+    projectName: candidate.prospectName ?? candidate.title ?? null,
+    prospectName: candidate.prospectName ?? null,
+    username: candidate.username ?? null,
+    platform: candidate.platform,
+    sourceUrl: candidate.sourceUrl,
+    projectUrl: candidate.projectUrl ?? null,
+    detectedService: topService.catalogServiceName ?? topService.label,
+    animationType: topService.label,
+    projectDescription,
+    detectedNeed: `Likely needs ${services.map((s) => s.label).join("/")} based on project profile (inferred, not confirmed).`,
+    buyingIntent: firmographicBuyingIntent(breakdown.buyingIntent.score, breakdown.buyingIntent.max),
+    budgetInformation: signal.marketCapUsd != null ? `Market cap ~$${Math.round(signal.marketCapUsd).toLocaleString()} (CoinGecko)` : null,
+    deadlineInformation: null,
+    leadScore: breakdown.total,
+    scoreBreakdown: breakdown,
+    qualificationStatus: status,
+    qualificationReason: reasonParts.join(" "),
+    evidence,
+    contactMethod: candidate.contactMethod ?? null,
+    contactUrl: candidate.contactUrl ?? null,
+    isDemo: candidate.isDemo,
+    dedupeKey: buildDedupeKey(candidate),
+    discoverySourceId: candidate.discoverySourceId,
+    rawSnippet: truncate(candidate.text, 500),
+  };
+}
+
 export async function runAgentPipeline(supabase: SupabaseClient, params: AgentRunParams): Promise<AgentRunSummary> {
   const errors: AgentRunError[] = [];
 
@@ -174,7 +231,7 @@ export async function runAgentPipeline(supabase: SupabaseClient, params: AgentRu
 
   for (const candidate of filtered) {
     try {
-      const analyzed = analyzeCandidate(candidate, runId);
+      const analyzed = candidate.firmographic ? analyzeFirmographicCandidate(candidate, runId) : analyzeCandidate(candidate, runId);
       const result = await saveLead(supabase, analyzed);
       candidatesAnalyzed += 1;
 

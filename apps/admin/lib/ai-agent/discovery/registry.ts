@@ -1,6 +1,8 @@
 import type { DiscoverySource, DiscoverySourceStatus } from "../types";
 import { DemoDiscoveryProvider } from "./demo-provider";
 import { RedditDiscoveryProvider } from "./reddit-provider";
+import { CoinGeckoMemecoinDiscoveryProvider } from "./coingecko-memecoin-provider";
+import { CoinGeckoNftDiscoveryProvider } from "./coingecko-nft-provider";
 import { WebSearchDiscoveryProvider } from "./web-search-provider";
 import { JobBoardDiscoveryProvider } from "./job-board-provider";
 
@@ -14,6 +16,8 @@ import { JobBoardDiscoveryProvider } from "./job-board-provider";
 const REGISTRY: DiscoverySource[] = [
   new DemoDiscoveryProvider(),
   new RedditDiscoveryProvider(),
+  new CoinGeckoMemecoinDiscoveryProvider(),
+  new CoinGeckoNftDiscoveryProvider(),
   new WebSearchDiscoveryProvider(),
   new JobBoardDiscoveryProvider(),
 ];

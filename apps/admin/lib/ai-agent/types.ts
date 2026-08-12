@@ -67,6 +67,38 @@ export type Candidate = {
   contactMethod?: string | null;
   contactUrl?: string | null;
   isDemo: boolean;
+  /** Set ONLY by a "firmographic" discovery source (added 12 Agustus
+   * 2026 — CoinGecko memecoin/NFT providers) whose candidates come from
+   * structured API data rather than a natural-language post that
+   * expresses hiring intent. When present, the orchestrator routes this
+   * candidate through tools/scoreFirmographic.ts instead of
+   * tools/qualify.ts + tools/score.ts — see that module's header comment
+   * for why the two need to stay separate (an inferred prospecting
+   * signal must never be presented as an expressed one). Absent/undefined
+   * for every other source (Demo, Reddit, Web Search, Job Board). */
+  firmographic?: FirmographicSignal;
+};
+
+/** Structured signal about a project (not a person's stated request) used
+ * by tools/scoreFirmographic.ts. Everything here must be a verifiable
+ * fact from the discovery source's API response — never an inference
+ * dressed up as a fact (that's what the *scoring* is for). */
+export type FirmographicSignal = {
+  projectType: "memecoin" | "nft";
+  /** The discovery source's own category label, e.g. CoinGecko's
+   * "meme-token" — null when the source doesn't expose one (CoinGecko's
+   * NFT API doesn't categorize collections the way its coin API does). */
+  category: string | null;
+  /** ISO timestamp of when the source says this project was listed/
+   * activated — null when the source has no such field (see
+   * coingecko-nft-provider.ts's header comment for why NFTs never have
+   * one). Never estimated/guessed when unavailable. */
+  listedAt: string | null;
+  channels: { website: boolean; twitter: boolean; telegram: boolean; discord: boolean };
+  marketCapUsd: number | null;
+  /** Recent trading-volume figure (USD), used as an activity proxy only
+   * when `listedAt` is unavailable (NFTs) — null otherwise. */
+  activityUsd?: number | null;
 };
 
 export type DiscoverySourceStatus = {
