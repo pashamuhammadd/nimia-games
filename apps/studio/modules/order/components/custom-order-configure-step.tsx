@@ -50,7 +50,7 @@ export function CustomOrderConfigureStep({
         Configure your services
       </h2>
       <p className="mt-2 text-white/55">
-        Tune the details for each service you selected — pricing updates live as you go.
+        Tune the details for each service you selected. Pricing updates live as you go.
       </p>
 
       <motion.div variants={container} initial="hidden" animate="visible" className="mt-8 flex flex-col gap-6">

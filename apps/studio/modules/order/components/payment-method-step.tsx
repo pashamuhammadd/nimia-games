@@ -94,7 +94,7 @@ export function PaymentMethodStep({
                   ${installmentTotal}
                 </p>
                 <p className="mt-1 text-xs text-white/45">
-                  ${estimate.subtotal} + ${installmentFeeAmount} fee — e.g. two milestones of ${halfSplit} each
+                  ${estimate.subtotal} + ${installmentFeeAmount} fee, e.g. two milestones of ${halfSplit} each
                 </p>
               </div>
             }
@@ -104,7 +104,7 @@ export function PaymentMethodStep({
 
       <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/55">
         The exact milestone schedule (number of payments and their split) is confirmed by our team when they
-        review your order — later milestones stay locked until earlier ones are paid.
+        review your order. Later milestones stay locked until earlier ones are paid.
       </div>
     </div>
   );

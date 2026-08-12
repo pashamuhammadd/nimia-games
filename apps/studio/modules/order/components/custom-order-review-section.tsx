@@ -54,7 +54,7 @@ export function CustomOrderReviewSection({
   if (selections.length === 0) return null;
 
   const serviceCardRows = estimate.serviceLines.map((line) => ({
-    label: `${line.categoryName} — ${line.serviceName}${line.packageLabel ? ` (${line.packageLabel})` : ""}`,
+    label: `${line.categoryName}: ${line.serviceName}${line.packageLabel ? ` (${line.packageLabel})` : ""}`,
     value: `$${line.lineTotal}`,
   }));
 
