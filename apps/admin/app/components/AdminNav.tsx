@@ -15,6 +15,7 @@ import {
   Wallet,
   LifeBuoy,
   Handshake,
+  Bot,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@nimia/ui";
@@ -42,6 +43,12 @@ export const ADMIN_NAV_ITEMS: { href: string; label: string; icon: LucideIcon; f
   // — matches get_partner_metrics()/get_partner_referral_activity()
   // (0016), which were already staff-accessible, not founder-only.
   { href: "/partners", label: "Partners", icon: Handshake },
+  // AI Client Hunter (12 Agustus 2026) — discovery/qualification module,
+  // see apps/admin/app/(protected)/ai-client-hunter/. Same is_admin()-only
+  // visibility as every other staff tool here (ai_leads_admin_all etc.,
+  // packages/db/migrations/0039_ai_client_hunter.sql) — not founderOnly,
+  // this is a research/prep tool, not a money-moving one.
+  { href: "/ai-client-hunter", label: "AI Client Hunter", icon: Bot },
   // Tickets (9 Agustus 2026, Discord support-ticket pass) — unlike the
   // client-facing dashboard, apps/admin's brief never said "don't add
   // menu items", so this is a real Sidebar entry rather than tucked into
