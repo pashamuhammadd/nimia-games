@@ -1,96 +1,129 @@
 import type { createServerClient } from "@nimia/db";
-import type { AnalyzedLead } from "../types";
+import type { AnalyzedProject } from "../types";
+import { QUALIFIED_SCORE_THRESHOLD, OPPORTUNITY_SCORE_THRESHOLD } from "../constants";
 
 type SupabaseClient = ReturnType<typeof createServerClient>;
 
-// Tool: save_lead — the ONLY place in this module that writes to
-// `ai_leads`/`ai_lead_sources`. Upserts on the unique `dedupe_key` index
-// (packages/db/migrations/0039) so re-discovering the same prospect on a
-// later run refreshes the existing row rather than duplicating it —
-// `discovered_at` is deliberately excluded from the update set so it
-// keeps pointing at the FIRST time this prospect was ever found, while
-// every other analyzed field (score, evidence, qualification, etc.)
-// reflects the latest run.
-//
-// Never touches `outreach_status` or moves `qualification_status` into
-// any of the admin-only stages ('contacted'/'replied'/'negotiation'/
-// 'converted'/'lost') — those only ever change from a human action in
-// apps/admin/app/(protected)/ai-client-hunter/actions.ts. A duplicate
-// re-discovery of an already 'contacted' lead still gets its score/
-// evidence refreshed here, but its outreach progress is left alone.
-export async function saveLead(
+// Tool: save_project — the ONLY place in this module that writes to
+// ai_projects / ai_project_analysis / ai_prospect_status. Three separate
+// upserts, all keyed off the same project — see packages/db/migrations/
+// 0040_ai_prospect_hunter.sql's own top comment for why these are three
+// tables instead of one wide row: source data (ai_projects) must never be
+// confused with AI interpretation (ai_project_analysis), and a human's
+// manual pipeline-stage decision (ai_prospect_status) must never be
+// silently overwritten by a later re-analysis of the same project.
+export async function saveProject(
   supabase: SupabaseClient,
-  analyzed: AnalyzedLead,
-): Promise<{ leadId: string } | { error: string }> {
-  const { data: existing } = await supabase
-    .from("ai_leads")
-    .select("id, qualification_status")
-    .eq("dedupe_key", analyzed.dedupeKey)
-    .maybeSingle();
+  analyzed: AnalyzedProject,
+): Promise<{ projectId: string } | { error: string }> {
+  const p = analyzed.project;
 
-  const isAdminManagedStage =
-    existing &&
-    ["contacted", "replied", "negotiation", "converted", "lost"].includes(
-      (existing as { qualification_status: string }).qualification_status,
-    );
-
-  const row: Record<string, unknown> = {
-    run_id: analyzed.runId,
-    project_name: analyzed.projectName,
-    prospect_name: analyzed.prospectName,
-    username: analyzed.username,
-    platform: analyzed.platform,
-    source_url: analyzed.sourceUrl,
-    project_url: analyzed.projectUrl,
-    detected_service: analyzed.detectedService,
-    animation_type: analyzed.animationType,
-    project_description: analyzed.projectDescription,
-    detected_need: analyzed.detectedNeed,
-    buying_intent: analyzed.buyingIntent,
-    budget_information: analyzed.budgetInformation,
-    deadline_information: analyzed.deadlineInformation,
-    lead_score: analyzed.leadScore,
-    score_breakdown: analyzed.scoreBreakdown,
-    qualification_reason: analyzed.qualificationReason,
-    evidence: analyzed.evidence,
-    contact_method: analyzed.contactMethod,
-    contact_url: analyzed.contactUrl,
-    is_demo: analyzed.isDemo,
-    dedupe_key: analyzed.dedupeKey,
+  // ---- ai_projects (source of truth) ----
+  const projectRow: Record<string, unknown> = {
+    coingecko_id: p.coingeckoId,
+    name: p.name,
+    symbol: p.symbol,
+    description: p.description,
+    categories: p.categories,
+    logo_url: p.logoUrl,
+    homepage_url: p.homepageUrl,
+    whitepaper_url: p.whitepaperUrl,
+    docs_url: p.docsUrl,
+    explorer_url: p.explorerUrl,
+    blockchain_platforms: p.blockchainPlatforms,
+    launch_date: p.launchDate,
+    first_listed_at: p.firstListedAt,
+    current_price_usd: p.currentPriceUsd,
+    market_cap_usd: p.marketCapUsd,
+    fully_diluted_valuation_usd: p.fullyDilutedValuationUsd,
+    volume_24h_usd: p.volume24hUsd,
+    market_cap_rank: p.marketCapRank,
+    circulating_supply: p.circulatingSupply,
+    total_supply: p.totalSupply,
+    max_supply: p.maxSupply,
+    ath_usd: p.athUsd,
+    ath_date: p.athDate,
+    atl_usd: p.atlUsd,
+    atl_date: p.atlDate,
+    price_change_24h_pct: p.priceChange24hPct,
+    social_links: p.socialLinks,
+    developer_links: p.developerLinks,
+    raw_source_data: p.rawSourceData,
+    is_demo: p.isDemo,
   };
 
-  // A lead a human has already moved past 'qualified'/'possible'/
-  // 'rejected' keeps its status — the AI re-scoring it on a later run
-  // must not silently pull it back to 'new' or override a decision a
-  // person already made.
-  if (!isAdminManagedStage) {
-    row.qualification_status = analyzed.qualificationStatus;
-  }
-
-  const { data: saved, error } = await supabase
-    .from("ai_leads")
-    .upsert(row, { onConflict: "dedupe_key" })
+  const { data: savedProject, error: projectError } = await supabase
+    .from("ai_projects")
+    .upsert(projectRow, { onConflict: "coingecko_id" })
     .select("id")
     .single();
 
-  if (error || !saved) {
-    return { error: error?.message ?? "Failed to save lead." };
+  if (projectError || !savedProject) {
+    return { error: projectError?.message ?? "Failed to save project." };
+  }
+  const projectId = (savedProject as { id: string }).id;
+
+  // ---- ai_project_analysis (AI interpretation — always refreshed) ----
+  const { error: analysisError } = await supabase.from("ai_project_analysis").upsert(
+    {
+      project_id: projectId,
+      run_id: analyzed.runId,
+      analysis_status: "completed",
+      animation_opportunity: analyzed.animationOpportunity,
+      opportunity_score: analyzed.opportunityScore,
+      score_breakdown: analyzed.scoreBreakdown,
+      project_fit: analyzed.projectFit,
+      commercial_potential: analyzed.commercialPotential,
+      recommended_services: analyzed.recommendedServices,
+      reasoning: analyzed.reasoning,
+      analyzed_at: new Date().toISOString(),
+    },
+    { onConflict: "project_id" },
+  );
+  if (analysisError) {
+    return { error: analysisError.message };
   }
 
-  const leadId = (saved as { id: string }).id;
+  // ---- ai_prospect_status (human pipeline stage — admin-managed stages protected) ----
+  const { data: existingStatus } = await supabase
+    .from("ai_prospect_status")
+    .select("id, status")
+    .eq("project_id", projectId)
+    .maybeSingle();
 
-  const { error: sourceError } = await supabase.from("ai_lead_sources").insert({
-    lead_id: leadId,
-    discovery_source: analyzed.discoverySourceId,
-    source_url: analyzed.sourceUrl,
-    raw_snippet: analyzed.rawSnippet,
-  });
-  if (sourceError) {
-    // Non-fatal — the lead itself saved fine, only its evidence trail
-    // entry failed. Surfaced to the run's error log by the orchestrator,
-    // not thrown, so one bad insert doesn't fail the whole run.
-    return { leadId };
+  const ADMIN_MANAGED_STAGES = ["contacted", "replied", "negotiation", "client", "rejected"];
+  const isAdminManaged = existingStatus && ADMIN_MANAGED_STAGES.includes((existingStatus as { status: string }).status);
+
+  if (!existingStatus) {
+    const initialStatus =
+      analyzed.opportunityScore >= QUALIFIED_SCORE_THRESHOLD
+        ? "qualified_prospect"
+        : analyzed.opportunityScore >= OPPORTUNITY_SCORE_THRESHOLD
+          ? "opportunity"
+          : "project";
+    const { error: statusError } = await supabase.from("ai_prospect_status").insert({
+      project_id: projectId,
+      status: initialStatus,
+    });
+    if (statusError) return { error: statusError.message };
+  } else if (!isAdminManaged) {
+    // A re-discovered project not yet moved past 'project'/'opportunity'/
+    // 'qualified_prospect' by a human gets its auto-assigned stage
+    // refreshed to reflect the latest score — but a human's own
+    // contacted/replied/negotiation/client/rejected decision is never
+    // pulled backward by a re-analysis.
+    const refreshedStatus =
+      analyzed.opportunityScore >= QUALIFIED_SCORE_THRESHOLD
+        ? "qualified_prospect"
+        : analyzed.opportunityScore >= OPPORTUNITY_SCORE_THRESHOLD
+          ? "opportunity"
+          : "project";
+    const { error: statusError } = await supabase
+      .from("ai_prospect_status")
+      .update({ status: refreshedStatus })
+      .eq("project_id", projectId);
+    if (statusError) return { error: statusError.message };
   }
 
-  return { leadId };
+  return { projectId };
 }

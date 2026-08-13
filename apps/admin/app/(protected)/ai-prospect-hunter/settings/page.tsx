@@ -1,27 +1,26 @@
 import { listDiscoverySourceStatuses } from "../../../../lib/ai-agent/discovery/registry";
 import { aiProviderStatusMessage, isAiProviderConfigured } from "../../../../lib/ai-agent/provider";
-import { SCORE_MAX, SCORE_TOTAL_MAX, QUALIFIED_SCORE_THRESHOLD, POSSIBLE_SCORE_THRESHOLD } from "../../../../lib/ai-agent/constants";
+import { isDemoModeEnabled } from "../../../../lib/ai-agent/discovery/demo-provider";
+import { SCORE_MAX, SCORE_TOTAL_MAX, QUALIFIED_SCORE_THRESHOLD, OPPORTUNITY_SCORE_THRESHOLD, CATEGORY_TIERS } from "../../../../lib/ai-agent/constants";
 import { ANIMATION_SERVICE_CATEGORIES } from "../../../../lib/ai-agent/knowledge/animation-services";
 
-export const metadata = { title: "AI Client Hunter · Settings" };
+export const metadata = { title: "AI Prospect Hunter · Settings" };
 
 const FACTOR_ROWS: { key: keyof typeof SCORE_MAX; label: string }[] = [
-  { key: "buyingIntent", label: "Buying Intent" },
-  { key: "serviceFit", label: "Service Fit" },
-  { key: "projectRelevance", label: "Project Relevance" },
-  { key: "budgetPotential", label: "Budget / Commercial Potential" },
-  { key: "projectActivity", label: "Project Activity" },
-  { key: "contactability", label: "Contactability" },
+  { key: "categoryFit", label: "Category Fit" },
+  { key: "visualPotential", label: "Product / Visual Potential" },
+  { key: "commercialPotential", label: "Commercial Potential" },
+  { key: "activity", label: "Project Activity" },
+  { key: "brandPresence", label: "Brand / Community Presence" },
+  { key: "contactability", label: "Information / Contactability" },
 ];
 
-// Read-only configuration status page — V1 has no persisted, editable
-// settings of its own (no API keys or secrets are ever handled in the
-// browser, per brief section 18/20). This page exists so an admin can see
-// AT A GLANCE what's actually connected before running the AI Hunter,
-// without digging through env vars or code.
+// Read-only configuration status page — no persisted, editable settings
+// of its own (no API keys or secrets are ever handled in the browser).
 export default function AIHunterSettingsPage() {
   const sources = listDiscoverySourceStatuses();
   const aiConfigured = isAiProviderConfigured();
+  const demoMode = isDemoModeEnabled();
 
   return (
     <div className="flex flex-col gap-6">
@@ -29,7 +28,7 @@ export default function AIHunterSettingsPage() {
         <h2 className="text-sm font-semibold text-white">Discovery Sources</h2>
         <p className="mt-1 text-xs text-white/40">
           Configured via server-side environment variables only — see apps/admin/.env.example. Never editable from
-          this UI, since that would mean handling API credentials in the browser.
+          this UI.
         </p>
         <div className="mt-3 flex flex-col gap-2">
           {sources.map((source) => (
@@ -49,19 +48,34 @@ export default function AIHunterSettingsPage() {
           ))}
         </div>
         {sources.every((s) => s.id === "demo" || !s.configured) ? (
-          <p className="mt-3 rounded-lg border border-amber-400/25 bg-amber-400/[0.06] px-3 py-2 text-xs text-amber-200">
-            Demo discovery source active — every lead currently generated is sample data, not a real prospect.
+          <p className="mt-3 rounded-lg border border-red-400/25 bg-red-400/[0.06] px-3 py-2 text-xs text-red-200">
+            CoinGecko data unavailable — no live discovery source is connected. Runs will fail with a clear error
+            instead of showing fake data.{demoMode ? " AI_HUNTER_DEMO_MODE is set — you can still run the Demo source for local testing." : ""}
           </p>
         ) : null}
+      </div>
+
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+        <h2 className="text-sm font-semibold text-white">Category Tiers</h2>
+        <p className="mt-1 text-xs text-white/40">CoinGecko category slugs swept per tier — see Find Prospects.</p>
+        <div className="mt-3 flex flex-col gap-2">
+          {CATEGORY_TIERS.map((tier) => (
+            <div key={tier.tier} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3.5 py-2.5">
+              <p className="text-sm font-medium text-white/85">
+                Tier {tier.tier} — {tier.label}
+              </p>
+              <p className="mt-0.5 text-xs text-white/40">{tier.categorySlugs.join(", ")}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
         <h2 className="text-sm font-semibold text-white">AI Provider</h2>
         <p className="mt-1.5 text-xs text-white/40">{aiProviderStatusMessage()}</p>
         <p className="mt-2 text-xs text-white/35">
-          The lead score and qualification status are always computed by the built-in deterministic scoring engine
-          (see below) — the AI provider, when configured, only polishes prose (qualification write-ups, outreach
-          drafts) and can never change a score or invent evidence.
+          The opportunity score is always computed by the built-in deterministic scoring engine (see below) — the AI
+          provider, when configured, only polishes outreach draft prose and can never change a score.
         </p>
         {!aiConfigured ? (
           <p className="mt-2 text-xs text-white/35">
@@ -72,7 +86,7 @@ export default function AIHunterSettingsPage() {
       </div>
 
       <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
-        <h2 className="text-sm font-semibold text-white">Lead Scoring (0–{SCORE_TOTAL_MAX})</h2>
+        <h2 className="text-sm font-semibold text-white">Opportunity Scoring (0–{SCORE_TOTAL_MAX})</h2>
         <div className="mt-3 flex flex-col gap-1.5 text-sm">
           {FACTOR_ROWS.map((row) => (
             <div key={row.key} className="flex items-center justify-between border-b border-white/[0.05] py-1.5 last:border-0">
@@ -82,15 +96,15 @@ export default function AIHunterSettingsPage() {
           ))}
         </div>
         <p className="mt-3 text-xs text-white/40">
-          Score ≥ {QUALIFIED_SCORE_THRESHOLD} → Qualified · Score ≥ {POSSIBLE_SCORE_THRESHOLD} → Possible · below that →
-          Rejected. Every factor always lists the specific reasons behind its number — see a lead&apos;s detail panel
-          on the Leads tab.
+          Score ≥ {QUALIFIED_SCORE_THRESHOLD} → Qualified Prospect · Score ≥ {OPPORTUNITY_SCORE_THRESHOLD} → Opportunity · below that →
+          Project (not rejected, just not yet a strong fit). Every factor always lists the specific reasons behind
+          its number — see a project&apos;s detail panel on the Projects tab.
         </p>
       </div>
 
       <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
         <h2 className="text-sm font-semibold text-white">Animation Services Knowledge Base</h2>
-        <p className="mt-1 text-xs text-white/40">What the AI matches prospect text against — see this app&apos;s lib/ai-agent/knowledge/animation-services.ts.</p>
+        <p className="mt-1 text-xs text-white/40">What a project&apos;s category is matched against — see this app&apos;s lib/ai-agent/knowledge/animation-services.ts.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {ANIMATION_SERVICE_CATEGORIES.map((category) => (
             <span key={category.id} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-medium text-white/65">

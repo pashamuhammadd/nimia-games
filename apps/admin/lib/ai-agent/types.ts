@@ -1,24 +1,34 @@
-// Shared types for the Nimia AI Animation Client Hunter (V1).
+// Shared types for the Nimia AI Prospect Hunter (V2 — CoinGecko-powered
+// crypto/Web3 project prospecting for Nimia Studio's animation services).
 //
-// Kept as one file rather than scattered per-module — this whole package
-// is small enough that a single source of truth for the shapes flowing
-// through Discovery -> Tools -> Orchestrator -> Database is more useful
-// than avoiding a "big types file". Mirrors the enum values created in
-// packages/db/migrations/0039_ai_client_hunter.sql exactly — if you add a
-// value to one, add it here too.
+// Replaces the "AI Client Hunter" (V1)'s types.ts wholesale, not
+// incrementally — V1 modeled a "Candidate" as a person's natural-language
+// post expressing hiring intent (Reddit/Demo/Job Board). V2 has no such
+// text: every discovered thing is a PROJECT with structured CoinGecko
+// data. Mirrors packages/db/migrations/0040_ai_prospect_hunter.sql
+// exactly — if you add a value to one, add it here too.
 
-export type AiBuyingIntent = "high" | "medium" | "low" | "none";
+export type AiOpportunityLevel = "very_high" | "high" | "medium" | "low" | "none";
 
-export type AiQualificationStatus =
-  | "new"
-  | "qualified"
-  | "possible"
-  | "rejected"
+export type AiCommercialPotential = "very_high" | "high" | "medium" | "low";
+
+export type AiAnalysisStatus = "pending" | "completed" | "failed";
+
+// Spec's own pipeline (section 13): Project -> Animation Opportunity ->
+// Qualified Prospect -> Contacted -> Replied -> Negotiation -> Client.
+// 'project' is the floor every discovered project starts at — a CoinGecko
+// listing is NOT automatically a lead. Everything from 'contacted' onward
+// only ever changes from an explicit admin action (apps/admin's
+// actions.ts), never automatically.
+export type AiProspectStatus =
+  | "project"
+  | "opportunity"
+  | "qualified_prospect"
   | "contacted"
   | "replied"
   | "negotiation"
-  | "converted"
-  | "lost";
+  | "client"
+  | "rejected";
 
 export type AiOutreachStatus =
   | "not_contacted"
@@ -32,73 +42,111 @@ export type AiOutreachStatus =
 export type AiRunStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
 
 // ------------------------------------------------------------------
+// Category tiers (spec section 6)
+// ------------------------------------------------------------------
+
+export type CategoryTier = 1 | 2 | 3 | 4;
+
+export type CategoryTierInfo = {
+  tier: CategoryTier;
+  label: string;
+  /** CoinGecko category slugs (from /coins/categories/list) belonging to
+   * this tier. Best-effort curated list — CoinGecko renames/splits
+   * categories occasionally, so this is verified periodically against the
+   * live endpoint rather than assumed permanent; see
+   * discovery/coingecko-project-provider.ts's header comment. */
+  categorySlugs: string[];
+};
+
+// ------------------------------------------------------------------
 // Discovery layer
 // ------------------------------------------------------------------
 
-/** What the Find Clients page collects and hands to the orchestrator. */
+/** What the Find Prospects page collects and hands to the orchestrator. */
 export type DiscoveryParams = {
-  target: string;
-  serviceFilter?: string | null;
-  audienceFilter?: string | null;
-  /** How many candidates THIS source should try to return — the
-   * orchestrator asks each enabled source for a share of
-   * requestedLeads, not the full amount, so one source running hot
-   * doesn't crowd out the others. */
+  /** CoinGecko category slugs to search — empty means "every tier's
+   * categories" (the registry's default sweep). */
+  categorySlugs: string[];
+  /** How many candidates THIS source should try to return. */
   limit: number;
 };
 
-/** One unanalyzed hit from a discovery source, before any AI
- * analysis/scoring — deliberately "dumb": a source's only job is to find
- * candidate text and where it came from, never to judge whether it's a
- * real prospect. `text` is the exact raw content the qualification
- * engine will quote as evidence from, so a source must never summarize,
- * translate, or embellish it. */
-export type Candidate = {
+/** One project pulled from CoinGecko, before AI analysis/scoring —
+ * deliberately "dumb": discovery's only job is to fetch and structurally
+ * normalize what CoinGecko's API actually returned, never to judge
+ * whether it's a real prospect. Every field here must be a verifiable
+ * fact from the API response (spec section 21) — never an inference
+ * dressed up as a fact (that's what tools/scoreProject.ts is for). */
+export type DiscoveredProject = {
   discoverySourceId: string;
-  platform: string;
-  externalId?: string | null;
-  username?: string | null;
-  prospectName?: string | null;
-  title?: string | null;
-  text: string;
-  sourceUrl: string | null;
-  projectUrl?: string | null;
-  postedAt?: string | null;
-  contactMethod?: string | null;
-  contactUrl?: string | null;
+  coingeckoId: string;
+  name: string;
+  symbol: string | null;
+  description: string | null;
+  /** CoinGecko's own category labels, verbatim (human-readable, e.g.
+   * "Gaming (Games)") — for display only. */
+  categories: string[];
+  /** CoinGecko category SLUGS (the /coins/markets?category=X query
+   * parameter, e.g. "gaming") that this project was actually discovered
+   * under — the authoritative value tools/scoreProject.ts's Category Fit
+   * factor matches against constants.ts's CATEGORY_TIERS, since CoinGecko
+   * has no reliable way to derive a slug back out of its own
+   * human-readable `categories` labels above. Populated by whichever
+   * discovery call actually found this project; never guessed. */
+  matchedCategorySlugs: string[];
+  logoUrl: string | null;
+
+  homepageUrl: string | null;
+  whitepaperUrl: string | null;
+  docsUrl: string | null;
+  explorerUrl: string | null;
+  blockchainPlatforms: string[];
+
+  /** From CoinGecko's `genesis_date` — null when not provided. Never the
+   * same thing as `firstListedAt` below; see that field's own comment. */
+  launchDate: string | null;
+  /** ISO timestamp of when CoinGecko says this was added to ITS OWN
+   * listings (only available for very recently listed coins via
+   * /coins/list/new) — null otherwise. Never confused with launchDate in
+   * any UI copy or AI reasoning text (spec section 8's explicit
+   * requirement). */
+  firstListedAt: string | null;
+
+  currentPriceUsd: number | null;
+  marketCapUsd: number | null;
+  fullyDilutedValuationUsd: number | null;
+  volume24hUsd: number | null;
+  marketCapRank: number | null;
+  circulatingSupply: number | null;
+  totalSupply: number | null;
+  maxSupply: number | null;
+  athUsd: number | null;
+  athDate: string | null;
+  atlUsd: number | null;
+  atlDate: string | null;
+  priceChange24hPct: number | null;
+
+  socialLinks: ProjectSocialLinks;
+  developerLinks: ProjectDeveloperLinks;
+
+  /** The exact API response this was built from — passed straight
+   * through to ai_projects.raw_source_data. */
+  rawSourceData: unknown;
+
   isDemo: boolean;
-  /** Set ONLY by a "firmographic" discovery source (added 12 Agustus
-   * 2026 — CoinGecko memecoin/NFT providers) whose candidates come from
-   * structured API data rather than a natural-language post that
-   * expresses hiring intent. When present, the orchestrator routes this
-   * candidate through tools/scoreFirmographic.ts instead of
-   * tools/qualify.ts + tools/score.ts — see that module's header comment
-   * for why the two need to stay separate (an inferred prospecting
-   * signal must never be presented as an expressed one). Absent/undefined
-   * for every other source (Demo, Reddit, Web Search, Job Board). */
-  firmographic?: FirmographicSignal;
 };
 
-/** Structured signal about a project (not a person's stated request) used
- * by tools/scoreFirmographic.ts. Everything here must be a verifiable
- * fact from the discovery source's API response — never an inference
- * dressed up as a fact (that's what the *scoring* is for). */
-export type FirmographicSignal = {
-  projectType: "memecoin" | "nft";
-  /** The discovery source's own category label, e.g. CoinGecko's
-   * "meme-token" — null when the source doesn't expose one (CoinGecko's
-   * NFT API doesn't categorize collections the way its coin API does). */
-  category: string | null;
-  /** ISO timestamp of when the source says this project was listed/
-   * activated — null when the source has no such field (see
-   * coingecko-nft-provider.ts's header comment for why NFTs never have
-   * one). Never estimated/guessed when unavailable. */
-  listedAt: string | null;
-  channels: { website: boolean; twitter: boolean; telegram: boolean; discord: boolean };
-  marketCapUsd: number | null;
-  /** Recent trading-volume figure (USD), used as an activity proxy only
-   * when `listedAt` is unavailable (NFTs) — null otherwise. */
-  activityUsd?: number | null;
+export type ProjectSocialLinks = {
+  twitter: string | null;
+  telegram: string | null;
+  discord: string | null;
+  reddit: string | null;
+  facebook: string | null;
+};
+
+export type ProjectDeveloperLinks = {
+  github: string[];
+  sourceCode: string[];
 };
 
 export type DiscoverySourceStatus = {
@@ -106,7 +154,7 @@ export type DiscoverySourceStatus = {
   label: string;
   description: string;
   configured: boolean;
-  /** Shown in the Find Clients UI next to a source that exists in the
+  /** Shown in the Find Prospects UI next to a source that exists in the
    * registry but isn't wired to a live API yet — never silently pretend
    * to search when this is set. */
   notConfiguredReason?: string;
@@ -117,19 +165,14 @@ export interface DiscoverySource {
   label: string;
   description: string;
   /** True only for a source that can actually reach a live, authorized
-   * API right now (all required env vars present). The Demo provider is
-   * always configured; every other V1 provider is a structured stub that
-   * returns configured=false until real credentials + an implementation
-   * are added — see each provider file's own comment. */
+   * API right now (all required env vars present). */
   isConfigured(): boolean;
-  /** Human-readable reason discover() would refuse to run, shown in the
-   * UI when isConfigured() is false. */
   notConfiguredReason?(): string;
-  discover(params: DiscoveryParams): Promise<Candidate[]>;
+  discover(params: DiscoveryParams): Promise<DiscoveredProject[]>;
 }
 
 // ------------------------------------------------------------------
-// Analysis / scoring
+// Analysis / scoring (spec section 12)
 // ------------------------------------------------------------------
 
 export type ScoreFactor = {
@@ -138,50 +181,34 @@ export type ScoreFactor = {
   reasons: string[];
 };
 
-export type ScoreBreakdown = {
-  buyingIntent: ScoreFactor;
-  serviceFit: ScoreFactor;
-  projectRelevance: ScoreFactor;
-  budgetPotential: ScoreFactor;
-  projectActivity: ScoreFactor;
-  contactability: ScoreFactor;
-  total: number;
+export type OpportunityScoreBreakdown = {
+  categoryFit: ScoreFactor; // 0-25
+  visualPotential: ScoreFactor; // 0-20
+  commercialPotential: ScoreFactor; // 0-20
+  activity: ScoreFactor; // 0-15
+  brandPresence: ScoreFactor; // 0-10
+  contactability: ScoreFactor; // 0-10
+  total: number; // 0-100
 };
 
-export type EvidenceItem = {
-  quote: string;
-  sourceUrl: string | null;
-};
-
-/** Fully analyzed lead, shaped to insert directly into `ai_leads`
- * (camelCase here, snake_case at the DB boundary — see
- * tools/save.ts's mapping). */
-export type AnalyzedLead = {
+/** Fully analyzed project, shaped to insert directly into
+ * ai_projects + ai_project_analysis (camelCase here, snake_case at the DB
+ * boundary — see tools/save.ts's mapping). */
+export type AnalyzedProject = {
   runId: string | null;
-  projectName: string | null;
-  prospectName: string | null;
-  username: string | null;
-  platform: string;
-  sourceUrl: string | null;
-  projectUrl: string | null;
-  detectedService: string | null;
-  animationType: string | null;
-  projectDescription: string;
-  detectedNeed: string | null;
-  buyingIntent: AiBuyingIntent;
-  budgetInformation: string | null;
-  deadlineInformation: string | null;
-  leadScore: number;
-  scoreBreakdown: ScoreBreakdown;
-  qualificationStatus: AiQualificationStatus;
-  qualificationReason: string;
-  evidence: EvidenceItem[];
-  contactMethod: string | null;
-  contactUrl: string | null;
-  isDemo: boolean;
-  dedupeKey: string;
   discoverySourceId: string;
-  rawSnippet: string;
+  project: DiscoveredProject;
+
+  animationOpportunity: AiOpportunityLevel;
+  opportunityScore: number;
+  scoreBreakdown: OpportunityScoreBreakdown;
+  projectFit: number;
+  commercialPotential: AiCommercialPotential;
+  recommendedServices: string[];
+  /** Project-specific reasoning — never the spec's own "BAD" example
+   * ("This project is on CoinGecko, therefore it may need animation").
+   * See tools/scoreProject.ts's reasoning builder. */
+  reasoning: string;
 };
 
 // ------------------------------------------------------------------
@@ -189,11 +216,11 @@ export type AnalyzedLead = {
 // ------------------------------------------------------------------
 
 export type AgentRunParams = {
-  target: string;
-  serviceFilter?: string | null;
-  audienceFilter?: string | null;
-  requestedLeads: number;
-  minLeadScore: number;
+  /** CoinGecko category slugs to target — empty means every configured
+   * tier. */
+  categorySlugs: string[];
+  requestedTarget: number;
+  minOpportunityScore: number;
   sourceIds: string[];
   createdBy: string | null;
 };
@@ -207,10 +234,10 @@ export type AgentRunError = {
 export type AgentRunSummary = {
   runId: string;
   status: AiRunStatus;
-  candidatesFound: number;
-  candidatesAnalyzed: number;
-  qualifiedLeads: number;
-  rejectedLeads: number;
+  projectsDiscovered: number;
+  projectsAnalyzed: number;
+  qualifiedOpportunities: number;
+  rejectedProjects: number;
   errors: AgentRunError[];
   isDemo: boolean;
 };

@@ -1,55 +1,51 @@
-// Status metadata for the AI Client Hunter's two independent status
-// tracks — same "one source of truth for label + color" convention as
+// Status metadata for the AI Prospect Hunter's independent status tracks
+// — same "one source of truth for label + color" convention as
 // apps/admin/app/lib/orderStatus.ts. Keep in sync with the enum values
-// created in packages/db/migrations/0039_ai_client_hunter.sql
-// (public.ai_qualification_status / public.ai_outreach_status).
+// created in packages/db/migrations/0040_ai_prospect_hunter.sql
+// (public.ai_prospect_status / public.ai_outreach_status /
+// public.ai_opportunity_level).
 //
-// Two SEPARATE tracks, not one — a lead's `qualification_status` is the
-// AI's/pipeline's read on the prospect (and later, the admin's own
-// pipeline-stage decisions: Negotiation/Converted/Lost), while
-// `outreach_status` tracks the mechanics of actually reaching out
-// (brief section 7 lists both as distinct fields). A lead can be
-// "Qualified" with outreach still "Not Contacted", or "Contacted" with
-// qualification still sitting at "Qualified" until it moves further.
+// Two SEPARATE tracks, same reasoning the retired "AI Client Hunter" had:
+// `status` is the pipeline stage (Project -> Opportunity -> Qualified
+// Prospect -> ... -> Client, spec section 13), while `outreach_status`
+// tracks the mechanics of actually reaching out. A project can be a
+// "Qualified Prospect" with outreach still "Not Contacted".
 
-export type AiQualificationStatus =
-  | "new"
-  | "qualified"
-  | "possible"
-  | "rejected"
+export type AiProspectStatus =
+  | "project"
+  | "opportunity"
+  | "qualified_prospect"
   | "contacted"
   | "replied"
   | "negotiation"
-  | "converted"
-  | "lost";
+  | "client"
+  | "rejected";
 
-export const AI_QUALIFICATION_STATUS_META: Record<AiQualificationStatus, { label: string; dotClass: string }> = {
-  new: { label: "New", dotClass: "bg-slate-400" },
-  qualified: { label: "Qualified", dotClass: "bg-emerald-400" },
-  possible: { label: "Possible", dotClass: "bg-amber-400" },
-  rejected: { label: "Rejected", dotClass: "bg-red-400" },
+export const AI_PROSPECT_STATUS_META: Record<AiProspectStatus, { label: string; dotClass: string }> = {
+  project: { label: "Project", dotClass: "bg-slate-400" },
+  opportunity: { label: "Opportunity", dotClass: "bg-amber-400" },
+  qualified_prospect: { label: "Qualified Prospect", dotClass: "bg-emerald-400" },
   contacted: { label: "Contacted", dotClass: "bg-sky-400" },
   replied: { label: "Replied", dotClass: "bg-purple-400" },
   negotiation: { label: "Negotiation", dotClass: "bg-purple-500" },
-  converted: { label: "Converted", dotClass: "bg-emerald-500" },
-  lost: { label: "Lost", dotClass: "bg-white/30" },
+  client: { label: "Client", dotClass: "bg-emerald-500" },
+  rejected: { label: "Rejected", dotClass: "bg-red-400" },
 };
 
-export function aiQualificationStatusMeta(status: string) {
-  return AI_QUALIFICATION_STATUS_META[status as AiQualificationStatus] ?? { label: status, dotClass: "bg-slate-400" };
+export function aiProspectStatusMeta(status: string) {
+  return AI_PROSPECT_STATUS_META[status as AiProspectStatus] ?? { label: status, dotClass: "bg-slate-400" };
 }
 
-export const AI_QUALIFICATION_STATUS_FILTERS: { value: AiQualificationStatus | "all"; label: string }[] = [
+export const AI_PROSPECT_STATUS_FILTERS: { value: AiProspectStatus | "all"; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "new", label: "New" },
-  { value: "qualified", label: "Qualified" },
-  { value: "possible", label: "Possible" },
+  { value: "project", label: "Project" },
+  { value: "opportunity", label: "Opportunity" },
+  { value: "qualified_prospect", label: "Qualified" },
   { value: "contacted", label: "Contacted" },
   { value: "replied", label: "Replied" },
   { value: "negotiation", label: "Negotiation" },
-  { value: "converted", label: "Converted" },
+  { value: "client", label: "Client" },
   { value: "rejected", label: "Rejected" },
-  { value: "lost", label: "Lost" },
 ];
 
 export type AiOutreachStatus =
@@ -75,9 +71,24 @@ export function aiOutreachStatusMeta(status: string) {
   return AI_OUTREACH_STATUS_META[status as AiOutreachStatus] ?? { label: status, dotClass: "bg-slate-400" };
 }
 
-export function leadScoreTone(score: number): { label: string; textClass: string; ringClass: string } {
-  if (score >= 80) return { label: "Hot", textClass: "text-emerald-300", ringClass: "ring-emerald-400/40" };
-  if (score >= 70) return { label: "Qualified", textClass: "text-sky-300", ringClass: "ring-sky-400/40" };
-  if (score >= 40) return { label: "Possible", textClass: "text-amber-300", ringClass: "ring-amber-400/40" };
-  return { label: "Low", textClass: "text-white/45", ringClass: "ring-white/15" };
+export type AiOpportunityLevel = "very_high" | "high" | "medium" | "low" | "none";
+
+export const AI_OPPORTUNITY_LEVEL_META: Record<AiOpportunityLevel, { label: string; textClass: string; ringClass: string }> = {
+  very_high: { label: "Very High", textClass: "text-emerald-300", ringClass: "ring-emerald-400/40" },
+  high: { label: "High", textClass: "text-sky-300", ringClass: "ring-sky-400/40" },
+  medium: { label: "Medium", textClass: "text-amber-300", ringClass: "ring-amber-400/40" },
+  low: { label: "Low", textClass: "text-white/55", ringClass: "ring-white/15" },
+  none: { label: "None", textClass: "text-white/35", ringClass: "ring-white/10" },
+};
+
+export function opportunityLevelMeta(level: string) {
+  return AI_OPPORTUNITY_LEVEL_META[level as AiOpportunityLevel] ?? AI_OPPORTUNITY_LEVEL_META.none;
+}
+
+export function opportunityScoreTone(score: number): { label: string; textClass: string; ringClass: string } {
+  if (score >= 80) return { label: "Very High", textClass: "text-emerald-300", ringClass: "ring-emerald-400/40" };
+  if (score >= 60) return { label: "High", textClass: "text-sky-300", ringClass: "ring-sky-400/40" };
+  if (score >= 40) return { label: "Medium", textClass: "text-amber-300", ringClass: "ring-amber-400/40" };
+  if (score >= 20) return { label: "Low", textClass: "text-white/55", ringClass: "ring-white/15" };
+  return { label: "None", textClass: "text-white/35", ringClass: "ring-white/10" };
 }
