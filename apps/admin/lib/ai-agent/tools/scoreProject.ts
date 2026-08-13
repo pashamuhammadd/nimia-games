@@ -5,7 +5,7 @@ import type {
   OpportunityScoreBreakdown,
   ScoreFactor,
 } from "../types";
-import { SCORE_MAX, OPPORTUNITY_LEVEL_THRESHOLDS, tierForCategorySlug } from "../constants";
+import { SCORE_MAX, OPPORTUNITY_LEVEL_THRESHOLDS, tierForCategorySlug, MIN_TARGET_MARKET_CAP_USD, MAX_TARGET_MARKET_CAP_USD } from "../constants";
 import { recommendServicesForCategories, flavorForCategorySlug, type ProjectFlavor } from "../knowledge/animation-services";
 
 // Tool: score_project — the deterministic, transparent 0-100 Opportunity
@@ -114,6 +114,20 @@ function scoreVisualPotential(project: DiscoveredProject): ScoreFactor {
 
 // ------------------------------------------------------------------
 // Commercial Potential — 0-20
+//
+// NOT a "bigger market cap = better" curve (product fix, 13 Aug 2026 —
+// the AI agent was surfacing mostly blue-chip projects, which almost
+// always already have their own in-house or already-contracted creative
+// team and are poor outbound prospects for Nimia's outsourced animation
+// services, however deep their pockets). This peaks in the
+// MIN_TARGET_MARKET_CAP_USD..MAX_TARGET_MARKET_CAP_USD band (constants.ts)
+// — funded enough to plausibly pay for outsourced creative work, not yet
+// big enough to have built that capability in-house — and tapers off at
+// BOTH ends: too small likely means no real production budget yet, too
+// big likely means they don't need us. Discovery (coingecko-project-
+// provider.ts) already filters candidates to roughly this band before
+// they ever reach scoring, so an out-of-band project reaching this
+// function is the exception (e.g. a demo-mode fixture), not the norm.
 // ------------------------------------------------------------------
 
 function scoreCommercialPotential(project: DiscoveredProject): { factor: ScoreFactor; level: AiCommercialPotential } {
@@ -123,18 +137,43 @@ function scoreCommercialPotential(project: DiscoveredProject): { factor: ScoreFa
   if (cap == null) {
     if (project.volume24hUsd != null && project.volume24hUsd > 0) {
       const reasons = [`No market cap reported — using 24h trading volume (~$${Math.round(project.volume24hUsd).toLocaleString()}) as a budget proxy.`];
-      const score = project.volume24hUsd >= 50_000 ? 10 : project.volume24hUsd >= 5_000 ? 6 : 3;
-      return { factor: { score, max, reasons }, level: score >= 10 ? "medium" : "low" };
+      const score = project.volume24hUsd >= 50_000 ? 14 : project.volume24hUsd >= 5_000 ? 8 : 3;
+      return { factor: { score, max, reasons }, level: score >= 14 ? "high" : score >= 8 ? "medium" : "low" };
     }
     return { factor: { score: 1, max, reasons: ["No market cap or trading volume data available to gauge budget."] }, level: "low" };
   }
 
-  const reasons = [`Market cap ~$${Math.round(cap).toLocaleString()} (CoinGecko).`];
-  if (cap >= 50_000_000) return { factor: { score: max, max, reasons }, level: "very_high" };
-  if (cap >= 10_000_000) return { factor: { score: 15, max, reasons }, level: "high" };
-  if (cap >= 1_000_000) return { factor: { score: 10, max, reasons }, level: "medium" };
-  if (cap >= 100_000) return { factor: { score: 5, max, reasons }, level: "low" };
-  return { factor: { score: 2, max, reasons }, level: "low" };
+  const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`;
+
+  if (cap > MAX_TARGET_MARKET_CAP_USD) {
+    return {
+      factor: {
+        score: 4,
+        max,
+        reasons: [
+          `Market cap ~${fmt(cap)} — well above Nimia's ${fmt(MAX_TARGET_MARKET_CAP_USD)} target ceiling. Projects at this size have almost always already built (or already contracted) their own creative pipeline, so despite the budget this is a low-priority outbound prospect.`,
+        ],
+      },
+      level: "low",
+    };
+  }
+  if (cap >= 5_000_000) {
+    return { factor: { score: 15, max, reasons: [`Market cap ~${fmt(cap)} — a solid, established budget and still a plausible buyer of outsourced creative work.`] }, level: "high" };
+  }
+  if (cap >= 500_000) {
+    return {
+      factor: {
+        score: max,
+        max,
+        reasons: [`Market cap ~${fmt(cap)} — Nimia's sweet spot: funded enough to commission outsourced animation work, not yet big enough to have built that capability in-house.`],
+      },
+      level: "very_high",
+    };
+  }
+  if (cap >= MIN_TARGET_MARKET_CAP_USD) {
+    return { factor: { score: 10, max, reasons: [`Market cap ~${fmt(cap)} — early-stage; a real but likely modest production budget.`] }, level: "medium" };
+  }
+  return { factor: { score: 2, max, reasons: [`Market cap ~${fmt(cap)} — too early/small to likely have budget for outsourced animation work yet.`] }, level: "low" };
 }
 
 // ------------------------------------------------------------------

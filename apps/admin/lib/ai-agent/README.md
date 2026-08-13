@@ -88,6 +88,34 @@ solely to smooth prose (an outreach draft) — it never touches a score or
 a prospect_status, and every code path that calls it falls back to the
 deterministic text if it's unconfigured or fails.
 
+## Targeting: small/emerging projects, not blue-chips (fix, 13 Aug 2026)
+
+The first version of this rewrite discovered projects via
+`/coins/markets?category=X&order=market_cap_desc&page=1` only — i.e. always
+the single biggest-market-cap page per category. In practice that meant
+the agent mostly resurfaced the same well-known blue-chip projects every
+run, which is close to the worst realistic prospect for Nimia: a project
+at that size has almost always already built (or already contracted) its
+own creative team, however deep its pockets.
+
+Fixed on both sides of the pipeline:
+
+- **Discovery** (`discovery/coingecko-project-provider.ts`) now pages past
+  the top of each category and only keeps candidates whose market cap
+  falls inside `[MIN_TARGET_MARKET_CAP_USD, MAX_TARGET_MARKET_CAP_USD]`
+  (`constants.ts`) before spending any `/coins/{id}` detail-call budget on
+  them. The NFT provider applies the same ceiling post-detail (CoinGecko's
+  NFT list endpoint has no market-cap query param, so it can't pre-filter
+  the way the coin sweep does — see that class's own comment).
+- **Scoring** (`tools/scoreProject.ts`'s `scoreCommercialPotential`) no
+  longer treats "bigger market cap" as strictly better. It peaks inside
+  that same target band and tapers at both ends: too small usually means
+  no real production budget yet, too big usually means they don't need an
+  outside studio.
+
+Retune the whole pipeline's targeting by adjusting the two constants in
+`constants.ts` — nothing else needs to change.
+
 ## API-budget discipline
 
 This runs on CoinGecko's free Demo plan (see `discovery/coingecko-client.ts`).

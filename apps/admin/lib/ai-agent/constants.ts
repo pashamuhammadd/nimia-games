@@ -42,6 +42,26 @@ export const OPPORTUNITY_LEVEL_THRESHOLDS = {
 export const DEFAULT_REQUESTED_TARGET = 20;
 export const DEFAULT_MIN_OPPORTUNITY_SCORE = 70;
 
+// Prospecting target market-cap band (product decision, 13 Aug 2026 — see
+// git history / project notes for the "AI agent salah target" fix). Nimia
+// sells OUTSOURCED animation work, so the ideal prospect is funded enough
+// to pay for it but NOT yet big enough to have built (or already
+// contracted) an in-house/agency creative team of its own:
+//   - below MIN_TARGET_MARKET_CAP_USD: almost certainly too early/small to
+//     have a real production budget yet.
+//   - above MAX_TARGET_MARKET_CAP_USD: almost certainly already has its own
+//     creative pipeline — technically "can afford us" but very unlikely to
+//     actually buy outsourced animation work, so it's a LOW-priority
+//     outbound target despite the deep pockets.
+// Used by BOTH discovery (coingecko-project-provider.ts filters candidates
+// to this band before spending detail-call budget on them) and scoring
+// (tools/scoreProject.ts's scoreCommercialPotential peaks inside this band
+// and tapers at both ends — never a flat "bigger market cap = better"
+// curve). Adjust these two numbers to retune the whole pipeline's targeting
+// — nothing else needs to change.
+export const MIN_TARGET_MARKET_CAP_USD = 20_000;
+export const MAX_TARGET_MARKET_CAP_USD = 20_000_000;
+
 // Spec section 6's four tiers, mapped to CoinGecko category slugs (from
 // /coins/categories/list). Best-effort curated list, not guaranteed to be
 // exhaustive or perfectly current — CoinGecko occasionally renames/splits

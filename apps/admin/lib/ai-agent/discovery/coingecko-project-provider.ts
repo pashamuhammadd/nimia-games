@@ -1,6 +1,6 @@
 import type { DiscoveredProject, DiscoveryParams, DiscoverySource, ProjectDeveloperLinks, ProjectSocialLinks } from "../types";
 import { coinGeckoFetch, findDiscordLink, findRedditLink, isCoinGeckoConfigured, coinGeckoNotConfiguredReason } from "./coingecko-client";
-import { CATEGORY_TIERS, allCategorySlugs } from "../constants";
+import { CATEGORY_TIERS, allCategorySlugs, MIN_TARGET_MARKET_CAP_USD, MAX_TARGET_MARKET_CAP_USD } from "../constants";
 
 // CoinGecko Project Discovery — the ONLY discovery source in V2 (spec
 // section 20: "source = CoinGecko"). Replaces the retired "AI Client
@@ -22,6 +22,23 @@ import { CATEGORY_TIERS, allCategorySlugs } from "../constants";
 // OR one social link present. A project with literally no public presence
 // isn't analyzable, let alone contactable.
 //
+// TARGETING FIX (13 Aug 2026): the first version of this provider always
+// requested `/coins/markets?category=X&order=market_cap_desc&page=1` —
+// i.e. only ever the single biggest-market-cap page per category. In
+// practice that meant every run mostly rediscovered the same blue-chip
+// projects (Axie Infinity, The Sandbox, etc.) — exactly the projects most
+// likely to already have their own in-house (or already-contracted)
+// creative team, and the worst realistic prospects for Nimia's outsourced
+// animation services. This provider now walks PAST that top page and
+// keeps only candidates inside [MIN_TARGET_MARKET_CAP_USD,
+// MAX_TARGET_MARKET_CAP_USD] (constants.ts) before spending any detail-call
+// budget on them — see that constant's own comment for the full reasoning.
+// CoinGecko's public API has no server-side market-cap-range filter, so
+// this band filter has to happen client-side across a few descending-order
+// pages per category (still far cheaper than paging through the entire
+// category, and market_cap_desc order means we can stop as soon as a page
+// is entirely below the band — everything after it is smaller still).
+//
 // API-budget discipline (spec section 22): capped category sweep + capped
 // detail calls per run, parallelized in small batches so one slow/rate-
 // limited request doesn't stall the whole run. This runs on CoinGecko's
@@ -29,10 +46,21 @@ import { CATEGORY_TIERS, allCategorySlugs } from "../constants";
 // specifically to stay well inside that plan's rate limit, not just to
 // bound response time.
 const MAX_CATEGORIES_PER_RUN = 8;
-const MARKETS_PER_CATEGORY = 25;
+const MARKETS_PAGE_SIZE = 50;
+const MAX_MARKET_PAGES_PER_CATEGORY = 4; // walks past the top (biggest-cap) page(s) to reach the target band
+const IN_BAND_TARGET_PER_CATEGORY = 15; // stop paging a category early once it has yielded this many in-band candidates
 const MAX_DETAIL_CALLS = 40;
 const DETAIL_CONCURRENCY = 8;
 const MAX_NFT_DETAIL_CALLS = 15;
+
+function inTargetMarketCapBand(marketCapUsd: number | null): boolean {
+  // A null market cap (CoinGecko hasn't ranked/priced it) is let through —
+  // it's usually a very new or very thin listing, exactly the kind of
+  // "new project" this fix is trying to surface more of. scoreProject.ts's
+  // commercial-potential scorer falls back to 24h volume for these.
+  if (marketCapUsd == null) return true;
+  return marketCapUsd >= MIN_TARGET_MARKET_CAP_USD && marketCapUsd <= MAX_TARGET_MARKET_CAP_USD;
+}
 
 type CoinGeckoMarketRow = {
   id: string;
@@ -203,23 +231,46 @@ export class CoinGeckoProjectDiscoveryProvider implements DiscoverySource {
     const marketRowById = new Map<string, CoinGeckoMarketRow>();
 
     for (const slug of categorySlugs) {
-      try {
-        const rows = (await coinGeckoFetch("/coins/markets", {
-          vs_currency: "usd",
-          category: slug,
-          order: "market_cap_desc",
-          per_page: MARKETS_PER_CATEGORY,
-          page: 1,
-          sparkline: false,
-        })) as CoinGeckoMarketRow[];
+      let inBandForThisCategory = 0;
+
+      for (let page = 1; page <= MAX_MARKET_PAGES_PER_CATEGORY; page++) {
+        let rows: CoinGeckoMarketRow[];
+        try {
+          rows = (await coinGeckoFetch("/coins/markets", {
+            vs_currency: "usd",
+            category: slug,
+            order: "market_cap_desc",
+            per_page: MARKETS_PAGE_SIZE,
+            page,
+            sparkline: false,
+          })) as CoinGeckoMarketRow[];
+        } catch {
+          // One bad category/page shouldn't sink the whole run — the
+          // orchestrator logs a discovery-level error only if every
+          // category fails outright.
+          break;
+        }
+
+        if (rows.length === 0) break; // ran out of pages for this category
+
         for (const row of rows) {
+          if (!inTargetMarketCapBand(row.market_cap)) continue;
           if (!slugsByCoinId.has(row.id)) slugsByCoinId.set(row.id, new Set());
           slugsByCoinId.get(row.id)!.add(slug);
-          if (!marketRowById.has(row.id)) marketRowById.set(row.id, row);
+          if (!marketRowById.has(row.id)) {
+            marketRowById.set(row.id, row);
+            inBandForThisCategory++;
+          }
         }
-      } catch {
-        // One bad category shouldn't sink the whole run — the orchestrator
-        // logs a discovery-level error only if every category fails.
+
+        // market_cap_desc means every row on this page is >= every row on
+        // the next one — once a whole page lands inside-or-below the band,
+        // paging further can only turn up smaller (still relevant) coins,
+        // and once we've gathered enough for this category there's no
+        // budget reason to keep paging into the very long tail.
+        if (inBandForThisCategory >= IN_BAND_TARGET_PER_CATEGORY) break;
+        const pageMax = Math.max(...rows.map((r) => r.market_cap ?? 0));
+        if (pageMax > 0 && pageMax < MIN_TARGET_MARKET_CAP_USD) break; // already past the band's floor
       }
     }
 
@@ -273,7 +324,24 @@ export class CoinGeckoProjectDiscoveryProvider implements DiscoverySource {
 // here, and tools/scoreProject.ts's activity factor falls back to 24h
 // trading volume as an activity proxy for NFT-sourced projects and says
 // so in its own reasons, never pretends otherwise.
+//
+// TARGETING FIX (13 Aug 2026, same reasoning as the coin-market provider
+// above): `/nfts/list` has no market-cap query param, so unlike the coin
+// sweep we can't band-filter before spending detail-call budget — a
+// collection's market cap is only known after `/nfts/{id}`. As a
+// best-effort mitigation: order by market cap descending and SKIP the top
+// `NFT_SKIP_TOP_N` entries before even requesting detail for them (those
+// are almost always established blue-chip collections with their own
+// creative team), then apply the same MAX_TARGET_MARKET_CAP_USD ceiling
+// post-detail as a safety net. This is honestly a cruder fix than the coin
+// provider's — it can't see market cap before the detail call — but it's
+// a real improvement over the old `h24_volume_usd_desc` order, which
+// guaranteed the single most-hyped (almost always biggest) collections
+// every run.
 // ------------------------------------------------------------------
+
+const NFT_SKIP_TOP_N = 40;
+const NFT_LIST_PAGE_SIZE = 100;
 
 type CoinGeckoNftListItem = { id: string; name: string; symbol: string };
 type CoinGeckoNftDetail = {
@@ -307,15 +375,17 @@ export class CoinGeckoNftDiscoveryProvider implements DiscoverySource {
     let list: CoinGeckoNftListItem[];
     try {
       list = (await coinGeckoFetch("/nfts/list", {
-        order: "h24_volume_usd_desc",
-        per_page: 50,
+        order: "market_cap_usd_desc",
+        per_page: NFT_LIST_PAGE_SIZE,
         page: 1,
       })) as CoinGeckoNftListItem[];
     } catch (error) {
       throw new Error(`CoinGecko NFT list failed: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    const toCheck = list.slice(0, MAX_NFT_DETAIL_CALLS);
+    // Skip the top of the list (blue-chip collections, see this class's
+    // header comment) before taking our detail-call budget's worth.
+    const toCheck = list.slice(NFT_SKIP_TOP_N, NFT_SKIP_TOP_N + MAX_NFT_DETAIL_CALLS);
     const results: DiscoveredProject[] = [];
 
     for (let i = 0; i < toCheck.length && results.length < params.limit; i += DETAIL_CONCURRENCY) {
@@ -344,6 +414,7 @@ export class CoinGeckoNftDiscoveryProvider implements DiscoverySource {
           facebook: null,
         };
         if (!detail.links?.homepage && !socialLinks.twitter && !socialLinks.discord) continue;
+        if (!inTargetMarketCapBand(detail.market_cap?.usd ?? null)) continue;
 
         results.push({
           discoverySourceId: this.id,
