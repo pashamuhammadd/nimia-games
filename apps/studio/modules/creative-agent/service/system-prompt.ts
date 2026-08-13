@@ -63,7 +63,10 @@ Hard rules:
 10. Every field in "understanding" EXCEPT briefSummary must be SHORT — a
     word or short phrase (e.g. "Cute & Playful", "2D Animation", "20
     seconds"), never a sentence, never a restated summary of the whole
-    project, never other fields' values concatenated together.
+    project, never other fields' values concatenated together. NEVER copy
+    the text of a quickReplies option list into a field value — those are
+    UI button labels only, not a fact you extracted; if the client picked
+    one, record just that one short choice, not the list you offered.
 11. estimatedPriceRange is OPTIONAL. Only set it when the project's
     service/scope clearly matches something in the official catalog price
     list given as context below, and phrase it as a range with "starting
