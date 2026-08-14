@@ -6,6 +6,15 @@ import { X } from "lucide-react";
 import { Button, buttonVariants, cn } from "@nimia/ui";
 import { LoginModal } from "@/app/components/LoginModal";
 
+// Fixed 14 Agustus 2026 (dashboard split): this header's logo link and
+// "Exit configurator" (X) link used to be relative ("/" and "/services")
+// back when /order lived inside apps/studio, where both those paths
+// existed. Now that /order has moved to apps/app, "/" is this app's OWN
+// root (redirects to /dashboard) and "/services" doesn't exist here at
+// all — both need to point back at the marketing site instead. Same
+// pattern as PublicNavbar.tsx / GreetingHeader.tsx's "Back to Home".
+const STUDIO_URL = process.env.NEXT_PUBLIC_STUDIO_URL ?? "https://nimiastudio.com";
+
 export interface OrderHeaderProps {
   isAuthenticated: boolean;
 }
@@ -24,10 +33,10 @@ export function OrderHeader({ isAuthenticated }: OrderHeaderProps) {
     <>
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[var(--background)]/90 backdrop-blur supports-[backdrop-filter]:bg-[var(--background)]/70">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex shrink-0 items-center">
+          <a href={STUDIO_URL} className="flex shrink-0 items-center">
             {/* eslint-disable-next-line @next/next/no-img-element -- fixed local brand asset, same as PublicNavbar.tsx */}
             <img src="/nimia-studio-lockup.svg" alt="Nimia Games Studio" className="h-8 w-auto" />
-          </Link>
+          </a>
 
           <div className="flex items-center gap-2 sm:gap-3">
             {isAuthenticated ? (
@@ -51,13 +60,13 @@ export function OrderHeader({ isAuthenticated }: OrderHeaderProps) {
                 Log in
               </Button>
             )}
-            <Link
-              href="/services"
+            <a
+              href={`${STUDIO_URL}/services`}
               aria-label="Exit configurator"
               className="flex h-9 w-9 items-center justify-center rounded-md text-white/50 transition-colors hover:bg-white/10 hover:text-white"
             >
               <X className="h-5 w-5" aria-hidden="true" />
-            </Link>
+            </a>
           </div>
         </div>
       </header>

@@ -15,7 +15,9 @@ import {
 // it — by the time any of these are called, the actual `orders` UPDATE has
 // already succeeded.
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM = `Nimia Studio <${process.env.RESEND_FROM_EMAIL ?? "studio@nimiagames.com"}>`;
+// Fallback updated 14 Agustus 2026 (dashboard split) — see the same note in
+// apps/studio/lib/email.tsx / apps/app/lib/email.tsx.
+const FROM = `Nimia Studio <${process.env.RESEND_FROM_EMAIL ?? "contact@nimiastudio.com"}>`;
 
 async function send(to: string, subject: string, react: React.ReactElement): Promise<boolean> {
   if (!resend) {

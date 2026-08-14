@@ -5,13 +5,20 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Rocket, Globe } from "lucide-react";
 
-// The public marketing homepage (nimiastudio.com's "/") — added 11
-// Agustus 2026 per user report: the client dashboard had no way back to
-// the marketing site once a client signed in, only the avatar menu's
-// Logout. There's no dedicated "/home" route in this app (the marketing
-// homepage lives at the root "/", same as PublicNavbar.tsx's own logo
-// link), so this CTA points there.
-const HOMEPAGE_HREF = "/";
+// The public marketing homepage — added 11 Agustus 2026 per user report:
+// the client dashboard had no way back to the marketing site once a client
+// signed in, only the avatar menu's Logout.
+//
+// Fixed 14 Agustus 2026 (dashboard split): this used to be a relative "/",
+// which was correct back when the dashboard lived inside apps/studio (the
+// marketing homepage WAS "/" there). Now that the dashboard is its own app
+// (apps/app), "/" here is this app's OWN root (which redirects to
+// /dashboard, see app/page.tsx) — a relative link would just bounce the
+// user right back to the dashboard instead of leaving it. Same
+// NEXT_PUBLIC_STUDIO_URL absolute-URL pattern as PublicNavbar.tsx's own
+// logo link.
+const STUDIO_URL = process.env.NEXT_PUBLIC_STUDIO_URL ?? "https://nimiastudio.com";
+const HOMEPAGE_HREF = STUDIO_URL;
 
 function greetingForHour(hour: number) {
   if (hour >= 5 && hour < 12) return "Good Morning";
@@ -76,13 +83,16 @@ export function GreetingHeader({ name, ctaHref }: { name: string; ctaHref: strin
           </motion.div>
 
           <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} className="w-fit">
-            <Link
+            {/* Plain <a>, not next/link's Link — this is a cross-origin URL
+              (app.nimiastudio.com -> nimiastudio.com) now, same as
+              PublicNavbar.tsx's logo link and StartProjectButton.tsx. */}
+            <a
               href={HOMEPAGE_HREF}
               className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-white/80 backdrop-blur transition-colors hover:bg-white/[0.08] hover:text-white"
             >
               <Globe className="h-4 w-4" aria-hidden="true" />
               Back to Home
-            </Link>
+            </a>
           </motion.div>
         </div>
       </div>
