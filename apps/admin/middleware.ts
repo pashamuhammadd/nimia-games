@@ -4,7 +4,9 @@ import { NextResponse, type NextRequest } from "next/server";
 // Session refresh + route protection, same @supabase/ssr middleware pattern
 // as apps/studio/middleware.ts. Inverted from studio's logic on purpose:
 // studio is mostly public (marketing pages) with only /dashboard/* gated,
-// while admin.nimiagames.com has NO public surface at all — everything
+// while hub.nimiastudio.com (formerly admin.nimiagames.com — migrated 14
+// Agustus 2026, see studio_multi_app_split_plan.md) has NO public surface
+// at all — everything
 // except /login requires a signed-in session. The deeper "is this account
 // actually staff?" check (role === 'admin') happens in
 // app/(protected)/layout.tsx instead of here, same division of

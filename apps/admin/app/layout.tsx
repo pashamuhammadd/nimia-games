@@ -3,7 +3,8 @@ import { Sora, Rajdhani } from "next/font/google";
 import "./globals.css";
 
 // Same fonts/variable names as apps/studio and apps/www — Sora (body) +
-// Rajdhani (display/headings) — so admin.nimiagames.com reads as the same
+// Rajdhani (display/headings) — so hub.nimiastudio.com (formerly
+// admin.nimiagames.com, migrated 14 Agustus 2026) reads as the same
 // brand instead of drifting to a generic system-font admin tool look.
 const sora = Sora({
   subsets: ["latin"],

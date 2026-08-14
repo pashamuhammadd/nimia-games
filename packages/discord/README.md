@@ -82,7 +82,7 @@ dipakai form Support di website. Masih TIDAK BUTUH koneksi Gateway —
 Discord's Interactions HTTP endpoint tetap satu route serverless biasa,
 diverifikasi per-request (lihat "Kenapa tidak pakai discord.js" di bawah).
 Setelah env var `DISCORD_PUBLIC_KEY` terisi dan route-nya sudah live, jalan
-tombol "Post Ticket Button" di halaman Tickets `admin.nimiagames.com`
+tombol "Post Ticket Button" di halaman Tickets `hub.nimiastudio.com`
 sekali untuk memasang pesannya di `#create-ticket`.
 
 ## Cara ambil setiap nilai

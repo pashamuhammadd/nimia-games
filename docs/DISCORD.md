@@ -1,7 +1,7 @@
 # Discord Integration
 
 Architecture spec for Nimia Studio's official Discord server, and the plan
-for connecting it to `nimiastudio.com` / `admin.nimiagames.com`. This
+for connecting it to `nimiastudio.com` / `hub.nimiastudio.com`. This
 file existed only as conversational context with an AI assistant before 9
 Agustus 2026 — moved into the repo so it doesn't depend on any one
 session's memory. Read this before touching any Discord bot/webhook code.
@@ -126,7 +126,7 @@ a message in `#create-ticket`, lets a client start a ticket without ever
 leaving Discord — the counterpart to the website's own Support page
 (`nimiastudio.com/dashboard/support`), not a replacement for it. Both
 paths write to the same `support_tickets` table and produce the identical
-kind of Private Thread; the admin Tickets page (`admin.nimiagames.com/tickets`)
+kind of Private Thread; the admin Tickets page (`hub.nimiastudio.com/tickets`)
 shows both with no distinction between them.
 
 Flow: client clicks **Open a Ticket** → Discord shows a modal (Subject +
@@ -390,7 +390,7 @@ Discord) + the full Partner Discord Channel section above. See:
      correct yet, Save fails right there with its own error.
   2. Deploy the app with that env var set (step 1's Save literally cannot
      succeed against a not-yet-deployed endpoint).
-  3. Once both of the above are done, open `admin.nimiagames.com/tickets`
+  3. Once both of the above are done, open `hub.nimiastudio.com/tickets`
      and click **Post Ticket Button** once — this posts the actual "Open a
      Ticket" message into `#create-ticket`. Nothing shows up in Discord
      until this manual click happens; registering the Interactions
@@ -456,7 +456,7 @@ See:
 **Manual follow-up required (can't be done from code) — see the three
 numbered steps under "Server setup notes" above:** set `DISCORD_PUBLIC_KEY`
 + register the Interactions Endpoint URL in the Developer Portal, deploy,
-then click **Post Ticket Button** once on `admin.nimiagames.com/tickets`.
+then click **Post Ticket Button** once on `hub.nimiastudio.com/tickets`.
 None of this has been run yet — the button will not appear in
 `#create-ticket` and clicking a not-yet-registered endpoint's button (if
 one somehow existed) would fail until all three steps are done.

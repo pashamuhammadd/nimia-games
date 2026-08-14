@@ -4,7 +4,8 @@ import { buttonVariants, cn } from "@nimia/ui";
 // Added 9 Agustus 2026 (launch-readiness audit finding) — this app had no
 // custom 404 at all, so an unmatched route fell back to Next.js's generic,
 // unbranded not-found page. No "nimia-dark" wrapper needed here (unlike
-// apps/studio) — admin.nimiagames.com is dark at :root everywhere already,
+// apps/studio) — hub.nimiastudio.com (formerly admin.nimiagames.com,
+// migrated 14 Agustus 2026) is dark at :root everywhere already,
 // see globals.css's own header comment.
 export default function NotFound() {
   return (
