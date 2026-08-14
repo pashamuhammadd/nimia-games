@@ -53,7 +53,12 @@ function resolveClientName(order: OrderEmailFields): string {
   return order.full_name ?? order.company_name ?? "there";
 }
 
-const STUDIO_DASHBOARD_URL = `${process.env.NEXT_PUBLIC_STUDIO_URL ?? "https://studio.nimiagames.com"}/dashboard/orders`;
+// Client dashboard now lives on apps/app, not apps/studio (14 Agustus
+// 2026, dashboard split — see project memory's studio_multi_app_split_plan).
+// NEXT_PUBLIC_APP_URL replaces the old NEXT_PUBLIC_STUDIO_URL-based
+// construction here — NEXT_PUBLIC_STUDIO_URL (see Topbar.tsx) still points
+// at the marketing site, which no longer has a /dashboard.
+const CLIENT_DASHBOARD_URL = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.nimiastudio.com"}/dashboard/orders`;
 
 export async function approveOrderAction(orderId: string): Promise<OrderActionResult> {
   const supabase = createServerClient(await cookies());
@@ -190,7 +195,7 @@ export async function sendQuotationForPaymentAction(
       orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
       kind: "accepted",
       amountUsd,
-      dashboardUrl: STUDIO_DASHBOARD_URL,
+      dashboardUrl: CLIENT_DASHBOARD_URL,
     });
   }
   // Added 9 Agustus 2026 (notifications phase) — same "reuses accepted
@@ -279,7 +284,7 @@ export async function acceptNegotiationOfferAction(
       orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
       kind: "accepted",
       amountUsd,
-      dashboardUrl: STUDIO_DASHBOARD_URL,
+      dashboardUrl: CLIENT_DASHBOARD_URL,
     });
   }
   // Added 9 Agustus 2026 (notifications phase).
@@ -351,7 +356,7 @@ export async function sendCounterOfferAction(
       kind: "counter",
       amountUsd,
       message: message?.trim() || null,
-      dashboardUrl: `${process.env.NEXT_PUBLIC_STUDIO_URL ?? "https://studio.nimiagames.com"}/dashboard/negotiations`,
+      dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.nimiastudio.com"}/dashboard/negotiations`,
     });
   }
   // Added 9 Agustus 2026 (notifications phase).
@@ -663,7 +668,7 @@ export async function verifyPaymentAction(orderId: string): Promise<OrderActionR
       amountUsd: fields.final_price_usd,
       network: fields.payment_network,
       currency: fields.payment_token,
-      dashboardUrl: STUDIO_DASHBOARD_URL,
+      dashboardUrl: CLIENT_DASHBOARD_URL,
     });
   }
   // Added 9 Agustus 2026 (notifications phase).
@@ -765,7 +770,7 @@ export async function flagUnderpaidPaymentAction(
       serviceName: resolveServiceName(fields.services),
       orderId: `ORD-${orderId.slice(0, 8).toUpperCase()}`,
       note: trimmedNote,
-      dashboardUrl: STUDIO_DASHBOARD_URL,
+      dashboardUrl: CLIENT_DASHBOARD_URL,
     });
   }
   // Added 9 Agustus 2026 (notifications phase).

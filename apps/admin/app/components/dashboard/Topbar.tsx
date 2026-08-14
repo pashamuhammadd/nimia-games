@@ -8,12 +8,19 @@ import { Avatar } from "./Avatar";
 import { NotificationsBell } from "./NotificationsBell";
 import type { NotificationRow } from "../../lib/notifications";
 
-// Cross-link to the client-facing app — genuinely useful for staff jumping
-// between "what did the client see" and "what do we manage" — unlike
-// studio's Topbar, there's no Discord support link here (that's a
+// Cross-link to the public marketing site — genuinely useful for staff
+// jumping between "what did the client see" and "what do we manage" —
+// unlike studio's Topbar, there's no Discord support link here (that's a
 // client-facing concern) and no "Account Settings" link (no profile page
 // exists in this v1 scope, so it isn't wired to a dead route).
-const STUDIO_URL = process.env.NEXT_PUBLIC_STUDIO_URL ?? "https://studio.nimiagames.com";
+//
+// Fallback fixed 14 Agustus 2026 (dashboard-split audit) — this still said
+// the retired "studio.nimiagames.com" domain, stale since the
+// studio.nimiagames.com -> nimiastudio.com migration (see project memory's
+// domain_migration_nimiastudio). Only ever mattered if NEXT_PUBLIC_STUDIO_URL
+// was left unset in Vercel, but a live env var should never fall back to a
+// dead domain either way.
+const STUDIO_URL = process.env.NEXT_PUBLIC_STUDIO_URL ?? "https://nimiastudio.com";
 
 function useClickOutside<T extends HTMLElement>(onOutside: () => void) {
   const ref = React.useRef<T>(null);

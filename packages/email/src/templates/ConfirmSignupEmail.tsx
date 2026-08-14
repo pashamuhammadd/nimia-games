@@ -4,7 +4,9 @@ import { BRAND, EmailLayout, ctaButtonStyle } from "../components/EmailLayout";
 
 // Design rationale: Supabase Auth sends this "Confirm signup" email ITSELF
 // (not through our server actions / Resend) as soon as someone registers on
-// studio.nimiagames.com — its content is configured directly in the
+// Nimia Studio (app.nimiastudio.com/register as of the 14 Agustus 2026
+// dashboard split — see [[studio_multi_app_split_plan]]) — its content is
+// configured directly in the
 // Supabase Dashboard > Authentication > Email Templates, not rendered from
 // Next.js code. This React component exists so the design still has one
 // source of truth (previewable locally via `npm run dev`, same as the other
@@ -36,7 +38,7 @@ export function ConfirmSignupEmail({ confirmationUrl, email }: ConfirmSignupEmai
       <Text style={textStyle}>Hi there,</Text>
 
       <Text style={textStyle}>
-        Thanks for signing up at <strong>studio.nimiagames.com</strong> with
+        Thanks for signing up at <strong>Nimia Studio</strong> with
         the email <strong>{email}</strong>. Click the button below to
         confirm your email and activate your account.
       </Text>
@@ -64,7 +66,7 @@ export function ConfirmSignupEmail({ confirmationUrl, email }: ConfirmSignupEmai
 }
 
 ConfirmSignupEmail.PreviewProps = {
-  confirmationUrl: "https://studio.nimiagames.com/auth/confirm?token=preview-token",
+  confirmationUrl: "https://app.nimiastudio.com/auth/confirm?token=preview-token",
   email: "client@example.com",
 } satisfies ConfirmSignupEmailProps;
 

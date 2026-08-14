@@ -104,7 +104,7 @@ OrderReceivedEmail.PreviewProps = {
   submittedAt: "July 29, 2026, 2:30 PM WIB",
   description:
     "We need a pixel-art style 2D platformer game for a product promotion campaign, roughly 5-10 minutes of gameplay, with 3 levels.",
-  dashboardUrl: "https://studio.nimiagames.com/dashboard/orders",
+  dashboardUrl: "https://app.nimiastudio.com/dashboard/orders",
 } satisfies OrderReceivedEmailProps;
 
 export default OrderReceivedEmail;

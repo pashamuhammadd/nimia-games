@@ -88,7 +88,7 @@ PaymentFlaggedEmail.PreviewProps = {
   serviceName: "2D Platformer Game Development",
   orderId: "ORD-8F3A2C10",
   note: "The amount received was slightly less than expected — please resend the difference or the full amount again.",
-  dashboardUrl: "https://studio.nimiagames.com/dashboard/orders",
+  dashboardUrl: "https://app.nimiastudio.com/dashboard/orders",
 } satisfies PaymentFlaggedEmailProps;
 
 export default PaymentFlaggedEmail;

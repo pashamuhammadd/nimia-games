@@ -129,7 +129,7 @@ NegotiationUpdateEmail.PreviewProps = {
   kind: "accepted",
   amountUsd: 2500,
   message: null,
-  dashboardUrl: "https://studio.nimiagames.com/dashboard/orders",
+  dashboardUrl: "https://app.nimiastudio.com/dashboard/orders",
 } satisfies NegotiationUpdateEmailProps;
 
 export default NegotiationUpdateEmail;

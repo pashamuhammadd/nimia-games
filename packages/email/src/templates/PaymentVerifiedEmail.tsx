@@ -97,7 +97,7 @@ PaymentVerifiedEmail.PreviewProps = {
   amountUsd: 2500,
   network: "Tron",
   currency: "USDT",
-  dashboardUrl: "https://studio.nimiagames.com/dashboard/orders",
+  dashboardUrl: "https://app.nimiastudio.com/dashboard/orders",
 } satisfies PaymentVerifiedEmailProps;
 
 export default PaymentVerifiedEmail;
