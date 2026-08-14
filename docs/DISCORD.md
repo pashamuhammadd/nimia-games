@@ -1,14 +1,14 @@
 # Discord Integration
 
 Architecture spec for Nimia Studio's official Discord server, and the plan
-for connecting it to `studio.nimiagames.com` / `admin.nimiagames.com`. This
+for connecting it to `nimiastudio.com` / `admin.nimiagames.com`. This
 file existed only as conversational context with an AI assistant before 9
 Agustus 2026 — moved into the repo so it doesn't depend on any one
 session's memory. Read this before touching any Discord bot/webhook code.
 
 ## Core principle
 
-The website (`studio.nimiagames.com`) is the single source of truth for
+The website (`nimiastudio.com`) is the single source of truth for
 the whole system. The official Nimia Studio Discord server is ONLY:
 
 - a **Notification Center**
@@ -124,7 +124,7 @@ flow, not a separate ticket system.
 Added 12 Agustus 2026. A 🎫 **Open a Ticket** button, permanently pinned as
 a message in `#create-ticket`, lets a client start a ticket without ever
 leaving Discord — the counterpart to the website's own Support page
-(`studio.nimiagames.com/dashboard/support`), not a replacement for it. Both
+(`nimiastudio.com/dashboard/support`), not a replacement for it. Both
 paths write to the same `support_tickets` table and produce the identical
 kind of Private Thread; the admin Tickets page (`admin.nimiagames.com/tickets`)
 shows both with no distinction between them.
@@ -356,7 +356,7 @@ Discord) + the full Partner Discord Channel section above. See:
   actual bot account) must sit ABOVE Client and Partner in Server Settings
   → Roles**, or `assignGuildRole()` fails outright — Discord's permission
   model won't let a bot grant a role at or above its own highest role.
-- OAuth2 redirect registered: `https://studio.nimiagames.com/api/discord/callback`
+- OAuth2 redirect registered: `https://nimiastudio.com/api/discord/callback`
   (plus `http://localhost:3000/api/discord/callback` for local dev, as its
   own separate entry).
 - **Support tickets (added 9 Agustus 2026): the 👑 Founder and 🛡 Admin
@@ -383,7 +383,7 @@ Discord) + the full Partner Discord Channel section above. See:
 - **In-Discord ticket button (added 12 Agustus 2026), three manual steps,
   in this order:**
   1. Set `DISCORD_PUBLIC_KEY` and register the **Interactions Endpoint
-     URL** (`https://studio.nimiagames.com/api/discord/interactions`) in
+     URL** (`https://nimiastudio.com/api/discord/interactions`) in
      the Developer Portal's General Information page — see
      `packages/discord/README.md` for exactly where. Discord PINGs the URL
      the moment you click Save; if `DISCORD_PUBLIC_KEY` isn't deployed and

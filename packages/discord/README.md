@@ -93,7 +93,7 @@ sekali untuk memasang pesannya di `#create-ticket`.
 3. **Client ID** langsung terlihat di sana (boleh copy langsung).
 4. **Client Secret** — klik **Reset Secret** kalau belum pernah di-generate, lalu copy (cuma bisa dilihat sekali, kalau hilang harus reset ulang).
 5. Di halaman yang sama, bagian **Redirects**, tambahkan:
-   `https://studio.nimiagames.com/api/discord/callback`
+   `https://nimiastudio.com/api/discord/callback`
    (dan kalau mau test di local dev: `http://localhost:3000/api/discord/callback` juga, tambahkan sebagai baris terpisah, JANGAN gabung di satu baris).
 
 ### Bot Token
@@ -104,7 +104,7 @@ sekali untuk memasang pesannya di `#create-ticket`.
 ### Public Key & Interactions Endpoint URL (fase tombol ticket)
 1. https://discord.com/developers/applications → application "Nimia Studio Bot" → **General Information** (halaman pertama, bukan OAuth2/Bot).
 2. **Public Key** ada di sana — copy langsung ke `DISCORD_PUBLIC_KEY`, bukan rahasia (boleh terlihat siapa saja) tapi tetap wajib diisi supaya `verifyDiscordInteractionRequest` bisa jalan.
-3. Di halaman yang sama, field **Interactions Endpoint URL** — isi dengan `https://studio.nimiagames.com/api/discord/interactions` lalu **Save Changes**. Discord langsung mengirim satu request PING ke URL ini saat disimpan untuk memverifikasi endpoint hidup dan signature-nya valid — kalau `DISCORD_PUBLIC_KEY` belum di-deploy dengan benar, Save akan gagal dengan error di halaman itu sendiri (jangan bingung dengan error terpisah).
+3. Di halaman yang sama, field **Interactions Endpoint URL** — isi dengan `https://nimiastudio.com/api/discord/interactions` lalu **Save Changes**. Discord langsung mengirim satu request PING ke URL ini saat disimpan untuk memverifikasi endpoint hidup dan signature-nya valid — kalau `DISCORD_PUBLIC_KEY` belum di-deploy dengan benar, Save akan gagal dengan error di halaman itu sendiri (jangan bingung dengan error terpisah).
 4. Kalau mau test di local dev, Discord TIDAK BISA mengirim request ke `localhost` — perlu tunnel (ngrok/cloudflared) dan isi Interactions Endpoint URL dengan URL tunnel itu SEMENTARA saat testing, lalu kembalikan ke URL production setelah selesai.
 
 ### Guild ID, Role ID, Channel ID

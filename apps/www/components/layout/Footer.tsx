@@ -24,7 +24,7 @@ export default function Footer() {
             Refund Policy
           </FlowLink>
           <a
-            href="https://studio.nimiagames.com"
+            href="https://nimiastudio.com"
             target="_blank"
             rel="noreferrer"
             className="transition hover:text-white"

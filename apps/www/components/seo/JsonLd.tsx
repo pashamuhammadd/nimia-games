@@ -15,7 +15,7 @@ export default function JsonLd() {
     },
     description:
       "Nimia Games is an independent creative studio building original games, animation, digital assets, and interactive experiences for the Solana ecosystem.",
-    sameAs: ["https://studio.nimiagames.com", "https://lifetopiaworld.io"],
+    sameAs: ["https://nimiastudio.com", "https://lifetopiaworld.io"],
   };
 
   const websiteSchema = {

@@ -36,7 +36,7 @@ export default function PrivacyPolicyPage() {
           without any change to how your information is handled.
         </p>
         <p>
-          This policy applies to nimiagames.com and studio.nimiagames.com
+          This policy applies to nimiagames.com and nimiastudio.com
           (together, the &ldquo;Sites&rdquo;), and to the production
           services ordered through them (the &ldquo;Services&rdquo;).
         </p>

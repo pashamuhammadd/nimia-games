@@ -20,7 +20,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/dashboard/", "/api/", "/r/"],
       },
     ],
-    sitemap: "https://studio.nimiagames.com/sitemap.xml",
-    host: "https://studio.nimiagames.com",
+    sitemap: "https://nimiastudio.com/sitemap.xml",
+    host: "https://nimiastudio.com",
   };
 }

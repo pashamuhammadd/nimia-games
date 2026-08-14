@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 
-// Slim closing footer for studio.nimiagames.com's public/marketing pages
+// Slim closing footer for nimiastudio.com's public/marketing pages
 // (added 9 Agustus 2026, launch-readiness audit finding — this app is where
 // clients actually create accounts, submit orders, and pay, but until now
 // had zero links to Privacy Policy / Terms of Service / Refund Policy

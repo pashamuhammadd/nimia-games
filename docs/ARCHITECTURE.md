@@ -1,6 +1,6 @@
 # Nimia Games — Arsitektur Platform
 
-Status: **Tahap 1–4 SELESAI, DI-DEPLOY, DAN TERVERIFIKASI LIVE di production** — monorepo, Supabase 20 tabel + RLS aktif, auth + dashboard shell + form Order Service jalan end-to-end di `studio.nimiagames.com` (kedua Vercel deployment hijau). Email profesional (Resend + custom SMTP Supabase + template branded) juga sudah aktif, dan seluruh UI `apps/studio` sudah diterjemahkan ke Bahasa Inggris (`apps/www` tetap Bahasa Indonesia, keputusan sengaja). **Tahap 5 (backend: order→project→invoice, PDF, Cloudinary) BELUM DIMULAI.** Lihat "Status Tahap 4" dan "Status Tahap 4.5" di bagian bawah dokumen ini.
+Status: **Tahap 1–4 SELESAI, DI-DEPLOY, DAN TERVERIFIKASI LIVE di production** — monorepo, Supabase 20 tabel + RLS aktif, auth + dashboard shell + form Order Service jalan end-to-end di `nimiastudio.com` (kedua Vercel deployment hijau). Email profesional (Resend + custom SMTP Supabase + template branded) juga sudah aktif, dan seluruh UI `apps/studio` sudah diterjemahkan ke Bahasa Inggris (`apps/www` tetap Bahasa Indonesia, keputusan sengaja). **Tahap 5 (backend: order→project→invoice, PDF, Cloudinary) BELUM DIMULAI.** Lihat "Status Tahap 4" dan "Status Tahap 4.5" di bagian bawah dokumen ini.
 
 ## Status Tahap 2 (28 Juli 2026)
 
@@ -14,7 +14,7 @@ Yang BELUM otomatis (sengaja, karena butuh `git mv` yang cuma bisa dijalankan da
 
 **Penting:** jangan commit/push sebelum `npm run dev:www` dan `npm run dev:studio` sukses jalan lokal, dan jangan lupa ubah Root Directory project Vercel yang sudah ada (nimiagames.com) jadi `apps/www` sebelum/bersamaan dengan push, supaya deploy production tidak putus.
 
-Dokumen ini merancang transisi dari `nimia-games` (saat ini: 1 Next.js app untuk landing page, sudah live di www.nimiagames.com) menjadi platform studio digital dengan 3 subdomain terintegrasi: `www`, `portfolio`, dan `studio`. Sesuai keputusan yang disepakati: **monorepo Turborepo**, prioritas pembangunan **studio.nimiagames.com** duluan, dan backend services (Supabase/Cloudinary/Resend) **belum dibuat** — jadi Tahap 1–2 akan menyiapkan struktur & kode yang siap pakai begitu akun/API key tersedia.
+Dokumen ini merancang transisi dari `nimia-games` (saat ini: 1 Next.js app untuk landing page, sudah live di www.nimiagames.com) menjadi platform studio digital dengan 3 subdomain terintegrasi: `www`, `portfolio`, dan `studio`. Sesuai keputusan yang disepakati: **monorepo Turborepo**, prioritas pembangunan **nimiastudio.com** duluan, dan backend services (Supabase/Cloudinary/Resend) **belum dibuat** — jadi Tahap 1–2 akan menyiapkan struktur & kode yang siap pakai begitu akun/API key tersedia.
 
 ---
 
@@ -25,7 +25,7 @@ nimia-games/                     (root monorepo)
 ├── apps/
 │   ├── www/                     # nimiagames.com — hasil migrasi repo saat ini
 │   ├── portfolio/                # portfolio.nimiagames.com — dibangun setelah studio
-│   └── studio/                   # studio.nimiagames.com — PRIORITAS SEKARANG
+│   └── studio/                   # nimiastudio.com — PRIORITAS SEKARANG
 │
 ├── packages/
 │   ├── ui/                       # shadcn/ui components + design tokens brand (maroon/crimson/pink)
@@ -48,7 +48,7 @@ nimia-games/                     (root monorepo)
 - Repo `nimia-games` yang sekarang **tidak dibuang** — kontennya dipindah jadi `apps/www` nyaris tanpa perubahan struktur internal, supaya v6/v7 yang sudah live tidak perlu di-rewrite.
 
 **Deployment (Vercel):**
-Setiap `apps/*` jadi **project Vercel terpisah** yang menunjuk ke repo Git yang sama, dengan "Root Directory" di-set ke `apps/www`, `apps/portfolio`, `apps/studio`. Masing-masing project di-assign domain: `nimiagames.com` (+ `www`), `portfolio.nimiagames.com`, `studio.nimiagames.com`. Ini artinya deploy salah satu subdomain tidak memicu re-deploy yang lain (Turborepo `--filter` membatasi build scope), dan tiap app bisa scale/rollback independen — penting karena `studio` (auth, dashboard, PDF) punya karakteristik beban & risiko berbeda dari `www` (statis, marketing).
+Setiap `apps/*` jadi **project Vercel terpisah** yang menunjuk ke repo Git yang sama, dengan "Root Directory" di-set ke `apps/www`, `apps/portfolio`, `apps/studio`. Masing-masing project di-assign domain: `nimiagames.com` (+ `www`), `portfolio.nimiagames.com`, `nimiastudio.com`. Ini artinya deploy salah satu subdomain tidak memicu re-deploy yang lain (Turborepo `--filter` membatasi build scope), dan tiap app bisa scale/rollback independen — penting karena `studio` (auth, dashboard, PDF) punya karakteristik beban & risiko berbeda dari `www` (statis, marketing).
 
 ---
 
@@ -89,7 +89,7 @@ Ringkasan tabel & relasi utama (detail kolom + RLS policy akan ditulis sebagai f
 - **email_logs** — audit setiap email yang dikirim Resend (event, status, timestamp)
 - **notifications** — notifikasi in-app untuk admin & client
 
-**Keamanan (Row Level Security):** setiap tabel milik client (`orders`, `projects`, `invoices`, `messages`, `project_files`, `payments`, `receipts`) akan punya policy: client hanya bisa `SELECT` baris miliknya sendiri (`client_id` cocok dengan `auth.uid()` via tabel `clients`), admin (role check) punya akses penuh. Ini krusial karena route `studio.nimiagames.com/client/[client_id]` akan diakses langsung oleh client — keamanan harus di level database, bukan cuma di UI.
+**Keamanan (Row Level Security):** setiap tabel milik client (`orders`, `projects`, `invoices`, `messages`, `project_files`, `payments`, `receipts`) akan punya policy: client hanya bisa `SELECT` baris miliknya sendiri (`client_id` cocok dengan `auth.uid()` via tabel `clients`), admin (role check) punya akses penuh. Ini krusial karena route `nimiastudio.com/client/[client_id]` akan diakses langsung oleh client — keamanan harus di level database, bukan cuma di UI.
 
 ---
 
@@ -123,7 +123,7 @@ Saya akan tulis panduan lengkap langkah-langkahnya di README masing-masing packa
 
 ## Status Tahap 4 — SELESAI, DI-DEPLOY, DAN TERVERIFIKASI LIVE (29 Juli 2026)
 
-Tahap 3 sudah selesai & terverifikasi (20 tabel + RLS aktif semua di Supabase, `.env.local` terisi). Tahap 4 membangun UI dasar `studio.nimiagames.com` yang **beneran konek** ke Supabase Auth (bukan placeholder lagi). **Update: seluruh isi bagian ini sudah di-commit, di-push, dan kedua Vercel deployment (`nimia-games` & `nimia-games-studio`) hijau/sukses.** User sudah test end-to-end di production: daftar → konfirmasi email → login → submit form Order Service → row masuk ke tabel `orders`.
+Tahap 3 sudah selesai & terverifikasi (20 tabel + RLS aktif semua di Supabase, `.env.local` terisi). Tahap 4 membangun UI dasar `nimiastudio.com` yang **beneran konek** ke Supabase Auth (bukan placeholder lagi). **Update: seluruh isi bagian ini sudah di-commit, di-push, dan kedua Vercel deployment (`nimia-games` & `nimia-games-studio`) hijau/sukses.** User sudah test end-to-end di production: daftar → konfirmasi email → login → submit form Order Service → row masuk ke tabel `orders`.
 
 **`packages/ui`** — komponen gaya shadcn/ui ditulis tangan (bukan lewat CLI shadcn, dan sengaja belum pakai Radix UI dulu untuk mengurangi risiko dependency yang belum diverifikasi jalan di Next.js 16 + React 19): `Button`, `Input`, `Textarea`, `Select`, `Label`/`FieldError`, `Card` (+ sub-komponen). Dibangun pakai `clsx` + `tailwind-merge` + `class-variance-authority`, pola yang sama seperti shadcn/ui asli.
 
@@ -151,7 +151,7 @@ Setelah kode di atas selesai ditulis dan lolos `npm run dev` lokal, proses commi
 1. **`Type instantiation is excessively deep and possibly infinite`** di `zodResolver(orderFormSchema)` saat `next build` (lolos di `next dev` karena Turbopack dev tidak strict type-check). Skema `orderFormSchema` sempat pakai `.optional().or(z.literal(""))` di banyak field sekaligus, plus `apps/studio/package.json` sempat punya `zod` versi ganda (root override vs direct dependency) yang memperparah. **Fix yang beneran mempan:** cast argumen yang MASUK ke `zodResolver`, bukan hasilnya — `zodResolver(schema as any)`, BUKAN `zodResolver(schema) as Resolver<T>` (cast hasil tidak menolong karena TypeScript tetap harus menghitung tipe argumen dulu sebelum cast berlaku). Simplifikasi skema (buang union `.or(z.literal(""))`, pakai `.optional()` polos + `z.preprocess` khusus untuk `reference_link`) membantu tapi TIDAK cukup sendirian.
 2. **`Parameter 'cookiesToSet' implicitly has an 'any' type`** di `middleware.ts` DAN `packages/db/src/server.ts` (pola sama di dua tempat) — hanya muncul di `next build`, tidak di `next dev`. Fix: kasih tipe eksplisit `{ name: string; value: string; options?: Record<string, unknown> }[]`.
 3. **PALING MEMAKAN WAKTU — native binary `lightningcss`/`@tailwindcss/oxide` hilang di `package-lock.json` untuk platform Linux**, setelah lockfile di-generate ulang dari Windows saat memperbaiki bug #1. Gejala: Vercel build gagal di KEDUA app (`www` & `studio`, satu lockfile di-share) dengan `Error: Cannot find module '../lightningcss.linux-x64-gnu.node'`. Yang TIDAK mempan: clear build cache Vercel, ganti Install Command jadi `npm install` manual, `npm install --package-lock-only --os=linux --cpu=x64 --libc=glibc`. **Yang akhirnya mempan:** parsing `package-lock.json` langsung untuk menemukan versi persis `lightningcss-linux-x64-gnu` & `@tailwindcss/oxide-linux-x64-gnu` yang sudah tercatat di metadata `optionalDependencies` milik paket induknya, lalu menambahkan keduanya sebagai **`optionalDependencies` LANGSUNG di root `package.json`** (lihat root `package.json` saat ini). Verifikasi dengan mencari string `lightningcss-linux-x64-gnu` di `package-lock.json` sebelum push — harus ada baris "resolved" dengan URL tarball.
-4. **Pengaturan production belum lengkap meski build sukses:** Vercel Environment Variables project `nimia-games-studio` (termasuk `NEXT_PUBLIC_SITE_URL=https://studio.nimiagames.com`) perlu diisi manual (tidak otomatis dari `.env.local`), begitu juga Supabase Authentication → URL Configuration (Site URL & Redirect URLs) yang defaultnya masih `localhost`. Sudah diperbaiki dan dikonfirmasi user.
+4. **Pengaturan production belum lengkap meski build sukses:** Vercel Environment Variables project `nimia-games-studio` (termasuk `NEXT_PUBLIC_SITE_URL=https://nimiastudio.com`) perlu diisi manual (tidak otomatis dari `.env.local`), begitu juga Supabase Authentication → URL Configuration (Site URL & Redirect URLs) yang defaultnya masih `localhost`. Sudah diperbaiki dan dikonfirmasi user.
 
 **Pelajaran umum:** `next dev` (Turbopack) TIDAK strict type-check dan tidak butuh lockfile lengkap — kelihatan "aman" padahal `next build` (dipakai Vercel) bisa gagal karena hal yang tidak kelihatan di dev. Selalu jalankan `npm run build:studio`/`build:www` lokal SEBELUM push kalau ada perubahan dependency/tipe.
 
@@ -227,7 +227,7 @@ Diseed cuma 3 baris dulu (`ethereum`, `bsc`, `tron`) sesuai keputusan mulai bert
 
 **Tabel baru `referrals`** — siapa direferensikan siapa:
 `id, ambassador_id, referred_user_id, created_at`
-Diisi otomatis saat orang daftar lewat link `studio.nimiagames.com/register?ref=KODE`.
+Diisi otomatis saat orang daftar lewat link `nimiastudio.com/register?ref=KODE`.
 
 **Tabel baru `commissions`** — ledger komisi per order:
 `id, ambassador_id, order_id, amount_usd, rate_applied, status ('pending'|'paid'), paid_at, paid_tx_reference, created_at`
@@ -405,7 +405,7 @@ File yang berubah: `apps/studio/app/page.tsx`, `apps/studio/app/components/Publi
 
 ## BUG PENTING ditemukan & diperbaiki: tombol "primary" tidak ter-style di production (29 Juli 2026)
 
-User kirim screenshot `studio.nimiagames.com` yang SUDAH di-push ke production, dibandingkan dengan mockup yang saya kirim. Perbedaannya jelas: tombol **"Start a Project"** (baik di navbar maupun hero) tampil sebagai TEKS POLOS berwarna crimson, TANPA kotak/background/padding sama sekali — bukan cuma beda gaya dikit, tombolnya beneran tidak ke-style. Tombol **"Log in"** dan **"View Our Work"** (variant outline) terlihat OK karena kebetulan semua class yang membuatnya terlihat seperti tombol (border, warna border, warna hover) ditulis LANGSUNG di `page.tsx`/`PublicNavbar.tsx`, bukan diwariskan dari `packages/ui/src/components/Button.tsx`.
+User kirim screenshot `nimiastudio.com` yang SUDAH di-push ke production, dibandingkan dengan mockup yang saya kirim. Perbedaannya jelas: tombol **"Start a Project"** (baik di navbar maupun hero) tampil sebagai TEKS POLOS berwarna crimson, TANPA kotak/background/padding sama sekali — bukan cuma beda gaya dikit, tombolnya beneran tidak ke-style. Tombol **"Log in"** dan **"View Our Work"** (variant outline) terlihat OK karena kebetulan semua class yang membuatnya terlihat seperti tombol (border, warna border, warna hover) ditulis LANGSUNG di `page.tsx`/`PublicNavbar.tsx`, bukan diwariskan dari `packages/ui/src/components/Button.tsx`.
 
 **Akar masalah:** `apps/studio` pakai Tailwind v4 (`@import "tailwindcss";` di `globals.css`, tanpa `tailwind.config.js` — v4 memang begitu). Tailwind v4 punya "automatic content detection" yang **otomatis MENGECUALIKAN apa pun di dalam `node_modules`**. Karena `@nimia/ui` adalah workspace package yang di-resolve npm sebagai symlink di `node_modules/@nimia/ui` → `../../packages/ui`, kemungkinan besar Tailwind tidak pernah benar-benar men-scan file asli di `packages/ui/src/components/Button.tsx` — artinya SEMUA class yang HANYA ada di dalam file itu (termasuk seluruh isi `variant.primary`: `bg-[var(--nimia-crimson)] text-white shadow-sm hover:bg-[var(--nimia-crimson-hover)]`, dan base classes `inline-flex h-11 px-6` dst.) tidak pernah masuk ke CSS yang di-compile, jadi tidak render sama sekali di production. Variant `outline` KEBETULAN "selamat" secara visual karena border/warnanya sudah saya duplikasi manual langsung di file pemanggil pada update-update sebelumnya (bukan karena Button.tsx-nya benar-benar ke-scan).
 
@@ -453,7 +453,7 @@ File yang berubah: `apps/studio/app/layout.tsx`, `apps/studio/app/globals.css`.
 
 ## Update navbar: dari 2 item ke 5 (Home, Why Nimia, Services, Portfolio, Contact) + halaman Contact fungsional via Resend (29 Juli 2026)
 
-User minta navbar publik `studio.nimiagames.com` dilengkapi dari 2 item (Home, Services) jadi 5: **Home, Why Nimia, Services, Portfolio, Contact**. Karena 3 dari 5 item ini butuh halaman baru yang belum pernah dibahas isinya, saya tanya dulu lewat 4 pertanyaan (menghindari kebiasaan lama proyek ini: jangan bikin konten bisnis/scope halaman baru tanpa konfirmasi) — jawaban user:
+User minta navbar publik `nimiastudio.com` dilengkapi dari 2 item (Home, Services) jadi 5: **Home, Why Nimia, Services, Portfolio, Contact**. Karena 3 dari 5 item ini butuh halaman baru yang belum pernah dibahas isinya, saya tanya dulu lewat 4 pertanyaan (menghindari kebiasaan lama proyek ini: jangan bikin konten bisnis/scope halaman baru tanpa konfirmasi) — jawaban user:
 
 1. **"Why Nimia" formatnya** → halaman sendiri (`/why-nimia`), bukan anchor section di landing page.
 2. **Isi "Why Nimia"** → user akan kasih poin-poinnya sendiri (BELUM dikirim saat update ini dibuat — lihat "Masih menunggu dari user" di bawah).

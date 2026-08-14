@@ -36,7 +36,7 @@ const NAV_LINKS = [
   { href: "/partners", label: "Partners" },
 ];
 
-// Public navbar for the unauthenticated/marketing side of studio.nimiagames.com
+// Public navbar for the unauthenticated/marketing side of nimiastudio.com
 // (/, /services, /login, /register, /partners). Deliberately separate from
 // the dashboard's sidebar (DashboardNav) — the two areas were confirmed
 // with the user to have opposite nav patterns: public pages get a top

@@ -18,7 +18,7 @@ export default function TermsOfServicePage() {
       eyebrow="Legal"
       title="Terms of Service"
       lastUpdated={LAST_UPDATED}
-      intro="These Terms of Service (“Terms”) govern your access to nimiagames.com and studio.nimiagames.com and any order you place for game development, animation, or digital asset production services. By creating an account or submitting an order, you agree to these Terms."
+      intro="These Terms of Service (“Terms”) govern your access to nimiagames.com and nimiastudio.com and any order you place for game development, animation, or digital asset production services. By creating an account or submitting an order, you agree to these Terms."
     >
       <LegalSection title="1. About Nimia Studio">
         <p>

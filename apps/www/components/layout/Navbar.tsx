@@ -66,7 +66,7 @@ export default function Navbar() {
 
         {/* CTA (desktop) */}
         <a
-          href="https://studio.nimiagames.com"
+          href="https://nimiastudio.com"
           target="_blank"
           rel="noreferrer"
           className="nimia-button-primary hidden rounded-full px-4 py-2 text-xs font-semibold tracking-wide md:inline-flex"

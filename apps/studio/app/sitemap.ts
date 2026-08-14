@@ -7,7 +7,7 @@ import type { MetadataRoute } from "next";
 // pointing crawlers at pages they can't or shouldn't index would just
 // waste crawl budget. Same pattern as apps/www/app/sitemap.ts.
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://studio.nimiagames.com";
+  const baseUrl = "https://nimiastudio.com";
 
   return [
     {

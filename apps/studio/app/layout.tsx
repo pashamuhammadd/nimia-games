@@ -47,7 +47,7 @@ const rajdhani = Rajdhani({
 // same dark maroon gradient, same brand colors/fonts, studio-specific
 // headline and lockup).
 export const metadata: Metadata = {
-  metadataBase: new URL("https://studio.nimiagames.com"),
+  metadataBase: new URL("https://nimiastudio.com"),
 
   title: {
     default: "Nimia Studio - Animation, Game Development & Digital Assets",
@@ -90,7 +90,7 @@ export const metadata: Metadata = {
     title: "Nimia Studio: Animation, Game Development & Digital Assets",
     description:
       "Professional animation, games, and digital assets, crafted end-to-end and tracked from your own project dashboard.",
-    url: "https://studio.nimiagames.com",
+    url: "https://nimiastudio.com",
     siteName: "Nimia Studio",
     images: [
       {

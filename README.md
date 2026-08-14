@@ -7,7 +7,7 @@ Turborepo monorepo untuk seluruh platform Nimia Games. Lihat `docs/ARCHITECTURE.
 ```
 apps/
   www/       -> nimiagames.com (landing page, sudah live)
-  studio/    -> studio.nimiagames.com (order system, client dashboard, invoice) — sedang dibangun
+  studio/    -> nimiastudio.com (order system, client dashboard, invoice) — sedang dibangun
   portfolio/ -> portfolio.nimiagames.com — belum dibuat, tahap berikutnya
 
 packages/
@@ -24,7 +24,7 @@ packages/
 ```bash
 npm install
 npm run dev:www      # jalankan situs utama (nimiagames.com) di localhost
-npm run dev:studio   # jalankan studio.nimiagames.com di localhost
+npm run dev:studio   # jalankan nimiastudio.com di localhost
 ```
 
 ## Status

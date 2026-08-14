@@ -59,7 +59,7 @@ export default function MobileMenu() {
             })}
 
             <a
-              href="https://studio.nimiagames.com"
+              href="https://nimiastudio.com"
               target="_blank"
               rel="noreferrer"
               className="nimia-button-primary mt-4 inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-black"
