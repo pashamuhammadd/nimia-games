@@ -9,6 +9,7 @@ import { calculateBundleEstimate } from "../pricing/calculate-bundle-estimate";
 import { summarizeSelections } from "../pricing/summarize-selections";
 import type { ConfigSelections, ProjectBrief } from "../types/order-state";
 import type { BundlePackage, BundleCreativeOption } from "../types/bundle";
+import type { CustomOrderPaymentMethod } from "../types/custom-order";
 import type { SubmitIntent } from "./use-order-wizard";
 import { sendOrderReceivedEmail } from "../../../lib/email";
 import { notifyNewOrder } from "@nimia/discord";
@@ -25,6 +26,16 @@ export interface SubmitOrderActionInput {
    * skips the category/service lookup entirely — see isBundleOrder below. */
   bundlePackageId?: string | null;
   bundleCreativeContentIds?: string[];
+  /** Pay in Full vs Pay in Installments (15 Agustus 2026 — generalized from
+   * Custom Order Builder, which has had this choice since 12 Agustus 2026;
+   * see submit-custom-order-action.ts's identical field and
+   * types/custom-order.ts's CustomOrderPaymentMethod, reused as-is here
+   * since the choice itself has nothing custom-order-specific about it —
+   * it's "how do you want to pay for this order", period). Same
+   * "client's own stated intent, not authoritative" trust tier as
+   * proposed_price_usd — Admin can still change it during review (see
+   * apps/admin's setOrderPaymentPlanAction). */
+  paymentMethod: CustomOrderPaymentMethod | null;
   brief: ProjectBrief;
   negotiationOffer: string;
   /** Added 4 Agustus 2026 (P0.3) — already-uploaded Cloudinary URLs, one
@@ -142,6 +153,13 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
   if (!input.agreedToTerms) {
     return { ok: false, error: "Please agree to Nimia Studio's project terms before submitting." };
   }
+  // 15 Agustus 2026 — same validation submitCustomOrderAction has always
+  // had, extended here now that Project Builder/Package orders also carry
+  // a payment method (see SubmitOrderActionInput.paymentMethod's own
+  // comment above).
+  if (!input.paymentMethod) {
+    return { ok: false, error: "Choose a payment method before submitting." };
+  }
 
   const isBundleOrder = Boolean(input.bundlePackageId);
 
@@ -189,17 +207,31 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
   // Same two-query shape as app/dashboard/layout.tsx's profile fetch —
   // `users` (full_name) and `clients` (company_name/whatsapp/country) are
   // separate tables, no embed needed since both are looked up by the same
-  // auth user id.
-  const [{ data: profile }, { data: client, error: clientError }] = await Promise.all([
+  // auth user id. installment_settings added 15 Agustus 2026 (Payment
+  // Method step generalized here from Custom Order Builder — see
+  // submit-custom-order-action.ts's identical query) — fetched
+  // unconditionally alongside the other two rather than only when
+  // paymentMethod === "installments", same "always fetch, decide what to
+  // do with it after" shape that file already uses, so this stays one
+  // Promise.all instead of a conditional extra round trip.
+  const [{ data: profile }, { data: client, error: clientError }, { data: feeSettings }] = await Promise.all([
     supabase.from("users").select("full_name").eq("id", user.id).single(),
     supabase.from("clients").select("id, company_name, whatsapp, country").eq("user_id", user.id).single(),
+    supabase.from("installment_settings").select("fee_percentage").eq("id", true).single(),
   ]);
 
   if (clientError || !client) {
     return { ok: false, error: "Couldn't find your client profile. Please try signing in again." };
   }
 
+  const feePercentage = Number(feeSettings?.fee_percentage ?? 30);
+
   let description: string;
+  /** The base price BEFORE any installment fee — same meaning
+   * `estimateTotalPrice` always had. Kept under this name so the
+   * description-building branches below (unchanged) don't need touching;
+   * the fee gets added AFTER this, right before `proposed_price_usd` is
+   * written — see below. */
   let estimateTotalPrice: number;
   let serviceNameForNotifications: string;
   let selectedBundleOptions: BundleCreativeOption[] = [];
@@ -240,6 +272,20 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
 
   const clientName = profile?.full_name ?? "Nimia Client";
 
+  // Installment flexibility fee (15 Agustus 2026) — same formula as
+  // submit-custom-order-action.ts's identical computation, applied here now
+  // that Project Builder/Package orders can be installment orders too.
+  // `proposed_price_usd` below MUST be this fee-inclusive number, not the
+  // bare `estimateTotalPrice`: it's what the client actually saw and agreed
+  // to on the Review step (see review-section.tsx/price-estimator.tsx's own
+  // `grandTotal` fallback) — writing the pre-fee number here would silently
+  // under-quote every installment order by the fee amount, which Admin
+  // would then have no way to notice since this is the only number they see
+  // before ever opening the order.
+  const installmentFeeAmount =
+    input.paymentMethod === "installments" ? Math.round(((estimateTotalPrice * feePercentage) / 100) * 100) / 100 : 0;
+  const finalProposedPrice = Math.round((estimateTotalPrice + installmentFeeAmount) * 100) / 100;
+
   const { data: order, error: insertError } = await supabase
     .from("orders")
     .insert({
@@ -253,6 +299,26 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
       // Project" for these, which is wrong for a paying package order.
       // See packages/db/migrations/0036_order_package_name.sql.
       package_name: isBundleOrder ? bundlePkg!.name : null,
+      // BUG FIX (15 Agustus 2026, financial platform audit) — this insert
+      // never set order_flow_type at all since migration 0038 introduced
+      // the column, so every order submitted through THIS action (both
+      // Project Builder AND Package/Bundle) silently fell back to the
+      // column's DB default, 'project_builder' — including every Package
+      // order, which should have been 'package' the whole time (0038's own
+      // backfill set 'package' for every EXISTING row with a package_name,
+      // but nothing kept that true for new rows going forward — this is
+      // what makes it a bug, not a deliberate default). Left uncaught
+      // until now because nothing actually branched on order_flow_type
+      // until apps/admin's Payment Plan UI (15 Agustus 2026) started
+      // gating on it. Explicit here from now on, mirroring
+      // submit-custom-order-action.ts's own explicit 'custom' literal.
+      order_flow_type: isBundleOrder ? "package" : "project_builder",
+      // Pay in Full vs Installments (15 Agustus 2026) — see
+      // SubmitOrderActionInput.paymentMethod's own comment above for why
+      // this is safe to set at insert time exactly like Custom Order
+      // already does: it's the client's stated intent, not authoritative,
+      // and Admin can still change it during review.
+      payment_method: input.paymentMethod,
       full_name: clientName,
       company_name: client.company_name,
       email: user.email ?? "",
@@ -262,7 +328,7 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
       description,
       reference_link: input.brief.referenceLink.trim() || null,
       status: input.intent === "negotiate" ? "negotiating" : "pending_review",
-      proposed_price_usd: estimateTotalPrice,
+      proposed_price_usd: finalProposedPrice,
     })
     .select("id")
     .single();
@@ -338,8 +404,12 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
     orderId: `ORD-${order.id.slice(0, 8).toUpperCase()}`,
     clientName,
     serviceName: serviceNameForNotifications,
-    amountUsd: negotiationAmount ?? estimateTotalPrice,
+    amountUsd: negotiationAmount ?? finalProposedPrice,
     isNegotiation: input.intent === "negotiate",
+    // 15 Agustus 2026 (Discord alignment pass) — lets #new-orders show
+    // Full Payment vs Installments at a glance, same as the equivalent
+    // call in submit-custom-order-action.ts.
+    paymentMethod: input.paymentMethod,
   });
 
   // Added 9 Agustus 2026 (auto-thread pass, docs/DISCORD.md's "Order

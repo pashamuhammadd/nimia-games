@@ -31,7 +31,15 @@ export interface StepNavigationProps {
 // here beyond having selections, which the previous step already
 // guarantees — still an explicit Continue since it's a multi-service page,
 // not an auto-advancing single choice), and "custom-payment" (needs a
-// payment method chosen — see useOrderWizard#canGoNext).
+// payment method chosen — see useOrderWizard#canGoNext). "payment" (15
+// Agustus 2026) is Project Builder/Package's own copy of that same
+// Continue-gated step, added here alongside "custom-payment" — MUST stay
+// in this list, not just in useOrderWizard#canGoNext's validation: without
+// a matching entry here, a client who reached the Payment Method step on a
+// Project Builder or Package order would see NO Continue button at all
+// (showContinue/showSubmit/canGoBack all false on a step with canGoBack
+// already true mid-wizard would still render the Back button, but never a
+// way forward) and be stuck.
 export function StepNavigation({
   step,
   canGoBack,
@@ -49,7 +57,8 @@ export function StepNavigation({
     step === "upload" ||
     step === "custom-services" ||
     step === "custom-configure" ||
-    step === "custom-payment";
+    step === "custom-payment" ||
+    step === "payment";
   const showSubmit = step === "review";
 
   if (!showContinue && !showSubmit && !canGoBack) return null;

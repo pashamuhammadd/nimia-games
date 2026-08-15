@@ -22,6 +22,7 @@ import {
   calculateEstimate,
   calculateBundleEstimate,
   calculateCustomOrderEstimate,
+  applyInstallmentFeePreview,
   type Estimate,
   type CustomOrderEstimate,
 } from "../pricing";
@@ -205,7 +206,12 @@ export interface UseOrderWizardResult {
   removeCustomService: (selectionId: string) => void;
   updateCustomServiceConfig: (selectionId: string, fieldId: string, value: string | boolean | string[]) => void;
   setCustomServicePackageTier: (selectionId: string, packageId: string) => void;
-  setCustomPaymentMethod: (method: CustomOrderPaymentMethod) => void;
+  /** Pay in Full vs Pay in Installments (15 Agustus 2026, generalized from
+   * `setCustomPaymentMethod` — see OrderWizardState.paymentMethod's own
+   * comment in types/order-state.ts). Shared by all three order types now:
+   * Custom Order's "custom-payment" step and Project Builder/Package's new
+   * "payment" step both call this same setter. */
+  setPaymentMethod: (method: CustomOrderPaymentMethod) => void;
   updateConfigValue: (fieldId: string, value: string | boolean | string[]) => void;
   updateBrief: (patch: Partial<ProjectBrief>) => void;
   updateNegotiationOffer: (value: string) => void;
@@ -251,11 +257,16 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     saveOrderState(state);
   }, [state, isHydrated]);
 
-  // Custom Order Builder — fetch the real (admin-configurable) installment
-  // fee percentage once the visitor actually enters this flow, rather than
-  // on every /order page load regardless of which order type they pick.
+  // Fetch the real (admin-configurable) installment fee percentage once the
+  // visitor actually picks an order type, rather than on every /order page
+  // load regardless. Originally Custom-Order-only (gated on
+  // `state.orderType !== "custom"`); generalized 15 Agustus 2026 alongside
+  // the Payment Method step itself moving to Project Builder/Package too —
+  // get_installment_fee_percentage() (0038) was always a single global
+  // setting, never Custom-Order-specific, so there's nothing to branch on
+  // here anymore.
   React.useEffect(() => {
-    if (state.orderType !== "custom") return;
+    if (!state.orderType) return;
     let cancelled = false;
     getInstallmentFeePercentageAction().then((pct) => {
       if (!cancelled) setInstallmentFeePercentage(pct);
@@ -276,12 +287,19 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
       ? getStepsForCustomOrder()
       : getStepsForService(service);
   const currentStepIndex = Math.max(0, steps.indexOf(state.step));
-  const estimate = isBundleOrder
+  const baseEstimate = isBundleOrder
     ? calculateBundleEstimate(bundlePackage)
     : calculateEstimate(isCustomOrder ? null : service, state.packageId, state.configSelections);
+  // Installment fee preview (15 Agustus 2026) — a no-op for Custom Order
+  // (isCustomOrder's `estimate` here is never actually read; that flow uses
+  // `customEstimate` below instead, which has always had its own fee math)
+  // and for every Full Payment order. See applyInstallmentFeePreview's own
+  // comment above for why this wraps calculateEstimate/calculateBundleEstimate
+  // rather than living inside them.
+  const estimate = applyInstallmentFeePreview(baseEstimate, state.paymentMethod, installmentFeePercentage);
   const customEstimate = calculateCustomOrderEstimate(
     state.customServiceSelections,
-    state.customPaymentMethod,
+    state.paymentMethod,
     installmentFeePercentage,
   );
 
@@ -419,8 +437,8 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     }));
   }, []);
 
-  const setCustomPaymentMethod = React.useCallback((method: CustomOrderPaymentMethod) => {
-    setState((prev) => ({ ...prev, customPaymentMethod: method }));
+  const setPaymentMethod = React.useCallback((method: CustomOrderPaymentMethod) => {
+    setState((prev) => ({ ...prev, paymentMethod: method }));
   }, []);
 
   const updateConfigValue = React.useCallback(
@@ -518,13 +536,17 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
       return usedSlotsFor(bundlePackage, state.bundleCreativeContentIds) === bundlePackage.creativeSlotCount;
     }
     // Custom Order Builder (12 Agustus 2026) — Select Services needs at
-    // least one service added; Payment Method needs an explicit choice
-    // (spec section 10 — never defaults to one silently).
+    // least one service added.
     if (state.step === "custom-services") {
       return state.customServiceSelections.length > 0;
     }
-    if (state.step === "custom-payment") {
-      return state.customPaymentMethod !== null;
+    // Payment Method needs an explicit choice (spec section 10 — never
+    // defaults to one silently) — "custom-payment" is Custom Order
+    // Builder's own step id, "payment" is Project Builder/Package's
+    // (generalized 15 Agustus 2026, same underlying `paymentMethod` field
+    // either way — see OrderWizardState's own comment).
+    if (state.step === "custom-payment" || state.step === "payment") {
+      return state.paymentMethod !== null;
     }
     return true;
   }, [
@@ -533,7 +555,7 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     state.brief.projectDescription,
     state.bundleCreativeContentIds,
     state.customServiceSelections,
-    state.customPaymentMethod,
+    state.paymentMethod,
     bundlePackage,
   ]);
 
@@ -548,7 +570,10 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
         setSubmitError("Add at least one service before submitting.");
         return;
       }
-      if (isCustomOrder && !state.customPaymentMethod) {
+      // Generalized 15 Agustus 2026 from isCustomOrder-only — every order
+      // type now has a Payment Method step (see canGoNext's own comment
+      // above), so this guard applies regardless of orderType.
+      if (!state.paymentMethod) {
         setSubmitError("Choose a payment method before submitting.");
         return;
       }
@@ -636,7 +661,7 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
           ? submitCustomOrderAction({
               intent,
               selections: state.customServiceSelections,
-              paymentMethod: state.customPaymentMethod,
+              paymentMethod: state.paymentMethod,
               brief: state.brief,
               negotiationOffer: state.negotiationOffer,
               uploadedFiles,
@@ -650,6 +675,9 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
               configSelections: isBundleOrder ? {} : state.configSelections,
               bundlePackageId: isBundleOrder ? state.bundlePackageId : null,
               bundleCreativeContentIds: isBundleOrder ? state.bundleCreativeContentIds : [],
+              // 15 Agustus 2026 — see SubmitOrderActionInput.paymentMethod's
+              // own comment in submit-order-action.ts.
+              paymentMethod: state.paymentMethod,
               brief: state.brief,
               negotiationOffer: state.negotiationOffer,
               uploadedFiles,
@@ -687,7 +715,7 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
       state.bundlePackageId,
       state.bundleCreativeContentIds,
       state.customServiceSelections,
-      state.customPaymentMethod,
+      state.paymentMethod,
       state.brief,
       state.files,
       fileBlobs,
@@ -731,7 +759,7 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     removeCustomService,
     updateCustomServiceConfig,
     setCustomServicePackageTier,
-    setCustomPaymentMethod,
+    setPaymentMethod,
     updateConfigValue,
     updateBrief,
     updateNegotiationOffer,

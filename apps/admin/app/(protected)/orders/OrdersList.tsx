@@ -57,10 +57,14 @@ export type OrderListItem = {
   payment_submitted_at: string | null;
   payment_verified_at: string | null;
   payment_underpaid_note: string | null;
-  // Custom Order + Payment Plan (15 Agustus 2026 — see
-  // packages/db/migrations/0038_custom_order_installments.sql). null/'none'
-  // for every Project Builder / Package order, which have no payment-plan
-  // concept — only order_flow_type='custom' ever sets payment_method.
+  // Payment Plan (15 Agustus 2026 — see
+  // packages/db/migrations/0038_custom_order_installments.sql). Originally
+  // Custom-Order-only; generalized the same day to every order_flow_type
+  // once the client wizard's "Choose how to pay" step was extended to
+  // Project Builder and Package orders too (see
+  // apps/app/modules/order/state/submit-order-action.ts) — payment_method
+  // is null only for a legacy order that predates that step existing at
+  // all, regardless of flow type.
   order_flow_type: "project_builder" | "package" | "custom";
   payment_method: "full_payment" | "installments" | null;
   payment_plan: "none" | "two_milestones" | "three_milestones" | "custom";
@@ -193,9 +197,21 @@ export function OrdersList({ orders }: { orders: OrderListItem[] }) {
                       {latestOffer.amount_usd.toLocaleString("en-US")}
                     </span>
                   ) : null}
+                  {/* Full Payment / Installments — both shown now (15
+                      Agustus 2026, two-lane admin UI), not just
+                      Installments, so the two lanes read symmetrically at a
+                      glance in the list instead of "badge present = cicilan,
+                      badge absent = ambiguous (full payment OR not decided
+                      yet)". A legacy order that predates the client wizard
+                      carrying payment_method at all still shows neither,
+                      which is the honest "not set" state. */}
                   {order.payment_method === "installments" ? (
                     <span className="rounded-full bg-purple-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-purple-300">
                       Installments
+                    </span>
+                  ) : order.payment_method === "full_payment" ? (
+                    <span className="rounded-full bg-sky-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-300">
+                      Full Payment
                     </span>
                   ) : null}
                   {installmentNeedsReview ? (
@@ -220,7 +236,22 @@ export function OrdersList({ orders }: { orders: OrderListItem[] }) {
         ariaLabel="Order detail"
         className="max-w-lg"
       >
-        {selected ? <OrderDetailPanel order={selected} onClose={() => setSelected(null)} /> : null}
+        {/* key={selected.id} (15 Agustus 2026, financial-safety fix, found
+            while generalizing the Payment Plan picker) — without this,
+            clicking a different order row while the panel is already open
+            (setSelected fires directly, see above; nothing closes the panel
+            first) reused the SAME OrderDetailPanel instance across orders.
+            Every piece of its local useState — quotationPrice,
+            paymentMethodChoice, planChoice, customPercentagesText/
+            customLabelsText, installmentNotes, even the success/error
+            banners — is initialized once and does NOT reset just because
+            the `order` prop changed. An admin who half-fills a price or a
+            payment plan for Order A, then clicks straight into Order B,
+            would see Order A's stale input values sitting in Order B's
+            form, one click away from being saved against the wrong order.
+            Forcing a remount on order id makes every field start fresh for
+            whichever order is actually on screen. */}
+        {selected ? <OrderDetailPanel key={selected.id} order={selected} onClose={() => setSelected(null)} /> : null}
       </Modal>
     </>
   );

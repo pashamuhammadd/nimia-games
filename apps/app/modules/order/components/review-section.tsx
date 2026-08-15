@@ -129,7 +129,22 @@ export function ReviewSection({
         <SummaryCard
           title="Estimate"
           rows={[
-            { label: "Estimated Price", value: `$${estimate.totalPrice}` },
+            // Installment fee preview (15 Agustus 2026 — see Estimate.grandTotal's
+            // own comment in ../pricing/calculate-estimate.ts). Mirrors
+            // CustomOrderReviewSection's own Subtotal/Fee/Total breakdown;
+            // absent entirely for Full Payment (or no payment method chosen
+            // yet), which shows the same single "Estimated Price" row this
+            // always showed.
+            ...(estimate.installmentFeeAmount
+              ? [
+                  { label: "Subtotal", value: `$${estimate.totalPrice}` },
+                  {
+                    label: `Installment Fee (${estimate.installmentFeePercentage}%)`,
+                    value: `+$${estimate.installmentFeeAmount}`,
+                  },
+                  { label: "Estimated Total", value: `$${estimate.grandTotal}` },
+                ]
+              : [{ label: "Estimated Price", value: `$${estimate.totalPrice}` }]),
             {
               label: "Estimated Delivery",
               value: estimate.deliveryLabel ?? `${estimate.totalDeliveryDays} Days`,
@@ -174,7 +189,7 @@ export function ReviewSection({
             type="number"
             min={1}
             inputMode="decimal"
-            placeholder={`e.g. ${estimate.totalPrice}`}
+            placeholder={`e.g. ${estimate.grandTotal ?? estimate.totalPrice}`}
             value={negotiationOffer}
             onChange={(event) => onNegotiationOfferChange(event.target.value)}
             className="w-full bg-transparent text-sm text-white placeholder:text-white/30 focus:outline-none"

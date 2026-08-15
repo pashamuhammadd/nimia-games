@@ -164,8 +164,8 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
 
                 {wizard.state.step === "custom-payment" ? (
                   <PaymentMethodStep
-                    paymentMethod={wizard.state.customPaymentMethod}
-                    onSelect={wizard.setCustomPaymentMethod}
+                    paymentMethod={wizard.state.paymentMethod}
+                    onSelect={wizard.setPaymentMethod}
                     estimate={wizard.customEstimate}
                     installmentFeePercentage={wizard.installmentFeePercentage}
                   />
@@ -174,7 +174,7 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
                 {wizard.state.step === "review" ? (
                   <CustomOrderReviewSection
                     selections={wizard.state.customServiceSelections}
-                    paymentMethod={wizard.state.customPaymentMethod}
+                    paymentMethod={wizard.state.paymentMethod}
                     estimate={wizard.customEstimate}
                     brief={wizard.state.brief}
                     files={wizard.state.files}
@@ -205,7 +205,7 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
 
           <CustomOrderPriceEstimator
             estimate={wizard.customEstimate}
-            paymentMethod={wizard.state.customPaymentMethod}
+            paymentMethod={wizard.state.paymentMethod}
           />
         </main>
       </div>
@@ -279,6 +279,22 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
                     files={wizard.state.files}
                     onAddFiles={wizard.addFiles}
                     onRemoveFile={wizard.removeFile}
+                  />
+                ) : null}
+
+                {/* Payment Method step (15 Agustus 2026, generalized from
+                    Custom Order Builder — see PaymentMethodStepProps' own
+                    `estimate: { subtotal }` shape in payment-method-step.tsx,
+                    narrow enough that Package's plain `Estimate.totalPrice`
+                    satisfies it with zero adapter needed). Placed right
+                    before Review, same spot Custom Order's own
+                    "custom-payment" step occupies. */}
+                {wizard.state.step === "payment" ? (
+                  <PaymentMethodStep
+                    paymentMethod={wizard.state.paymentMethod}
+                    onSelect={wizard.setPaymentMethod}
+                    estimate={{ subtotal: wizard.estimate.totalPrice }}
+                    installmentFeePercentage={wizard.installmentFeePercentage}
                   />
                 ) : null}
 
@@ -413,6 +429,18 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
                   files={wizard.state.files}
                   onAddFiles={wizard.addFiles}
                   onRemoveFile={wizard.removeFile}
+                />
+              ) : null}
+
+              {/* Payment Method step (15 Agustus 2026, generalized from
+                  Custom Order Builder — see the Package branch above's
+                  identical comment). */}
+              {wizard.state.step === "payment" ? (
+                <PaymentMethodStep
+                  paymentMethod={wizard.state.paymentMethod}
+                  onSelect={wizard.setPaymentMethod}
+                  estimate={{ subtotal: wizard.estimate.totalPrice }}
+                  installmentFeePercentage={wizard.installmentFeePercentage}
                 />
               ) : null}
 

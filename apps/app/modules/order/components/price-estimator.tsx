@@ -51,6 +51,15 @@ export function PriceEstimator({
 
   const deliveryDisplay =
     estimate.deliveryLabel ?? `${estimate.totalDeliveryDays} ${estimate.totalDeliveryDays === 1 ? "Day" : "Days"}`;
+  // Installment fee preview (15 Agustus 2026 — see Estimate.grandTotal's own
+  // comment in ../pricing/calculate-estimate.ts). `headlinePrice` is what
+  // every "Estimated Price" figure below actually shows — deliberately
+  // NOT `estimate.totalPrice` directly, exactly mirroring
+  // CustomOrderPriceEstimator's own `estimate.total` (fee-inclusive). Falls
+  // back to `totalPrice` whenever there's no fee to add (Full Payment, or
+  // no payment method chosen yet), so this is a no-op change for every case
+  // that existed before 15 Agustus 2026.
+  const headlinePrice = estimate.grandTotal ?? estimate.totalPrice;
 
   const breakdown = (
     <>
@@ -75,11 +84,26 @@ export function PriceEstimator({
         </div>
       ) : null}
 
+      {estimate.installmentFeeAmount ? (
+        <div className="flex flex-col gap-1.5 border-t border-white/10 pt-3.5">
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="text-white/55">
+              Subtotal
+            </span>
+            <span className="font-medium text-white">${estimate.totalPrice}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="text-white/55">Installment Fee ({estimate.installmentFeePercentage}%)</span>
+            <span className="font-medium text-[var(--nimia-pink)]">+${estimate.installmentFeeAmount}</span>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-2.5 border-t border-white/10 pt-3.5">
         <div className="flex items-baseline justify-between">
-          <span className="text-sm text-white/55">Estimated Price</span>
+          <span className="text-sm text-white/55">{estimate.installmentFeeAmount ? "Estimated Total" : "Estimated Price"}</span>
           <span className="nimia-gradient-text nimia-font-display text-3xl font-bold">
-            ${estimate.totalPrice}
+            ${headlinePrice}
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
@@ -116,10 +140,10 @@ export function PriceEstimator({
           <div className="flex items-center gap-3 text-left">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-white/40">
-                Estimated Price
+                {estimate.installmentFeeAmount ? "Estimated Total" : "Estimated Price"}
               </p>
               <p className="nimia-gradient-text nimia-font-display text-xl font-bold">
-                ${estimate.totalPrice}
+                ${headlinePrice}
               </p>
             </div>
             <span className="h-8 w-px bg-white/10" aria-hidden="true" />

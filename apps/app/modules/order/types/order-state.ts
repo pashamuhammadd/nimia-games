@@ -33,6 +33,13 @@ export interface UploadedFileMeta {
   type: string;
 }
 
+// "payment" (15 Agustus 2026 — Payment Method step generalized from Custom
+// Order Builder to Project Builder too, see components/payment-method-step.tsx
+// and PaymentMethodStepProps' own generic `estimate: { subtotal }` shape)
+// sits right before "review", same placement rationale CUSTOM_ORDER_STEPS'
+// own comment gives for "custom-payment": after every configuration
+// decision is made, so the fee preview reflects the client's real total,
+// never a placeholder number.
 export const ORDER_STEPS = [
   "category",
   "service",
@@ -40,6 +47,7 @@ export const ORDER_STEPS = [
   "configure",
   "brief",
   "upload",
+  "payment",
   "review",
 ] as const;
 
@@ -50,8 +58,11 @@ export const ORDER_STEPS = [
  * components/project-brief-form.tsx and components/upload-section.tsx). Kept
  * as its own tuple rather than reusing/extending ORDER_STEPS's "category"/
  * "service"/"package" ids, which have different, now-conflicting semantics
- * for a bundle order (see ../data/bundle-packages.ts). */
-export const BUNDLE_STEPS = ["browse", "package-detail", "brief", "upload", "review"] as const;
+ * for a bundle order (see ../data/bundle-packages.ts). "payment" (15 Agustus
+ * 2026, same generalization as ORDER_STEPS above) is shared verbatim — a
+ * package has a single fixed price, but that price can still be paid in
+ * full or in installments, exactly like everything else. */
+export const BUNDLE_STEPS = ["browse", "package-detail", "brief", "upload", "payment", "review"] as const;
 
 /** Custom Order Builder's own step sequence (12 Agustus 2026) — reuses
  * "brief"/"upload"/"review" from ORDER_STEPS verbatim (identical meaning:
@@ -116,9 +127,16 @@ export interface OrderWizardState {
    * client has added, only meaningful when orderType === "custom". See
    * ./custom-order.ts. */
   customServiceSelections: CustomServiceSelection[];
-  /** Custom Order Builder — chosen at Step "custom-payment", null until
-   * then. Only meaningful when orderType === "custom". */
-  customPaymentMethod: CustomOrderPaymentMethod | null;
+  /** Pay in Full vs Pay in Installments — chosen at Step "custom-payment"
+   * (Custom Order) or "payment" (Project Builder/Package, generalized 15
+   * Agustus 2026 — see PaymentMethodStep's own comment for why the same
+   * component/state field works for all three), null until then. Renamed
+   * from `customPaymentMethod` the same day: nothing about "how do you want
+   * to pay" is actually Custom-Order-specific, so a name implying otherwise
+   * would have been actively misleading once every orderType started
+   * setting it. Meaningful for every orderType now, not "only when
+   * orderType === custom" as this field used to be scoped. */
+  paymentMethod: CustomOrderPaymentMethod | null;
   brief: ProjectBrief;
   files: UploadedFileMeta[];
   agreedToTerms: boolean;
@@ -145,7 +163,7 @@ export const INITIAL_ORDER_STATE: OrderWizardState = {
   bundlePackageId: null,
   bundleCreativeContentIds: [],
   customServiceSelections: [],
-  customPaymentMethod: null,
+  paymentMethod: null,
   brief: EMPTY_BRIEF,
   files: [],
   agreedToTerms: false,

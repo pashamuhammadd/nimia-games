@@ -29,6 +29,7 @@ export {
   notifyPaymentFlagged,
   notifySystemLog,
   type NegotiationEventKind,
+  type NotifyPaymentMethod,
 } from "./notify";
 export { createSupportTicket, closeSupportTicketThread } from "./tickets";
 export {

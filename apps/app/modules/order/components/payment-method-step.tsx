@@ -2,29 +2,43 @@
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { CreditCard, Layers3 } from "lucide-react";
-import type { CustomOrderEstimate } from "../pricing";
 import type { CustomOrderPaymentMethod } from "../types";
 import { OptionCard } from "./option-card";
 
 export interface PaymentMethodStepProps {
   paymentMethod: CustomOrderPaymentMethod | null;
   onSelect: (method: CustomOrderPaymentMethod) => void;
-  estimate: CustomOrderEstimate;
+  /** Narrowed from `CustomOrderEstimate` to just what this component
+   * actually reads (15 Agustus 2026, generalized to Project Builder/Package
+   * — see order-wizard.tsx's callers). Custom Order still passes its full
+   * `CustomOrderEstimate` here (structurally compatible, has `.subtotal`
+   * too); Project Builder/Package pass a plain `{ subtotal: estimate.totalPrice }`
+   * literal instead of force-fitting the multi-service `CustomOrderEstimate`
+   * shape onto a single-service/fixed-price order that has no service lines
+   * to speak of. */
+  estimate: { subtotal: number };
   installmentFeePercentage: number;
 }
 
-// Custom Order Builder Step 5 ("custom-payment", spec section 10) —
-// deliberately placed right before Review, after every service/config
-// decision, so the fee preview below reflects the client's REAL subtotal,
-// never a placeholder number. Two cards, no default selection (spec: never
-// silently default to one) — StepNavigation's Continue stays disabled until
-// useOrderWizard#canGoNext sees a non-null customPaymentMethod.
+// Payment Method step (originally Custom Order Builder-only, spec section
+// 10; generalized 15 Agustus 2026 to Project Builder's "payment" step and
+// Package's "payment" step too — see ORDER_STEPS/BUNDLE_STEPS' own comments
+// in types/order-state.ts. Nothing in this component was ever actually
+// Custom-Order-specific: it only ever reads estimate.subtotal, never
+// anything about services/multi-selection — see PaymentMethodStepProps'
+// own comment above) — deliberately placed right before Review, after
+// every service/config decision, so the fee preview below reflects the
+// client's REAL subtotal, never a placeholder number. Two cards, no default
+// selection (spec: never silently default to one) — StepNavigation's
+// Continue stays disabled until useOrderWizard#canGoNext sees a non-null
+// paymentMethod.
 //
 // The number shown here is a PREVIEW only, computed from the
 // admin-configurable installmentFeePercentage useOrderWizard already fetched
-// (see get-installment-fee-action.ts) — submitCustomOrderAction re-reads the
-// authoritative percentage and recomputes this exact same math server-side
-// before ever writing a price, per spec section 6/27.
+// (see get-installment-fee-action.ts) — submitCustomOrderAction/
+// submitOrderAction both re-read the authoritative percentage and recompute
+// this exact same math server-side before ever writing a price, per spec
+// section 6/27's "server must recalculate, never trust the client" rule.
 export function PaymentMethodStep({
   paymentMethod,
   onSelect,

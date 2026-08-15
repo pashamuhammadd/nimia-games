@@ -32,6 +32,12 @@ export const STEP_META: Record<StepId, { label: string; shortLabel: string; icon
   "custom-services": { label: "Select Services", shortLabel: "Services", icon: Layers },
   "custom-configure": { label: "Configure Services", shortLabel: "Configure", icon: SlidersHorizontal },
   "custom-payment": { label: "Payment Method", shortLabel: "Payment", icon: Wallet },
+  // Project Builder / Package's own Payment Method step (15 Agustus 2026,
+  // generalized from Custom Order — see ORDER_STEPS/BUNDLE_STEPS' own
+  // comments in types/order-state.ts). Distinct id from "custom-payment"
+  // above even though both render the exact same PaymentMethodStep
+  // component, purely so each flow's step tuple stays self-describing.
+  payment: { label: "Payment Method", shortLabel: "Payment", icon: Wallet },
 };
 
 /**
@@ -46,7 +52,10 @@ export function getStepsForService(service: ServiceDefinition | null): StepId[] 
   const steps: StepId[] = ["category", "service"];
   const includePackageStep = !service || service.pricingModel === "packages";
   if (includePackageStep) steps.push("package");
-  steps.push("configure", "brief", "upload", "review");
+  // "payment" (15 Agustus 2026) placed right before "review", same spot
+  // Custom Order's own "custom-payment" occupies — see ORDER_STEPS' own
+  // comment in types/order-state.ts.
+  steps.push("configure", "brief", "upload", "payment", "review");
   return steps;
 }
 

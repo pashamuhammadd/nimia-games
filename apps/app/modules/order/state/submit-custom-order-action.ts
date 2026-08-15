@@ -311,6 +311,10 @@ export async function submitCustomOrderAction(
     serviceName: packageNameLabel,
     amountUsd: negotiationAmount ?? total,
     isNegotiation: input.intent === "negotiate",
+    // 15 Agustus 2026 (Discord alignment pass) — lets #new-orders show
+    // Full Payment vs Installments at a glance instead of staff having to
+    // open the order to find out.
+    paymentMethod: input.paymentMethod,
   });
 
   if (threadId) {

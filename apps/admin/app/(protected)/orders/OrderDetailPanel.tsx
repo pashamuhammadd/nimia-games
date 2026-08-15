@@ -67,11 +67,22 @@ export function OrderDetailPanel({
   const [actionTaken, setActionTaken] = React.useState<string | null>(null);
   const [counterOffer, setCounterOffer] = React.useState("");
   const [underpaidNote, setUnderpaidNote] = React.useState("");
-  // Payment Plan picker (Custom Order + Payment Plan, 15 Agustus 2026 —
-  // see setOrderPaymentPlanAction's comment in ./actions.ts for why this
-  // has to be set before the order moves to Awaiting Payment).
+  // Payment Plan picker (15 Agustus 2026, generalized same day from Custom
+  // Order only to every order flow — see setOrderPaymentPlanAction's
+  // comment in ./actions.ts for why this has to be set/confirmed before
+  // the order moves to Awaiting Payment). Defaults to whatever the CLIENT
+  // already picked at submission (every order carries a payment_method
+  // from the wizard now, not just Custom Order — see
+  // apps/app/modules/order/state/submit-order-action.ts) rather than
+  // always "full_payment" — Admin is refining/confirming the client's own
+  // choice here, not starting from a blank slate that happens to silently
+  // default to the wrong lane. Falls back to "full_payment" only for a
+  // legacy order that predates the client wizard carrying this field at
+  // all. Safe to read directly off `order` in useState's initializer
+  // because OrderDetailPanel now remounts per order id (see OrdersList.tsx's
+  // `key={selected.id}`) — this only ever runs once per actual order shown.
   const [paymentMethodChoice, setPaymentMethodChoice] = React.useState<"full_payment" | "installments">(
-    "full_payment",
+    order.payment_method ?? "full_payment",
   );
   const [planChoice, setPlanChoice] = React.useState<"two_milestones" | "three_milestones" | "custom">(
     "two_milestones",
@@ -221,23 +232,39 @@ export function OrderDetailPanel({
         <p className="mt-1 text-sm text-white/80">{order.services?.name ?? order.package_name ?? "Custom Project"}</p>
       </div>
 
-      {/* Payment Plan picker (Custom Order + Payment Plan, 15 Agustus
-          2026) — only a Custom Order ever has a payment plan to configure
-          (order_flow_type, 0038), and only before the order is sent for
-          payment (see setOrderPaymentPlanAction's own comment for why).
-          Once payment_method is set, this collapses into a read-only
-          summary line further down instead. */}
-      {order.order_flow_type === "custom" &&
-      !order.payment_method &&
-      ["pending_review", "negotiating", "quotation_sent"].includes(order.status) ? (
+      {/* Payment Plan picker (15 Agustus 2026, generalized same day from
+          Custom Order only to EVERY order — see setOrderPaymentPlanAction's
+          own comment in ./actions.ts for why this is safe: the underlying
+          trigger, materialize_order_installments (0038), was never actually
+          order_flow_type-specific, only payment_method-specific).
+
+          Gated on STATUS alone now, not "payment_method is still null" —
+          that used to effectively make this picker dead code: every order
+          (Custom included, since 12 Agustus 2026) already carries a
+          client-chosen payment_method from the wizard by the time Admin
+          ever sees it (see submit-order-action.ts), so `!order.payment_method`
+          was almost never true and Admin had no real way to act on the
+          spec's own product decision #4 — "which milestone schedule (2 vs 3
+          vs custom split) applies is chosen by Admin during review" (0038's
+          comment) — because this section simply never rendered to let them
+          choose it. Now it stays visible through every pre-payment status
+          so Admin can either confirm the client's own choice (pre-filled,
+          see paymentMethodChoice's useState initializer above) and pick the
+          milestone split, or override the method entirely (e.g. the price
+          got renegotiated down enough that installments no longer make
+          sense) — right up until the order actually reaches Awaiting
+          Payment, exactly like setOrderPaymentPlanAction's own comment
+          says. */}
+      {["pending_review", "negotiating", "quotation_sent"].includes(order.status) ? (
         <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
           <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/35">
             <CreditCard className="h-3.5 w-3.5" aria-hidden="true" />
             Payment Plan
           </span>
           <p className="mt-1 text-xs text-white/45">
-            Choose how this client will pay before sending/accepting a price — this can&apos;t be
-            changed once the order moves to Awaiting Payment.
+            {order.payment_method
+              ? `The client chose ${order.payment_method === "installments" ? "Installments" : "Full Payment"} at checkout — confirm it below, pick the milestone split if applicable, or override it. Locks in once this order moves to Awaiting Payment.`
+              : "Choose how this client will pay before sending/accepting a price — this can't be changed once the order moves to Awaiting Payment."}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
@@ -351,7 +378,14 @@ export function OrderDetailPanel({
         </div>
       ) : null}
 
-      {order.order_flow_type === "custom" && order.payment_method ? (
+      {/* Read-only Payment Plan summary — generalized alongside the picker
+          above (15 Agustus 2026), and now the two are properly mutually
+          exclusive by STATUS (not by whether payment_method happens to be
+          set, which is true almost immediately for every order): this
+          shows once the plan is actually locked in (order has left every
+          pre-payment status the picker above covers), the picker shows
+          while it's still changeable. */}
+      {order.payment_method && !["pending_review", "negotiating", "quotation_sent"].includes(order.status) ? (
         <div className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-white/60">
           <CreditCard className="h-3.5 w-3.5 shrink-0 text-white/35" aria-hidden="true" />
           {order.payment_method === "full_payment"

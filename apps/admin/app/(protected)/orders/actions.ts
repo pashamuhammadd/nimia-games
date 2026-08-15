@@ -41,6 +41,13 @@ type OrderEmailFields = {
    * for this column (only the ones whose notify* call actually uses it),
    * so it's optional here rather than on every OrderEmailFields literal. */
   discord_thread_id?: string | null;
+  /** Added 15 Agustus 2026 (Discord payment-method alignment pass) — same
+   * "optional, only where the notify* call actually uses it" convention as
+   * discord_thread_id above. Threaded into notifyNegotiationUpdate/
+   * notifyPaymentVerified/notifyPaymentFlagged's own `paymentMethod` param
+   * so #new-orders/#negotiations/#payment-verification can show Full
+   * Payment vs Installments without staff opening the admin panel. */
+  payment_method?: "full_payment" | "installments" | null;
 };
 
 function resolveServiceName(services: OrderEmailFields["services"]): string {
@@ -178,14 +185,36 @@ export async function sendQuotationForPaymentAction(
     return { success: false, error: "Only orders with a sent quotation can be moved to payment." };
   }
 
-  const { data: updated, error } = await supabase
+  // 15 Agustus 2026 (bug fix — "Cannot coerce the result to a single JSON
+  // object"): this UPDATE used to chain straight into
+  // .select("...services(name)...").single() and treat a failure THERE as
+  // a failure of the whole action. But the write above is what actually
+  // moves the order to awaiting_payment — by the time that UPDATE
+  // resolves without `error`, the state change already committed. The
+  // follow-up SELECT is only fetching fields for the client email/Discord
+  // post; if RLS (or anything else) makes that specific re-SELECT return
+  // zero/multiple rows, PostgREST's .single() throws PGRST116 ("Cannot
+  // coerce the result to a single JSON object") even though nothing is
+  // actually wrong with the order. That surfaced to the admin as a hard
+  // error on a click that had, in fact, already succeeded — the order was
+  // silently sitting in Awaiting Payment while the UI still showed the
+  // Quotation Sent form with a red error. Splitting the write from the
+  // best-effort notification read (same pattern already used by
+  // verifyInstallmentPaymentAction/flagUnderpaidInstallmentAction below)
+  // means a notification hiccup can no longer masquerade as the state
+  // change itself failing.
+  const { error } = await supabase
     .from("orders")
     .update({ status: "awaiting_payment", final_price_usd: amountUsd })
-    .eq("id", orderId)
-    .select("email, full_name, company_name, services(name), discord_thread_id")
-    .single();
+    .eq("id", orderId);
 
   if (error) return { success: false, error: error.message };
+
+  const { data: updated } = await supabase
+    .from("orders")
+    .select("email, full_name, company_name, services(name), discord_thread_id, payment_method")
+    .eq("id", orderId)
+    .single();
 
   const fields = updated as unknown as OrderEmailFields | null;
   if (fields?.email) {
@@ -210,6 +239,7 @@ export async function sendQuotationForPaymentAction(
       kind: "accepted",
       amountUsd,
       threadId: fields.discord_thread_id,
+      paymentMethod: fields.payment_method,
     });
   }
 
@@ -267,14 +297,24 @@ export async function acceptNegotiationOfferAction(
     return { success: false, error: "This order is no longer under negotiation." };
   }
 
-  const { data: order, error } = await supabase
+  // 15 Agustus 2026 (bug fix, same as sendQuotationForPaymentAction above)
+  // — split the state-changing UPDATE from the best-effort notification
+  // SELECT so a PGRST116 ("Cannot coerce the result to a single JSON
+  // object") on the follow-up embed read can't be reported back as this
+  // action having failed when the order actually did move to
+  // awaiting_payment.
+  const { error } = await supabase
     .from("orders")
     .update({ status: "awaiting_payment", final_price_usd: amountUsd })
-    .eq("id", orderId)
-    .select("email, full_name, company_name, services(name), discord_thread_id")
-    .single();
+    .eq("id", orderId);
 
   if (error) return { success: false, error: error.message };
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("email, full_name, company_name, services(name), discord_thread_id, payment_method")
+    .eq("id", orderId)
+    .single();
 
   const fields = order as unknown as OrderEmailFields | null;
   if (fields?.email) {
@@ -296,6 +336,7 @@ export async function acceptNegotiationOfferAction(
       kind: "accepted",
       amountUsd,
       threadId: fields.discord_thread_id,
+      paymentMethod: fields.payment_method,
     });
   }
 
@@ -328,7 +369,7 @@ export async function sendCounterOfferAction(
   // Also doubles as the fetch for the client-facing fields the email needs.
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("status, email, full_name, company_name, services(name), discord_thread_id")
+    .select("status, email, full_name, company_name, services(name), discord_thread_id, payment_method")
     .eq("id", orderId)
     .single();
   if (orderError || !order) {
@@ -369,6 +410,7 @@ export async function sendCounterOfferAction(
     amountUsd,
     message: message?.trim() || null,
     threadId: fields.discord_thread_id,
+    paymentMethod: fields.payment_method,
   });
 
   revalidatePath("/orders");
@@ -391,7 +433,7 @@ export async function rejectNegotiationAction(orderId: string): Promise<OrderAct
   const supabase = createServerClient(await cookies());
   const { data: order } = await supabase
     .from("orders")
-    .select("full_name, company_name, services(name), discord_thread_id")
+    .select("full_name, company_name, services(name), discord_thread_id, payment_method")
     .eq("id", orderId)
     .single();
 
@@ -406,6 +448,7 @@ export async function rejectNegotiationAction(orderId: string): Promise<OrderAct
       kind: "rejected",
       amountUsd: null,
       threadId: fields.discord_thread_id,
+      paymentMethod: fields.payment_method,
     });
   }
 
@@ -640,18 +683,30 @@ export async function verifyPaymentAction(orderId: string): Promise<OrderActionR
   // before the UPDATE below, not after.
   const partnerSnapshot = await getReferringPartnerSnapshot(supabase, (order as any).client_id ?? null);
 
-  const { data: updated, error } = await supabase
+  // 15 Agustus 2026 (bug fix, same pattern as sendQuotationForPaymentAction/
+  // acceptNegotiationOfferAction above) — split the state-changing UPDATE
+  // from the best-effort notification SELECT. This one matters even more
+  // than those two: it's the actual PAYMENT CONFIRMED transition, and the
+  // old chained .select(...).single() failing here meant a real client
+  // payment could get marked 'paid' in the database while the admin who
+  // clicked Verify saw nothing but "Cannot coerce the result to a single
+  // JSON object" and no confirmation at all.
+  const { error } = await supabase
     .from("orders")
     .update({
       status: "paid",
       payment_verified_by: user.id,
       payment_verified_at: new Date().toISOString(),
     })
-    .eq("id", orderId)
-    .select("email, full_name, company_name, final_price_usd, payment_network, payment_token, services(name), discord_thread_id")
-    .single();
+    .eq("id", orderId);
 
   if (error) return { success: false, error: error.message };
+
+  const { data: updated } = await supabase
+    .from("orders")
+    .select("email, full_name, company_name, final_price_usd, payment_network, payment_token, services(name), discord_thread_id, payment_method")
+    .eq("id", orderId)
+    .single();
 
   const fields = updated as unknown as
     | (OrderEmailFields & {
@@ -680,6 +735,7 @@ export async function verifyPaymentAction(orderId: string): Promise<OrderActionR
       network: fields.payment_network,
       currency: fields.payment_token,
       threadId: fields.discord_thread_id,
+      paymentMethod: fields.payment_method,
     });
   }
 
@@ -700,17 +756,34 @@ export async function verifyPaymentAction(orderId: string): Promise<OrderActionR
 }
 
 // ------------------------------------------------------------------
-// Custom Order + Payment Plan (15 Agustus 2026, admin UI — see migration
-// 0038 and project memory's custom_order_payment_plan.md). Admin had
-// ZERO UI for any of this before now (confirmed by grep, 0 references to
-// installment/payment_plan anywhere in this file or OrderDetailPanel/
-// OrdersList — see platform_audit_15agst finding #7), even though the
-// schema/RPCs/client wizard have existed since 12 Agustus 2026.
+// Payment Plan — Full Payment vs Installments (15 Agustus 2026, admin UI —
+// see migration 0038 and project memory's custom_order_payment_plan.md).
+// Admin had ZERO UI for any of this at first (confirmed by grep, 0
+// references to installment/payment_plan anywhere in this file or
+// OrderDetailPanel/OrdersList — see platform_audit_15agst finding #7),
+// even though the schema/RPCs/client wizard have existed since 12 Agustus
+// 2026.
+//
+// GENERALIZED (15 Agustus 2026, same day, second pass) from "Custom Order
+// only" to every order_flow_type. This was originally gated to
+// order_flow_type === 'custom' because Custom Order Builder was the ONLY
+// client wizard flow with a payment-method step at the time — but nothing
+// about the underlying mechanism (orders.payment_method/payment_plan,
+// derive_order_normal_price(), materialize_order_installments(), both
+// 0038) is actually Custom-Order-specific: those triggers only ever check
+// `payment_method is not null`, never `order_flow_type`. Once the client
+// wizard's "Choose how to pay" step was extended to Project Builder and
+// Package orders too (see apps/app/modules/order/components/
+// payment-method-step.tsx's new callers), restricting THIS action to
+// Custom Order alone would have made it impossible for Admin to ever set
+// a milestone PLAN (two/three/custom split) for a Project Builder/Package
+// client who chose Installments — the client only ever picks the METHOD,
+// same as Custom Order always worked (see submit-order-action.ts).
 // ------------------------------------------------------------------
 
 // Lets Admin choose Full Payment vs Installments (and, for Installments,
-// the milestone plan) for a Custom Order BEFORE it's sent for payment.
-// This has to happen before acceptNegotiationOfferAction/
+// the milestone plan) for ANY order BEFORE it's sent for payment — this
+// has to happen before acceptNegotiationOfferAction/
 // sendQuotationForPaymentAction transition the order to
 // 'awaiting_payment' — materialize_order_installments() (0038) reads
 // orders.payment_method/payment_plan exactly once, at the instant that
@@ -735,9 +808,6 @@ export async function setOrderPaymentPlanAction(
     .single();
   if (orderError || !order) {
     return { success: false, error: orderError?.message ?? "Order not found." };
-  }
-  if ((order as any).order_flow_type !== "custom") {
-    return { success: false, error: "Only Custom Orders have a payment plan to configure." };
   }
   if (!["pending_review", "negotiating", "quotation_sent"].includes((order as any).status)) {
     return {
@@ -842,7 +912,7 @@ export async function verifyInstallmentPaymentAction(installmentId: string): Pro
 
   const { data: order } = await supabase
     .from("orders")
-    .select("email, full_name, company_name, services(name), package_name, discord_thread_id")
+    .select("email, full_name, company_name, services(name), package_name, discord_thread_id, payment_method")
     .eq("id", inst.order_id)
     .single();
 
@@ -869,6 +939,10 @@ export async function verifyInstallmentPaymentAction(installmentId: string): Pro
       network: inst.payment_network ?? "—",
       currency: inst.payment_token ?? "—",
       threadId: fields.discord_thread_id,
+      // Hardcoded, not fields.payment_method — this action only ever fires
+      // on an order_installments row, which only exists at all for an
+      // installments order (see materialize_order_installments, 0038).
+      paymentMethod: "installments",
     });
   }
 
@@ -930,7 +1004,7 @@ export async function flagUnderpaidInstallmentAction(
 
   const { data: order } = await supabase
     .from("orders")
-    .select("email, full_name, company_name, services(name), package_name, discord_thread_id")
+    .select("email, full_name, company_name, services(name), package_name, discord_thread_id, payment_method")
     .eq("id", inst.order_id)
     .single();
 
@@ -953,6 +1027,7 @@ export async function flagUnderpaidInstallmentAction(
       clientName: resolveClientName(fields),
       note: trimmedNote,
       threadId: fields.discord_thread_id,
+      paymentMethod: "installments",
     });
   }
 
@@ -1007,7 +1082,12 @@ export async function flagUnderpaidPaymentAction(
     return { success: false, error: "Only orders with a submitted payment can be flagged." };
   }
 
-  const { data: updated, error } = await supabase
+  // 15 Agustus 2026 (bug fix, same pattern as the three actions above) —
+  // split the state-changing UPDATE from the best-effort notification
+  // SELECT so a PGRST116 on the follow-up embed read can't be reported as
+  // this action failing when the order actually did move back to
+  // awaiting_payment.
+  const { error } = await supabase
     .from("orders")
     .update({
       status: "awaiting_payment",
@@ -1019,11 +1099,15 @@ export async function flagUnderpaidPaymentAction(
       payment_tx_hash: null,
       payment_submitted_at: null,
     })
-    .eq("id", orderId)
-    .select("email, full_name, company_name, services(name), discord_thread_id")
-    .single();
+    .eq("id", orderId);
 
   if (error) return { success: false, error: error.message };
+
+  const { data: updated } = await supabase
+    .from("orders")
+    .select("email, full_name, company_name, services(name), discord_thread_id, payment_method")
+    .eq("id", orderId)
+    .single();
 
   const fields = updated as unknown as OrderEmailFields | null;
   if (fields?.email) {
@@ -1042,6 +1126,7 @@ export async function flagUnderpaidPaymentAction(
       clientName: resolveClientName(fields),
       note: trimmedNote,
       threadId: fields.discord_thread_id,
+      paymentMethod: fields.payment_method,
     });
   }
 

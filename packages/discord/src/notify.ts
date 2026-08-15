@@ -84,6 +84,26 @@ function formatUsd(amountUsd: number): string {
   return `$${amountUsd.toFixed(2)}`;
 }
 
+// Payment-method alignment pass (15 Agustus 2026 — financial platform
+// audit finding: Full Payment vs Installments used to be invisible from
+// Discord entirely outside the two installment-specific admin actions,
+// which only suffix the order code with "· Installment N of M". Every
+// notify* function below that can fire for either kind of order now
+// accepts an optional `paymentMethod` so a #new-orders / #negotiations /
+// #payment-verification reader can tell the two apart WITHOUT opening the
+// admin panel — a real operational need once Project Builder and Package
+// orders can be installment orders too, not just Custom Orders. Optional
+// and additive everywhere it's added: every existing caller (before this
+// pass) keeps compiling and behaving identically by simply omitting it —
+// the field is only appended to `fields` when present.
+export type NotifyPaymentMethod = "full_payment" | "installments" | null | undefined;
+
+function paymentMethodLabel(method: NotifyPaymentMethod): string | null {
+  if (method === "full_payment") return "Pay in Full";
+  if (method === "installments") return "Installments";
+  return null;
+}
+
 // ------------------------------------------------------------------
 // #new-orders
 // ------------------------------------------------------------------
@@ -103,8 +123,15 @@ export async function notifyNewOrder(params: {
   serviceName: string;
   amountUsd: number | null;
   isNegotiation: boolean;
+  /** See this file's payment-method alignment pass comment above. Set by
+   * every submit action now (Project Builder/Package/Custom all collect
+   * this at Step "payment" — 15 Agustus 2026), so this is effectively
+   * always present going forward; optional only so a pre-pass caller (none
+   * left in this codebase, but kept for safety) still compiles. */
+  paymentMethod?: NotifyPaymentMethod;
 }): Promise<{ threadId: string | null }> {
   let threadId: string | null = null;
+  const paymentLabel = paymentMethodLabel(params.paymentMethod);
   try {
     const channelId = getDiscordChannelId("new-orders");
     const messageId = await sendChannelMessage(channelId, {
@@ -127,6 +154,7 @@ export async function notifyNewOrder(params: {
                   },
                 ]
               : []),
+            ...(paymentLabel ? [{ name: "Payment", value: paymentLabel, inline: true }] : []),
           ],
           timestamp: new Date().toISOString(),
         },
@@ -138,7 +166,7 @@ export async function notifyNewOrder(params: {
   }
 
   await logToSystemChannel(
-    `📦 Order Created — ${params.orderId} (${params.clientName}, ${params.serviceName})`,
+    `📦 Order Created — ${params.orderId} (${params.clientName}, ${params.serviceName}${paymentLabel ? `, ${paymentLabel}` : ""})`,
     "system-log (order created)",
   );
 
@@ -177,9 +205,16 @@ export async function notifyNegotiationUpdate(params: {
   amountUsd: number | null;
   message?: string | null;
   threadId?: string | null;
+  /** See this file's payment-method alignment pass comment above. Matters
+   * most for `kind: "accepted"` — that's the exact moment an order is
+   * about to become an Awaiting Payment order in one lane or the other
+   * (see apps/admin's acceptNegotiationOfferAction/
+   * sendQuotationForPaymentAction). */
+  paymentMethod?: NotifyPaymentMethod;
 }): Promise<void> {
   const { title, color } = NEGOTIATION_COPY[params.kind];
   const who = params.proposedBy === "client" ? "Client" : params.proposedBy === "staff" ? "Nimia Studio" : null;
+  const paymentLabel = paymentMethodLabel(params.paymentMethod);
 
   await safeSend(
     "negotiations",
@@ -191,6 +226,7 @@ export async function notifyNegotiationUpdate(params: {
         ...(params.amountUsd != null
           ? [{ name: "Amount", value: formatUsd(params.amountUsd), inline: true }]
           : []),
+        ...(paymentLabel ? [{ name: "Payment", value: paymentLabel, inline: true }] : []),
         ...(params.message ? [{ name: "Message", value: params.message }] : []),
       ],
       timestamp: new Date().toISOString(),
@@ -256,7 +292,15 @@ export async function notifyPaymentVerified(params: {
   network: string;
   currency: string;
   threadId?: string | null;
+  /** See this file's payment-method alignment pass comment above. For a
+   * per-installment verification (verifyInstallmentPaymentAction), pass
+   * "installments" — `orderId` already carries the "· Installment N of M"
+   * suffix (resolveInstallmentOrderCode, apps/admin/actions.ts) so between
+   * the two this reads unambiguously as "milestone 2 of 3 of an
+   * installment order", not "a whole order paid via installments". */
+  paymentMethod?: NotifyPaymentMethod;
 }): Promise<void> {
+  const paymentLabel = paymentMethodLabel(params.paymentMethod);
   await safeSend(
     "payment-verification",
     {
@@ -267,6 +311,7 @@ export async function notifyPaymentVerified(params: {
         { name: "Amount", value: formatUsd(params.amountUsd), inline: true },
         { name: "Network", value: params.network, inline: true },
         { name: "Currency", value: params.currency, inline: true },
+        ...(paymentLabel ? [{ name: "Payment", value: paymentLabel, inline: true }] : []),
       ],
       timestamp: new Date().toISOString(),
     },
@@ -286,14 +331,20 @@ export async function notifyPaymentFlagged(params: {
   clientName: string;
   note: string;
   threadId?: string | null;
+  /** See this file's payment-method alignment pass comment above. */
+  paymentMethod?: NotifyPaymentMethod;
 }): Promise<void> {
+  const paymentLabel = paymentMethodLabel(params.paymentMethod);
   await safeSend(
     "payment-verification",
     {
       title: `⚠️ Payment Flagged — ${params.orderId}`,
       description: `${params.clientName}'s submitted payment did not check out.`,
       color: COLOR_REJECTED,
-      fields: [{ name: "Reason", value: params.note }],
+      fields: [
+        { name: "Reason", value: params.note },
+        ...(paymentLabel ? [{ name: "Payment", value: paymentLabel, inline: true }] : []),
+      ],
       timestamp: new Date().toISOString(),
     },
     "payment flagged",

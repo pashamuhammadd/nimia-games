@@ -22,6 +22,27 @@ export interface Estimate {
    * every Project Builder estimate — PriceEstimator/ReviewSection fall back
    * to the original "{totalDeliveryDays} Days" text exactly as before. */
   deliveryLabel?: string;
+  /** Installment flexibility fee preview (15 Agustus 2026 — Payment Method
+   * step generalized from Custom Order Builder to Project Builder/Package
+   * too; see ../state/use-order-wizard.ts's applyInstallmentFeePreview,
+   * which is the only thing that ever sets these three fields). All three
+   * absent/undefined whenever paymentMethod isn't "installments" — same
+   * "0 when not applicable" posture calculate-custom-order-estimate.ts's
+   * CustomOrderEstimate already uses for its own installmentFeePercentage.
+   * `totalPrice` above is deliberately left untouched by this (still just
+   * base price + line item deltas, exactly as it always meant) — every
+   * existing reader of `totalPrice` keeps working unchanged; PriceEstimator/
+   * ReviewSection instead read `grandTotal ?? totalPrice` for the actual
+   * headline number once they know to look for it, same fallback-chain
+   * safety net `deliveryLabel` above already models. */
+  installmentFeePercentage?: number;
+  installmentFeeAmount?: number;
+  /** totalPrice + installmentFeeAmount, rounded — the number the client is
+   * actually agreeing to pay when Installments is chosen. Mirrors
+   * CustomOrderEstimate.total exactly (same rounding formula, see
+   * ./calculate-custom-order-estimate.ts), just spelled differently since
+   * `total` was already taken here for a different, narrower meaning. */
+  grandTotal?: number;
 }
 
 const EMPTY_ESTIMATE: Estimate = {
