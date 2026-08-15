@@ -57,6 +57,30 @@ export type OrderListItem = {
   payment_submitted_at: string | null;
   payment_verified_at: string | null;
   payment_underpaid_note: string | null;
+  // Custom Order + Payment Plan (15 Agustus 2026 — see
+  // packages/db/migrations/0038_custom_order_installments.sql). null/'none'
+  // for every Project Builder / Package order, which have no payment-plan
+  // concept — only order_flow_type='custom' ever sets payment_method.
+  order_flow_type: "project_builder" | "package" | "custom";
+  payment_method: "full_payment" | "installments" | null;
+  payment_plan: "none" | "two_milestones" | "three_milestones" | "custom";
+  normal_price_usd: number | null;
+  order_installments: OrderInstallmentRow[];
+};
+
+export type OrderInstallmentRow = {
+  id: string;
+  sequence: number;
+  label: string;
+  percentage: number;
+  amount_usd: number;
+  status: string;
+  payment_network: string | null;
+  payment_token: string | null;
+  payment_tx_hash: string | null;
+  payment_submitted_at: string | null;
+  payment_verified_at: string | null;
+  payment_underpaid_note: string | null;
 };
 
 // Deterministic per-client accent, same trick as
@@ -88,6 +112,21 @@ function initialsFor(text: string) {
 export function OrdersList({ orders }: { orders: OrderListItem[] }) {
   const [selected, setSelected] = React.useState<OrderListItem | null>(null);
 
+  // Keep the open modal's `selected` order in sync with fresh server data
+  // (15 Agustus 2026, admin installment UI) — every action in
+  // OrderDetailPanel calls `router.refresh()` on success, which re-fetches
+  // `orders` here, but a plain useState doesn't auto-update to a new
+  // object just because the array containing it changed. Previously this
+  // didn't matter much: most actions collapse the panel to a "Close"
+  // button right after succeeding. The Payment Plan picker and Installment
+  // Schedule sections don't (an admin may need to verify/flag more than
+  // one installment in the same sitting), so without this, they'd keep
+  // showing stale data (e.g. the payment-plan picker instead of the
+  // saved plan) until the modal was closed and reopened.
+  React.useEffect(() => {
+    setSelected((prev) => (prev ? (orders.find((o) => o.id === prev.id) ?? prev) : prev));
+  }, [orders]);
+
   if (orders.length === 0) {
     return (
       <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-6 py-16 text-center text-sm text-white/40">
@@ -111,6 +150,14 @@ export function OrdersList({ orders }: { orders: OrderListItem[] }) {
             (latest, offer) =>
               !latest || offer.created_at > latest.created_at ? offer : latest,
             null,
+          );
+          // Installment orders needing action (15 Agustus 2026, admin
+          // installment UI) — surfaced right in the list row, same reason
+          // latestOffer is: an admin scanning the list should be able to
+          // spot "an installment is waiting on me" without opening every
+          // order's detail panel one by one.
+          const installmentNeedsReview = order.order_installments.some(
+            (inst) => inst.status === "payment_submitted",
           );
           return (
             <button
@@ -144,6 +191,16 @@ export function OrdersList({ orders }: { orders: OrderListItem[] }) {
                     <span className="text-xs text-white/35">
                       · {latestOffer.proposed_by === "client" ? "Client offered" : "You offered"} $
                       {latestOffer.amount_usd.toLocaleString("en-US")}
+                    </span>
+                  ) : null}
+                  {order.payment_method === "installments" ? (
+                    <span className="rounded-full bg-purple-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-purple-300">
+                      Installments
+                    </span>
+                  ) : null}
+                  {installmentNeedsReview ? (
+                    <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+                      Payment to verify
                     </span>
                   ) : null}
                 </div>

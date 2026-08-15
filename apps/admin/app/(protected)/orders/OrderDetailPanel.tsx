@@ -14,9 +14,11 @@ import {
   ShieldCheck,
   AlertTriangle,
   Download,
+  CreditCard,
+  Milestone,
 } from "lucide-react";
 import { cn } from "@nimia/ui";
-import { orderStatusMeta } from "../../lib/orderStatus";
+import { orderStatusMeta, installmentStatusMeta } from "../../lib/orderStatus";
 import { formatRelativeTime } from "../../lib/relativeTime";
 import {
   approveOrderAction,
@@ -28,6 +30,9 @@ import {
   rejectNegotiationAction,
   verifyPaymentAction,
   flagUnderpaidPaymentAction,
+  setOrderPaymentPlanAction,
+  verifyInstallmentPaymentAction,
+  flagUnderpaidInstallmentAction,
   type OrderActionResult,
 } from "./actions";
 import type { OrderListItem } from "./OrdersList";
@@ -62,6 +67,25 @@ export function OrderDetailPanel({
   const [actionTaken, setActionTaken] = React.useState<string | null>(null);
   const [counterOffer, setCounterOffer] = React.useState("");
   const [underpaidNote, setUnderpaidNote] = React.useState("");
+  // Payment Plan picker (Custom Order + Payment Plan, 15 Agustus 2026 —
+  // see setOrderPaymentPlanAction's comment in ./actions.ts for why this
+  // has to be set before the order moves to Awaiting Payment).
+  const [paymentMethodChoice, setPaymentMethodChoice] = React.useState<"full_payment" | "installments">(
+    "full_payment",
+  );
+  const [planChoice, setPlanChoice] = React.useState<"two_milestones" | "three_milestones" | "custom">(
+    "two_milestones",
+  );
+  const [customPercentagesText, setCustomPercentagesText] = React.useState("");
+  const [customLabelsText, setCustomLabelsText] = React.useState("");
+  // Per-installment note/result state (15 Agustus 2026, admin installment
+  // UI) — keyed by installment id rather than the single `underpaidNote`/
+  // `actionTaken` above, since an order can have 2-3 installments and
+  // staff may need to act on more than one without the panel hiding the
+  // others the moment one is handled.
+  const [installmentNotes, setInstallmentNotes] = React.useState<Record<string, string>>({});
+  const [installmentActionTaken, setInstallmentActionTaken] = React.useState<Record<string, string>>({});
+  const [planSavedMessage, setPlanSavedMessage] = React.useState<string | null>(null);
   // Prefilled with the client's own price-calculator estimate, if any (5
   // Agustus 2026, bug fix — see sendQuotationForPaymentAction's comment in
   // ./actions.ts for why this field exists at all: a plain "Submit Order"
@@ -94,6 +118,44 @@ export function OrderDetailPanel({
       // The order list is server-rendered data held in this Client
       // Component's props — refresh so the underlying page re-fetches and
       // shows the new status once this modal is closed.
+      router.refresh();
+    });
+  }
+
+  // Same as `run` above but scoped to one order_installments row — doesn't
+  // set the panel-wide `actionTaken` (which hides the whole action area),
+  // so verifying/flagging one installment doesn't hide the others.
+  function runInstallment(
+    installmentId: string,
+    action: () => Promise<OrderActionResult>,
+    doneMessage: string,
+  ) {
+    setError(null);
+    startTransition(async () => {
+      const result = await action();
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      setInstallmentActionTaken((prev) => ({ ...prev, [installmentId]: doneMessage }));
+      router.refresh();
+    });
+  }
+
+  // Same shape as `run`, but deliberately does NOT set the panel-wide
+  // `actionTaken` — saving a payment plan is a configuration step, not a
+  // terminal action, and the admin still needs Approve & Send
+  // Quotation/Accept Offer etc. below to stay visible afterward.
+  function runPlanSave(action: () => Promise<OrderActionResult>, doneMessage: string) {
+    setError(null);
+    setPlanSavedMessage(null);
+    startTransition(async () => {
+      const result = await action();
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      setPlanSavedMessage(doneMessage);
       router.refresh();
     });
   }
@@ -158,6 +220,148 @@ export function OrderDetailPanel({
             packages/db/migrations/0036_order_package_name.sql. */}
         <p className="mt-1 text-sm text-white/80">{order.services?.name ?? order.package_name ?? "Custom Project"}</p>
       </div>
+
+      {/* Payment Plan picker (Custom Order + Payment Plan, 15 Agustus
+          2026) — only a Custom Order ever has a payment plan to configure
+          (order_flow_type, 0038), and only before the order is sent for
+          payment (see setOrderPaymentPlanAction's own comment for why).
+          Once payment_method is set, this collapses into a read-only
+          summary line further down instead. */}
+      {order.order_flow_type === "custom" &&
+      !order.payment_method &&
+      ["pending_review", "negotiating", "quotation_sent"].includes(order.status) ? (
+        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
+          <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/35">
+            <CreditCard className="h-3.5 w-3.5" aria-hidden="true" />
+            Payment Plan
+          </span>
+          <p className="mt-1 text-xs text-white/45">
+            Choose how this client will pay before sending/accepting a price — this can&apos;t be
+            changed once the order moves to Awaiting Payment.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setPaymentMethodChoice("full_payment")}
+              className={cn(
+                "rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
+                paymentMethodChoice === "full_payment"
+                  ? "border-[var(--nimia-crimson)]/50 bg-[var(--nimia-crimson)]/15 text-white"
+                  : "border-white/10 text-white/60 hover:bg-white/[0.06]",
+              )}
+            >
+              Full Payment
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaymentMethodChoice("installments")}
+              className={cn(
+                "rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
+                paymentMethodChoice === "installments"
+                  ? "border-[var(--nimia-crimson)]/50 bg-[var(--nimia-crimson)]/15 text-white"
+                  : "border-white/10 text-white/60 hover:bg-white/[0.06]",
+              )}
+            >
+              Installments (+fee)
+            </button>
+          </div>
+
+          {paymentMethodChoice === "installments" ? (
+            <div className="mt-3 flex flex-col gap-2.5">
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ["two_milestones", "Two Milestones (50/50)"],
+                    ["three_milestones", "Three Milestones (30/30/40)"],
+                    ["custom", "Custom Split"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setPlanChoice(value)}
+                    className={cn(
+                      "rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
+                      planChoice === value
+                        ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
+                        : "border-white/10 text-white/60 hover:bg-white/[0.06]",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {planChoice === "custom" ? (
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="text"
+                    placeholder="Percentages, comma-separated, must total 100 (e.g. 40,30,30)"
+                    value={customPercentagesText}
+                    onChange={(event) => setCustomPercentagesText(event.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white placeholder:text-white/30 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Labels, comma-separated, optional (e.g. Kickoff,Midpoint,Delivery)"
+                    value={customLabelsText}
+                    onChange={(event) => setCustomLabelsText(event.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white placeholder:text-white/30 focus:outline-none"
+                  />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => {
+              const percentages = customPercentagesText
+                .split(",")
+                .map((v) => Number(v.trim()))
+                .filter((v) => Number.isFinite(v) && v > 0);
+              const labels = customLabelsText
+                .split(",")
+                .map((v) => v.trim())
+                .filter(Boolean);
+              if (paymentMethodChoice === "installments" && planChoice === "custom" && percentages.length < 2) {
+                setError("Enter at least 2 milestone percentages that add up to 100.");
+                return;
+              }
+              runPlanSave(
+                () =>
+                  setOrderPaymentPlanAction(
+                    order.id,
+                    paymentMethodChoice,
+                    planChoice,
+                    planChoice === "custom" ? percentages : undefined,
+                    planChoice === "custom" ? labels : undefined,
+                  ),
+                paymentMethodChoice === "installments"
+                  ? `Payment plan set to Installments (${planChoice.replace("_", " ")}).`
+                  : "Payment plan set to Full Payment.",
+              );
+            }}
+            className="mt-3 rounded-lg bg-white/10 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:opacity-40"
+          >
+            Save Payment Plan
+          </button>
+          {planSavedMessage ? <p className="mt-2 text-xs text-emerald-400">{planSavedMessage}</p> : null}
+        </div>
+      ) : null}
+
+      {order.order_flow_type === "custom" && order.payment_method ? (
+        <div className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-white/60">
+          <CreditCard className="h-3.5 w-3.5 shrink-0 text-white/35" aria-hidden="true" />
+          {order.payment_method === "full_payment"
+            ? "Full Payment"
+            : `Installments — ${order.payment_plan.replace("_", " ")}`}
+          {order.normal_price_usd != null ? (
+            <span className="text-white/35">· normal price ${order.normal_price_usd.toLocaleString("en-US")}</span>
+          ) : null}
+        </div>
+      ) : null}
 
       <div>
         <span className="text-xs font-semibold uppercase tracking-wider text-white/35">
@@ -261,6 +465,123 @@ export function OrderDetailPanel({
                 <span className="text-xs">Verified {formatRelativeTime(order.payment_verified_at)}</span>
               </div>
             ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Installment Schedule (Custom Order + Payment Plan, 15 Agustus
+          2026) — one card per order_installments row, generated by
+          materialize_order_installments() (0038) the moment this order
+          transitions into Awaiting Payment. Rendered unconditionally
+          (outside the `!actionTaken` gate below) so verifying/flagging one
+          milestone doesn't hide the others or the rest of the panel. */}
+      {order.order_installments.length > 0 ? (
+        <div>
+          <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/35">
+            <Milestone className="h-3.5 w-3.5" aria-hidden="true" />
+            Installment Schedule
+          </span>
+          <div className="mt-2 flex flex-col gap-2.5">
+            {[...order.order_installments]
+              .sort((a, b) => a.sequence - b.sequence)
+              .map((inst) => {
+                const instMeta = installmentStatusMeta(inst.status);
+                const doneMessage = installmentActionTaken[inst.id];
+                return (
+                  <div
+                    key={inst.id}
+                    className="flex flex-col gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 text-sm"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-white">
+                        {inst.sequence}. {inst.label}
+                      </span>
+                      <span className="text-white/80">${inst.amount_usd.toLocaleString("en-US")}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`h-1.5 w-1.5 rounded-full ${instMeta.dotClass}`} aria-hidden="true" />
+                      <span className="text-xs font-medium text-white/50">{instMeta.label}</span>
+                      <span className="text-xs text-white/35">· {inst.percentage}%</span>
+                    </div>
+
+                    {inst.payment_tx_hash ? (
+                      <div className="flex flex-col gap-1 border-t border-white/[0.06] pt-2 text-xs">
+                        {inst.payment_network ? (
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-white/40">Network</span>
+                            <span className="text-white/80">
+                              {NETWORK_LABELS[inst.payment_network] ?? inst.payment_network}
+                            </span>
+                          </div>
+                        ) : null}
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="shrink-0 text-white/40">Tx hash</span>
+                          <span className="truncate font-mono text-white/80">{inst.payment_tx_hash}</span>
+                        </div>
+                        {inst.payment_submitted_at ? (
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-white/40">Submitted</span>
+                            <span className="text-white/80">
+                              {formatRelativeTime(inst.payment_submitted_at)}
+                            </span>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {doneMessage ? (
+                      <p className="text-xs text-emerald-400">{doneMessage}</p>
+                    ) : inst.status === "payment_submitted" ? (
+                      <div className="flex flex-col gap-2 border-t border-white/[0.06] pt-2">
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() =>
+                            runInstallment(
+                              inst.id,
+                              () => verifyInstallmentPaymentAction(inst.id),
+                              "Payment verified.",
+                            )
+                          }
+                          className="self-start rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-600 disabled:opacity-50"
+                        >
+                          Verify Payment
+                        </button>
+                        <div className="flex flex-col gap-1.5 rounded-lg border border-amber-400/20 bg-amber-400/5 p-2.5">
+                          <textarea
+                            placeholder="Explain what's wrong (shown to the client)"
+                            value={installmentNotes[inst.id] ?? ""}
+                            onChange={(event) =>
+                              setInstallmentNotes((prev) => ({ ...prev, [inst.id]: event.target.value }))
+                            }
+                            rows={2}
+                            className="w-full resize-none rounded-md border border-white/10 bg-white/[0.04] px-2 py-1.5 text-xs text-white placeholder:text-white/30 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            disabled={isPending || !(installmentNotes[inst.id] ?? "").trim()}
+                            onClick={() => {
+                              const note = (installmentNotes[inst.id] ?? "").trim();
+                              if (!note) {
+                                setError("Explain what's wrong with the payment for the client to see.");
+                                return;
+                              }
+                              runInstallment(
+                                inst.id,
+                                () => flagUnderpaidInstallmentAction(inst.id, note),
+                                "Client asked to resubmit this installment.",
+                              );
+                            }}
+                            className="self-start rounded-lg border border-amber-400/30 px-2.5 py-1 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-400/10 disabled:opacity-40"
+                          >
+                            Flag / Ask to Resubmit
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
           </div>
         </div>
       ) : null}

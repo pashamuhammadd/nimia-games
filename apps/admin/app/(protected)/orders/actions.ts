@@ -699,6 +699,268 @@ export async function verifyPaymentAction(orderId: string): Promise<OrderActionR
   return { success: true };
 }
 
+// ------------------------------------------------------------------
+// Custom Order + Payment Plan (15 Agustus 2026, admin UI — see migration
+// 0038 and project memory's custom_order_payment_plan.md). Admin had
+// ZERO UI for any of this before now (confirmed by grep, 0 references to
+// installment/payment_plan anywhere in this file or OrderDetailPanel/
+// OrdersList — see platform_audit_15agst finding #7), even though the
+// schema/RPCs/client wizard have existed since 12 Agustus 2026.
+// ------------------------------------------------------------------
+
+// Lets Admin choose Full Payment vs Installments (and, for Installments,
+// the milestone plan) for a Custom Order BEFORE it's sent for payment.
+// This has to happen before acceptNegotiationOfferAction/
+// sendQuotationForPaymentAction transition the order to
+// 'awaiting_payment' — materialize_order_installments() (0038) reads
+// orders.payment_method/payment_plan exactly once, at the instant that
+// transition happens, and is a no-op ever after (guarded by "installment
+// rows already exist" in the trigger itself). So once an order reaches
+// awaiting_payment, this action refuses to run — the plan can no longer
+// change, only which network/amount each already-generated installment
+// asks for.
+export async function setOrderPaymentPlanAction(
+  orderId: string,
+  paymentMethod: "full_payment" | "installments",
+  paymentPlan: "two_milestones" | "three_milestones" | "custom",
+  customPercentages?: number[],
+  customLabels?: string[],
+): Promise<OrderActionResult> {
+  const supabase = createServerClient(await cookies());
+
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .select("status, order_flow_type")
+    .eq("id", orderId)
+    .single();
+  if (orderError || !order) {
+    return { success: false, error: orderError?.message ?? "Order not found." };
+  }
+  if ((order as any).order_flow_type !== "custom") {
+    return { success: false, error: "Only Custom Orders have a payment plan to configure." };
+  }
+  if (!["pending_review", "negotiating", "quotation_sent"].includes((order as any).status)) {
+    return {
+      success: false,
+      error: "The payment plan can only be changed before the order is sent for payment.",
+    };
+  }
+
+  const update: Record<string, unknown> = {
+    payment_method: paymentMethod,
+    payment_plan: paymentMethod === "full_payment" ? "none" : paymentPlan,
+  };
+
+  if (paymentMethod === "installments" && paymentPlan === "custom") {
+    if (!customPercentages || customPercentages.length < 2) {
+      return { success: false, error: "Enter at least 2 milestone percentages for a custom plan." };
+    }
+    const sum = customPercentages.reduce((a, b) => a + b, 0);
+    if (Math.abs(sum - 100) > 0.01) {
+      return { success: false, error: "Custom milestone percentages must add up to 100." };
+    }
+    update.custom_installment_percentages = customPercentages;
+    update.custom_installment_labels =
+      customLabels && customLabels.length === customPercentages.length ? customLabels : null;
+  } else {
+    update.custom_installment_percentages = null;
+    update.custom_installment_labels = null;
+  }
+
+  const { error } = await supabase.from("orders").update(update).eq("id", orderId);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/orders");
+  revalidatePath("/");
+  return { success: true };
+}
+
+/** Builds the same "ORD-XXXXXXXX" code used everywhere else in this file,
+ * with an " · Installment N of M" suffix so a client with more than one
+ * milestone can tell which one an email/Discord post is about. Falls back
+ * to the plain code when there's only a single installment (Pay in Full
+ * orders materialize exactly one row — see materialize_order_installments,
+ * 0038 — where the suffix would just be noise). */
+function resolveInstallmentOrderCode(orderId: string, sequence: number, totalCount: number): string {
+  const code = `ORD-${orderId.slice(0, 8).toUpperCase()}`;
+  return totalCount > 1 ? `${code} · Installment ${sequence} of ${totalCount}` : code;
+}
+
+/** Same "services?.name ?? package_name ?? fallback" chain used throughout
+ * apps/admin and apps/studio since the 12 Agustus 2026 order-flow audit
+ * (0036_order_package_name.sql) — resolveServiceName() alone doesn't know
+ * about package_name, and every Custom Order has services=null (like a
+ * Package/Bundle order) with its generated summary living in package_name
+ * instead (see 0038's own comment on that column). Without this, every
+ * installment email/Discord post for a Custom Order would read "your
+ * project" instead of e.g. "Custom Order: Animation, Website Development". */
+function resolveInstallmentServiceName(fields: OrderEmailFields & { package_name?: string | null }): string {
+  const fromServices = resolveServiceName(fields.services);
+  if (fromServices !== "your project") return fromServices;
+  return fields.package_name ?? "your project";
+}
+
+// Confirms a submitted installment payment and marks that ONE
+// order_installments row 'paid' — structurally identical to
+// verifyPaymentAction above, just scoped to a single milestone instead of
+// the whole order. The parent order's own transition into 'paid' (on
+// installment #1) and unlocking the next milestone are both handled
+// entirely by handle_installment_paid() (0038, an AFTER UPDATE trigger on
+// order_installments) — this action never touches `orders` directly.
+export async function verifyInstallmentPaymentAction(installmentId: string): Promise<OrderActionResult> {
+  const supabase = createServerClient(await cookies());
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, error: "Your session has expired, please log in again." };
+  }
+
+  const { data: installment, error: installmentError } = await supabase
+    .from("order_installments")
+    .select("id, order_id, sequence, status, amount_usd, payment_network, payment_token")
+    .eq("id", installmentId)
+    .single();
+  if (installmentError || !installment) {
+    return { success: false, error: installmentError?.message ?? "Installment not found." };
+  }
+  const inst = installment as any;
+  if (inst.status !== "payment_submitted") {
+    return { success: false, error: "Only installments with a submitted payment can be verified." };
+  }
+
+  const { count: totalCount } = await supabase
+    .from("order_installments")
+    .select("id", { count: "exact", head: true })
+    .eq("order_id", inst.order_id);
+
+  const { error } = await supabase
+    .from("order_installments")
+    .update({ status: "paid", payment_verified_by: user.id, payment_verified_at: new Date().toISOString() })
+    .eq("id", installmentId);
+  if (error) return { success: false, error: error.message };
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("email, full_name, company_name, services(name), package_name, discord_thread_id")
+    .eq("id", inst.order_id)
+    .single();
+
+  if (order) {
+    const fields = order as unknown as OrderEmailFields & { package_name: string | null };
+    const orderCode = resolveInstallmentOrderCode(inst.order_id, inst.sequence, totalCount ?? 1);
+    const serviceName = resolveInstallmentServiceName(fields);
+
+    if (fields.email && inst.payment_network && inst.payment_token) {
+      await sendPaymentVerifiedEmail(fields.email, {
+        clientName: resolveClientName(fields),
+        serviceName,
+        orderId: orderCode,
+        amountUsd: inst.amount_usd,
+        network: inst.payment_network,
+        currency: inst.payment_token,
+        dashboardUrl: CLIENT_DASHBOARD_URL,
+      });
+    }
+    await notifyPaymentVerified({
+      orderId: orderCode,
+      clientName: resolveClientName(fields),
+      amountUsd: inst.amount_usd,
+      network: inst.payment_network ?? "—",
+      currency: inst.payment_token ?? "—",
+      threadId: fields.discord_thread_id,
+    });
+  }
+
+  revalidatePath("/orders");
+  revalidatePath("/");
+  return { success: true };
+}
+
+// The submitted installment tx didn't check out — sent back to
+// 'pending_payment' (the only status submit_installment_payment, 0038,
+// accepts a resubmission from) exactly like flagUnderpaidPaymentAction
+// resets a whole order back to 'awaiting_payment'. Also nulls out the
+// stale payment_network/token/wallet_address/expected_amount/tx_hash/
+// submitted_at columns for the same reason flagUnderpaidPaymentAction
+// does — see that action's own comment (5 Agustus 2026 audit follow-up).
+export async function flagUnderpaidInstallmentAction(
+  installmentId: string,
+  note: string,
+): Promise<OrderActionResult> {
+  const trimmedNote = note.trim();
+  if (!trimmedNote) {
+    return { success: false, error: "Explain what's wrong with the payment for the client to see." };
+  }
+
+  const supabase = createServerClient(await cookies());
+
+  const { data: installment, error: installmentError } = await supabase
+    .from("order_installments")
+    .select("id, order_id, sequence, status")
+    .eq("id", installmentId)
+    .single();
+  if (installmentError || !installment) {
+    return { success: false, error: installmentError?.message ?? "Installment not found." };
+  }
+  const inst = installment as any;
+  if (inst.status !== "payment_submitted") {
+    return { success: false, error: "Only installments with a submitted payment can be flagged." };
+  }
+
+  const { count: totalCount } = await supabase
+    .from("order_installments")
+    .select("id", { count: "exact", head: true })
+    .eq("order_id", inst.order_id);
+
+  const { error } = await supabase
+    .from("order_installments")
+    .update({
+      status: "pending_payment",
+      payment_underpaid_note: trimmedNote,
+      payment_network: null,
+      payment_token: null,
+      payment_wallet_address: null,
+      payment_expected_amount: null,
+      payment_tx_hash: null,
+      payment_submitted_at: null,
+    })
+    .eq("id", installmentId);
+  if (error) return { success: false, error: error.message };
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("email, full_name, company_name, services(name), package_name, discord_thread_id")
+    .eq("id", inst.order_id)
+    .single();
+
+  if (order) {
+    const fields = order as unknown as OrderEmailFields & { package_name: string | null };
+    const orderCode = resolveInstallmentOrderCode(inst.order_id, inst.sequence, totalCount ?? 1);
+    const serviceName = resolveInstallmentServiceName(fields);
+
+    if (fields.email) {
+      await sendPaymentFlaggedEmail(fields.email, {
+        clientName: resolveClientName(fields),
+        serviceName,
+        orderId: orderCode,
+        note: trimmedNote,
+        dashboardUrl: CLIENT_DASHBOARD_URL,
+      });
+    }
+    await notifyPaymentFlagged({
+      orderId: orderCode,
+      clientName: resolveClientName(fields),
+      note: trimmedNote,
+      threadId: fields.discord_thread_id,
+    });
+  }
+
+  revalidatePath("/orders");
+  revalidatePath("/");
+  return { success: true };
+}
+
 // The submitted tx didn't check out (wrong amount, wrong network, not
 // found, etc.) — sent back to 'awaiting_payment' (rather than left on
 // 'payment_submitted') because orders_update_own_payment_submission (0013)

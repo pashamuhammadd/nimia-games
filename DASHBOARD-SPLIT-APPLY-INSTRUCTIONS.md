@@ -26,6 +26,11 @@ Ini akan:
   - `apps\admin\app\components\dashboard\Topbar.tsx`,
     `apps\admin\app\(protected)\orders\actions.ts`,
     `apps\admin\.env.example`
+  - `apps\studio\lib\email.tsx`, `apps\admin\lib\email.tsx` — cuma ganti
+    fallback pengirim Resend (lihat catatan RESEND_FROM_EMAIL di langkah 2).
+  - `apps\app\lib\cloudinary.ts`, `apps\app\lib\email.tsx` — file yang
+    kelewat di zip pertama (bikin `npm run build` gagal, sudah diperbaiki
+    di zip ini).
   - `packages\db\src\server.ts`
   - `packages\email\src\templates\{OrderReceivedEmail,NegotiationUpdateEmail,PaymentFlaggedEmail,PaymentVerifiedEmail,ConfirmSignupEmail}.tsx`
   - `packages\email\supabase-templates\confirm-signup.html`
@@ -52,6 +57,17 @@ di atas aktif.
 - `NEXT_PUBLIC_COOKIE_DOMAIN` — biarkan KOSONG di semua `.env.local`. Ini
   HANYA diisi (`.nimiastudio.com`) di Vercel production env vars project
   `studio` dan `app` nanti — lihat catatan di `.env.example` masing-masing.
+- `RESEND_FROM_EMAIL` — default di `.env.example`/fallback kode SUDAH
+  diganti dari `studio@nimiagames.com` (alamat yang tidak pernah benar-benar
+  Anda punya) ke `contact@nimiastudio.com`. Isi `RESEND_FROM_EMAIL` di
+  `.env.local` (studio, admin, app) DAN di Vercel production env vars
+  ketiga project dengan alamat yang benar-benar ingin Anda pakai (boleh
+  `contact@nimiastudio.com` atau alamat lain). PENTING: Resend baru bisa
+  benar-benar kirim email dari alamat itu setelah domain `nimiastudio.com`
+  di-verify di Resend Dashboard (Domains → Add Domain → tambah record
+  SPF/DKIM/DMARC yang diminta ke DNS Hostinger, sama pola seperti setup
+  domain Vercel kemarin) — alamat pengirim TIDAK perlu jadi inbox asli yang
+  Anda cek, tapi domainnya harus terverifikasi.
 
 ## 3. Install & jalankan lokal
 

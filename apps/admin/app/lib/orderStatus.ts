@@ -55,3 +55,35 @@ export const ORDER_STATUS_FILTERS: { value: OrderStatus | "all"; label: string }
   { value: "converted", label: "Converted" },
   { value: "rejected", label: "Rejected" },
 ];
+
+// public.installment_status (packages/db/migrations/0038_custom_order_installments.sql)
+// — one row per Custom Order milestone/invoice. Same "one source of truth
+// for label/color" convention as ORDER_STATUS_META above; added 15 Agustus
+// 2026 so apps/admin's Orders panel can finally show/manage installment
+// schedules (previously zero UI existed for this — see project memory's
+// platform_audit_15agst finding #7).
+export type InstallmentStatus =
+  | "scheduled"
+  | "pending_payment"
+  | "payment_submitted"
+  | "paid"
+  | "overdue"
+  | "cancelled";
+
+export const INSTALLMENT_STATUS_META: Record<InstallmentStatus, { label: string; dotClass: string }> = {
+  scheduled: { label: "Scheduled", dotClass: "bg-slate-500" },
+  pending_payment: { label: "Awaiting Payment", dotClass: "bg-purple-400" },
+  payment_submitted: { label: "Payment Submitted", dotClass: "bg-amber-400" },
+  paid: { label: "Paid", dotClass: "bg-emerald-400" },
+  overdue: { label: "Overdue", dotClass: "bg-red-400" },
+  cancelled: { label: "Cancelled", dotClass: "bg-slate-400" },
+};
+
+export function installmentStatusMeta(status: string) {
+  return (
+    INSTALLMENT_STATUS_META[status as InstallmentStatus] ?? {
+      label: status,
+      dotClass: "bg-slate-400",
+    }
+  );
+}

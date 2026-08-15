@@ -1,17 +1,8 @@
-// Nimia Partner Program — module root barrel.
-//
-// Per project architecture rules: everything outside this folder (the
-// dashboard page, the register form, etc.) imports ONLY from
-// "@/modules/partners" — never by reaching into
-// "@/modules/partners/services/..." or "@/modules/partners/repository/..."
-// directly. `repository/` is deliberately NOT re-exported here: it's an
-// implementation detail of services/, not something a page or component
-// should ever call directly.
+﻿// Nimia Partner Program - module root barrel (TRIMMED 14 Agustus 2026,
+// dashboard split - see project memory's studio_multi_app_split_plan).
+// Only PartnersMarketingExperience.tsx (the public /partners page) still
+// imports from this module in apps/studio; everything else (dashboard
+// components, services, repository, schemas, hooks, utils, api) moved to
+// apps/app, which has its own full copy of this module.
 
-export * from "./types";
 export * from "./constants";
-export * from "./utils";
-export * from "./schemas";
-export * from "./services";
-export * from "./hooks";
-export * from "./components";

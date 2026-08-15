@@ -41,7 +41,13 @@ export default async function OrdersPage({
       // packages/db/migrations/0013_negotiation_payments_ambassadors.sql.
       // package_name added (12 Agustus 2026, order-flow audit fix) — see
       // packages/db/migrations/0036_order_package_name.sql.
-      "id, full_name, company_name, email, whatsapp, country, budget, deadline, description, reference_link, status, proposed_price_usd, final_price_usd, created_at, services(name), package_name, clients(company_name), order_files(id, file_name, file_url), order_negotiations(id, proposed_by, amount_usd, message, created_at), payment_network, payment_token, payment_wallet_address, payment_expected_amount, payment_tx_hash, payment_submitted_at, payment_verified_at, payment_underpaid_note",
+      // order_flow_type/payment_method/payment_plan/order_installments
+      // added (15 Agustus 2026, admin installment UI — see
+      // packages/db/migrations/0038_custom_order_installments.sql). Admin
+      // had no visibility into any of this before — see
+      // OrderDetailPanel.tsx's Payment Plan / Installment Schedule
+      // sections and platform_audit_15agst finding #7 in project memory.
+      "id, full_name, company_name, email, whatsapp, country, budget, deadline, description, reference_link, status, proposed_price_usd, final_price_usd, created_at, services(name), package_name, clients(company_name), order_files(id, file_name, file_url), order_negotiations(id, proposed_by, amount_usd, message, created_at), payment_network, payment_token, payment_wallet_address, payment_expected_amount, payment_tx_hash, payment_submitted_at, payment_verified_at, payment_underpaid_note, order_flow_type, payment_method, payment_plan, normal_price_usd, order_installments(id, sequence, label, percentage, amount_usd, status, payment_network, payment_token, payment_tx_hash, payment_submitted_at, payment_verified_at, payment_underpaid_note)",
       { count: "exact" },
     )
     .order("created_at", { ascending: false })

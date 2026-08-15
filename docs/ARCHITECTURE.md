@@ -24,7 +24,7 @@ Dokumen ini merancang transisi dari `nimia-games` (saat ini: 1 Next.js app untuk
 nimia-games/                     (root monorepo)
 ├── apps/
 │   ├── www/                     # nimiagames.com — hasil migrasi repo saat ini
-│   ├── portfolio/                # portfolio.nimiagames.com — dibangun setelah studio
+│   ├── portfolio/                # portfolio.nimiastudio.com — dibangun setelah studio
 │   └── studio/                   # nimiastudio.com — PRIORITAS SEKARANG
 │
 ├── packages/
@@ -48,7 +48,7 @@ nimia-games/                     (root monorepo)
 - Repo `nimia-games` yang sekarang **tidak dibuang** — kontennya dipindah jadi `apps/www` nyaris tanpa perubahan struktur internal, supaya v6/v7 yang sudah live tidak perlu di-rewrite.
 
 **Deployment (Vercel):**
-Setiap `apps/*` jadi **project Vercel terpisah** yang menunjuk ke repo Git yang sama, dengan "Root Directory" di-set ke `apps/www`, `apps/portfolio`, `apps/studio`. Masing-masing project di-assign domain: `nimiagames.com` (+ `www`), `portfolio.nimiagames.com`, `nimiastudio.com`. Ini artinya deploy salah satu subdomain tidak memicu re-deploy yang lain (Turborepo `--filter` membatasi build scope), dan tiap app bisa scale/rollback independen — penting karena `studio` (auth, dashboard, PDF) punya karakteristik beban & risiko berbeda dari `www` (statis, marketing).
+Setiap `apps/*` jadi **project Vercel terpisah** yang menunjuk ke repo Git yang sama, dengan "Root Directory" di-set ke `apps/www`, `apps/portfolio`, `apps/studio`, `apps/app`, `apps/admin`. Masing-masing project di-assign domain: `nimiagames.com` (+ `www`), `nimiastudio.com` (+ `www`), `app.nimiastudio.com`, `hub.nimiastudio.com`, `portfolio.nimiastudio.com` (belum dibangun). Ini artinya deploy salah satu subdomain tidak memicu re-deploy yang lain (Turborepo `--filter` membatasi build scope), dan tiap app bisa scale/rollback independen — penting karena `studio` (auth, dashboard, PDF) punya karakteristik beban & risiko berbeda dari `www` (statis, marketing).
 
 ---
 

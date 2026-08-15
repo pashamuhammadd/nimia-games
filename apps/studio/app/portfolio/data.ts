@@ -12,11 +12,13 @@ import {
 
 // Central data source for the Portfolio Preview page (30 Juli 2026 brief).
 // This page is a TEASER, not the full portfolio — the complete collection
-// will live on its own subdomain, portfolio.nimiagames.com (planned in the
-// 3-subdomain architecture described in docs/ARCHITECTURE.md; that
-// subdomain is not built yet as of this session). Every CTA on this page
-// points there already, so nothing here needs to change once it ships.
-export const FULL_PORTFOLIO_URL = "https://portfolio.nimiagames.com";
+// will live on its own subdomain, portfolio.nimiastudio.com (planned in the
+// 3-subdomain architecture described in docs/ARCHITECTURE.md and
+// [[studio_multi_app_split_plan]]; that subdomain is not built yet as of
+// this session, so "View Full Portfolio" is a forward-pointing link until
+// it ships). Every CTA on this page points there already, so nothing here
+// needs to change once it ships.
+export const FULL_PORTFOLIO_URL = "https://portfolio.nimiastudio.com";
 
 // Video-security pass (30 Juli 2026 brief): every clip on this page used to
 // point straight at a res.cloudinary.com URL, which meant the real
