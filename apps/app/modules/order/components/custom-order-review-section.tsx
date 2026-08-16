@@ -22,6 +22,10 @@ export interface CustomOrderReviewSectionProps {
   submitError: string | null;
   negotiationOffer: string;
   onNegotiationOfferChange: (value: string) => void;
+  /** Animation Validation (16 Agustus 2026, Fase 5) — see
+   * review-section.tsx's identical props for the meaning of both. */
+  isAnimationOrder?: boolean;
+  characterReferenceFiles?: UploadedFileMeta[];
 }
 
 function formatBytes(bytes: number): string {
@@ -50,6 +54,8 @@ export function CustomOrderReviewSection({
   submitError,
   negotiationOffer,
   onNegotiationOfferChange,
+  isAnimationOrder = false,
+  characterReferenceFiles = [],
 }: CustomOrderReviewSectionProps) {
   if (selections.length === 0) return null;
 
@@ -63,6 +69,9 @@ export function CustomOrderReviewSection({
     { label: "Description", value: brief.projectDescription || "-" },
     { label: "Target Platform", value: brief.targetPlatform || "-" },
     { label: "Deadline", value: brief.deadline || "-" },
+    // Animation Validation (16 Agustus 2026, Fase 5) — see
+    // review-section.tsx's identical branch.
+    ...(isAnimationOrder ? [{ label: "Script / Story", value: brief.script || "-" }] : []),
     { label: "Reference Link", value: brief.referenceLink || "-" },
     { label: "Additional Notes", value: brief.additionalNotes || "-" },
   ];
@@ -122,6 +131,19 @@ export function CustomOrderReviewSection({
                 : [{ label: "Attachments", value: "None" }]
             }
           />
+          {/* Animation Validation (16 Agustus 2026, Fase 5) — see
+              review-section.tsx's identical branch. */}
+          {isAnimationOrder ? (
+            <SummaryCard
+              title="Character Reference Images"
+              onEdit={() => onEditStep("upload")}
+              rows={
+                characterReferenceFiles.length > 0
+                  ? characterReferenceFiles.map((file) => ({ label: file.name, value: formatBytes(file.size) }))
+                  : [{ label: "Character Reference Images", value: "None — required" }]
+              }
+            />
+          ) : null}
           <SummaryCard
             title="Estimate & Payment"
             onEdit={() => onEditStep("custom-payment")}

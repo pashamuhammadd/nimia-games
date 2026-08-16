@@ -12,6 +12,18 @@ export interface ProjectBrief {
   deadline: string;
   referenceLink: string;
   additionalNotes: string;
+  /** Animation Validation (16 Agustus 2026, Fase 5 of the Order/Payment/
+   * Invoice/Creative Agent refactor — see FASE0-AUDIT.md section E).
+   * Required (client- and server-side) whenever the order resolves to the
+   * "animation" category (project-builder: state.categoryId === "animation";
+   * custom order: any CustomServiceSelection.categoryId === "animation");
+   * an empty string for every other category, where it's simply unused.
+   * Kept as its own field rather than folded into projectDescription so it
+   * has a dedicated required textarea (see components/project-brief-form.tsx)
+   * and survives as a distinct, labeled section in the final order
+   * description the production team reads (see
+   * state/submit-order-action.ts's buildDescription). */
+  script: string;
 }
 
 export const EMPTY_BRIEF: ProjectBrief = {
@@ -21,6 +33,7 @@ export const EMPTY_BRIEF: ProjectBrief = {
   deadline: "",
   referenceLink: "",
   additionalNotes: "",
+  script: "",
 };
 
 /** Metadata only — the actual File objects live in useOrderWizard's React
@@ -139,6 +152,17 @@ export interface OrderWizardState {
   paymentMethod: CustomOrderPaymentMethod | null;
   brief: ProjectBrief;
   files: UploadedFileMeta[];
+  /** Animation Validation (16 Agustus 2026, Fase 5) — files uploaded through
+   * the dedicated, Animation-only "Character Reference Images" zone (see
+   * components/order-wizard.tsx's second <UploadSection> instance), kept
+   * entirely separate from the generic `files` array above so the two zones
+   * never mix and so `canGoNext`'s "upload" step gate can require at least
+   * one entry here specifically when isAnimationOrder is true. Always empty
+   * for non-Animation orders. Uploaded to Cloudinary and tagged
+   * is_character_reference: true on the order_files row (see
+   * 0046_animation_character_reference_files.sql) at submit time, exactly
+   * like `files` but with the flag flipped. */
+  characterReferenceFiles: UploadedFileMeta[];
   agreedToTerms: boolean;
   /** Kept as a raw string (not a number) so the Review step's input can
    * hold an empty string, a partially-typed value, or invalid text without
@@ -166,6 +190,7 @@ export const INITIAL_ORDER_STATE: OrderWizardState = {
   paymentMethod: null,
   brief: EMPTY_BRIEF,
   files: [],
+  characterReferenceFiles: [],
   agreedToTerms: false,
   negotiationOffer: "",
   maxStepIndexReached: 0,

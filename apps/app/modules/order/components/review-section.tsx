@@ -33,6 +33,12 @@ export interface ReviewSectionProps {
    * negotiation/terms/error UI is identical for both flows and stays fully
    * shared. */
   bundle?: { pkg: BundlePackage; selectedOptions: BundleCreativeOption[] } | null;
+  /** Animation Validation (16 Agustus 2026, Fase 5) — when true, the Project
+   * Brief card shows the Script/Story row and a separate "Character
+   * Reference Images" card is rendered from characterReferenceFiles.
+   * Defaults to false so every other category's Review step is unchanged. */
+  isAnimationOrder?: boolean;
+  characterReferenceFiles?: UploadedFileMeta[];
 }
 
 function formatBytes(bytes: number): string {
@@ -59,6 +65,8 @@ export function ReviewSection({
   negotiationOffer,
   onNegotiationOfferChange,
   bundle = null,
+  isAnimationOrder = false,
+  characterReferenceFiles = [],
 }: ReviewSectionProps) {
   if (!service && !bundle) return null;
 
@@ -94,6 +102,10 @@ export function ReviewSection({
     { label: "Description", value: brief.projectDescription || "-" },
     { label: "Target Platform", value: brief.targetPlatform || "-" },
     { label: "Deadline", value: brief.deadline || "-" },
+    // Animation Validation (16 Agustus 2026, Fase 5) — only shown for
+    // Animation orders, matching ProjectBriefForm only rendering the field
+    // itself when isAnimationOrder is true.
+    ...(isAnimationOrder ? [{ label: "Script / Story", value: brief.script || "-" }] : []),
     { label: "Reference Link", value: brief.referenceLink || "-" },
     { label: "Additional Notes", value: brief.additionalNotes || "-" },
   ];
@@ -126,6 +138,21 @@ export function ReviewSection({
               : [{ label: "Attachments", value: "None" }]
           }
         />
+        {/* Animation Validation (16 Agustus 2026, Fase 5) — separate card so
+            the client sees exactly what's required for Animation (Script,
+            Character Reference Images, Deadline) is actually filled in
+            before they submit. */}
+        {isAnimationOrder ? (
+          <SummaryCard
+            title="Character Reference Images"
+            onEdit={() => onEditStep("upload")}
+            rows={
+              characterReferenceFiles.length > 0
+                ? characterReferenceFiles.map((file) => ({ label: file.name, value: formatBytes(file.size) }))
+                : [{ label: "Character Reference Images", value: "None — required" }]
+            }
+          />
+        ) : null}
         <SummaryCard
           title="Estimate"
           rows={[

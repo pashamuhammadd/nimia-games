@@ -18,6 +18,7 @@ import {
 } from "../types";
 import { getCategory, findServiceById } from "../data/catalog";
 import { findBundlePackageById } from "../data/bundle-packages";
+import { isAnimationCategoryId, hasAnimationSelection } from "../data/category-requirements";
 import {
   calculateEstimate,
   calculateBundleEstimate,
@@ -96,8 +97,10 @@ function sanitizeRestoredState(raw: unknown): OrderWizardState {
     brief: { ...EMPTY_BRIEF, ...candidate.brief },
     // Files never round-trip through localStorage (see state/storage.ts) —
     // always start the restored session with an empty list, regardless of
-    // what an older save might contain.
+    // what an older save might contain. Same for characterReferenceFiles
+    // (Animation Validation, 16 Agustus 2026, Fase 5) — identical reasoning.
     files: [],
+    characterReferenceFiles: [],
   };
 
   // Package/Bundle system (10 Agustus 2026) — same fallback pattern as the
@@ -172,6 +175,16 @@ export interface UseOrderWizardResult {
    * "custom". Preview only — submitCustomOrderAction re-reads the real
    * value server-side before ever computing a price that gets saved. */
   installmentFeePercentage: number;
+  /** Animation Validation (16 Agustus 2026, Fase 5 — see
+   * FASE0-AUDIT.md section E). True when the order resolves to the
+   * "animation" category: project-builder checks state.categoryId,
+   * custom order checks whether ANY selected service is Animation,
+   * packages/bundle orders are always false (that flow uses an unrelated
+   * category taxonomy, see data/category-requirements.ts's own comment).
+   * Drives the extra required Script field + Deadline requirement on
+   * ProjectBriefForm, the extra required "Character Reference Images"
+   * UploadSection instance, and canGoNext's brief/upload gating below. */
+  isAnimationOrder: boolean;
   isHydrated: boolean;
   canGoNext: boolean;
   isSubmitting: boolean;
@@ -218,6 +231,14 @@ export interface UseOrderWizardResult {
   addFiles: (files: File[]) => void;
   removeFile: (id: string) => void;
   getFile: (id: string) => File | undefined;
+  /** Animation Validation (16 Agustus 2026, Fase 5) — same add/remove/get
+   * trio as addFiles/removeFile/getFile above, kept as a fully separate
+   * set so the "Character Reference Images" zone never mixes with the
+   * generic attachments zone (see OrderWizardState.characterReferenceFiles'
+   * own comment). */
+  addCharacterReferenceFiles: (files: File[]) => void;
+  removeCharacterReferenceFile: (id: string) => void;
+  getCharacterReferenceFile: (id: string) => File | undefined;
   setAgreedToTerms: (agreed: boolean) => void;
   goToStep: (step: StepId) => void;
   goNext: () => void;
@@ -231,6 +252,11 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
   const [state, setState] = React.useState<OrderWizardState>(INITIAL_ORDER_STATE);
   const [isHydrated, setIsHydrated] = React.useState(false);
   const [fileBlobs, setFileBlobs] = React.useState<Record<string, File>>({});
+  // Animation Validation (16 Agustus 2026, Fase 5) — File objects for the
+  // "Character Reference Images" zone, kept in a separate map exactly like
+  // `fileBlobs` above is separate from `state.files`, for the same reason
+  // (Files aren't JSON-serializable / meant to survive localStorage).
+  const [characterFileBlobs, setCharacterFileBlobs] = React.useState<Record<string, File>>({});
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [submitted, setSubmitted] = React.useState(false);
@@ -281,6 +307,13 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
   const bundlePackage = findBundlePackageById(state.bundlePackageId);
   const isBundleOrder = state.orderType === "packages";
   const isCustomOrder = state.orderType === "custom";
+  // Animation Validation (16 Agustus 2026, Fase 5) — see
+  // UseOrderWizardResult.isAnimationOrder's own comment above.
+  const isAnimationOrder = isBundleOrder
+    ? false
+    : isCustomOrder
+      ? hasAnimationSelection(state.customServiceSelections.map((selection) => selection.categoryId))
+      : isAnimationCategoryId(state.categoryId);
   const steps = isBundleOrder
     ? getStepsForBundle()
     : isCustomOrder
@@ -488,6 +521,44 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
 
   const getFile = React.useCallback((id: string) => fileBlobs[id], [fileBlobs]);
 
+  // Animation Validation (16 Agustus 2026, Fase 5) — identical logic to
+  // addFiles/removeFile/getFile above, targeting characterReferenceFiles/
+  // characterFileBlobs instead of files/fileBlobs.
+  const addCharacterReferenceFiles = React.useCallback((files: File[]) => {
+    if (files.length === 0) return;
+    const metas: UploadedFileMeta[] = files.map((file) => ({
+      id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+    }));
+    setCharacterFileBlobs((prev) => {
+      const next = { ...prev };
+      metas.forEach((meta, i) => {
+        next[meta.id] = files[i];
+      });
+      return next;
+    });
+    setState((prev) => ({ ...prev, characterReferenceFiles: [...prev.characterReferenceFiles, ...metas] }));
+  }, []);
+
+  const removeCharacterReferenceFile = React.useCallback((id: string) => {
+    setCharacterFileBlobs((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setState((prev) => ({
+      ...prev,
+      characterReferenceFiles: prev.characterReferenceFiles.filter((file) => file.id !== id),
+    }));
+  }, []);
+
+  const getCharacterReferenceFile = React.useCallback(
+    (id: string) => characterFileBlobs[id],
+    [characterFileBlobs],
+  );
+
   const setAgreedToTerms = React.useCallback((agreed: boolean) => {
     setState((prev) => ({ ...prev, agreedToTerms: agreed }));
   }, []);
@@ -526,7 +597,25 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
 
   const canGoNext = React.useMemo(() => {
     if (state.step === "brief") {
-      return state.brief.projectTitle.trim().length > 0 && state.brief.projectDescription.trim().length > 0;
+      const baseValid =
+        state.brief.projectTitle.trim().length > 0 && state.brief.projectDescription.trim().length > 0;
+      // Animation Validation (16 Agustus 2026, Fase 5) — Script and
+      // Deadline become required in addition to the base Title+Description
+      // check above, only when the order resolves to Animation (see
+      // isAnimationOrder's own comment). Every other category's brief gate
+      // is unchanged.
+      if (isAnimationOrder) {
+        return baseValid && state.brief.script.trim().length > 0 && state.brief.deadline.trim().length > 0;
+      }
+      return baseValid;
+    }
+    // Animation Validation (16 Agustus 2026, Fase 5) — the "upload" step
+    // previously had no gate at all (fell through to the `return true`
+    // below); Animation orders now require at least one Character
+    // Reference Image before Continue unlocks. Every other category's
+    // upload step remains ungated, matching prior behavior.
+    if (state.step === "upload" && isAnimationOrder) {
+      return state.characterReferenceFiles.length > 0;
     }
     // Package/Bundle system (10 Agustus 2026) — Continue only unlocks once
     // the client has filled every creative-content slot the package grants,
@@ -553,10 +642,14 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     state.step,
     state.brief.projectTitle,
     state.brief.projectDescription,
+    state.brief.script,
+    state.brief.deadline,
+    state.characterReferenceFiles,
     state.bundleCreativeContentIds,
     state.customServiceSelections,
     state.paymentMethod,
     bundlePackage,
+    isAnimationOrder,
   ]);
 
   const submit = React.useCallback(
@@ -576,6 +669,30 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
       if (!state.paymentMethod) {
         setSubmitError("Choose a payment method before submitting.");
         return;
+      }
+
+      // Animation Validation (16 Agustus 2026, Fase 5) — same three checks
+      // canGoNext's brief/upload branches already gate step-by-step
+      // navigation on, repeated here as a final guard in case Review was
+      // reached via a restored (non-authenticated -> /login -> back)
+      // session where an earlier step's requirement was met at the time but
+      // no longer is (e.g. localStorage brief edited outside the flow).
+      // submitOrderAction/submitCustomOrderAction re-validate this
+      // server-side too — this is just so a visitor doesn't wait on a round
+      // trip to find out.
+      if (isAnimationOrder) {
+        if (!state.brief.script.trim()) {
+          setSubmitError("Add a script or story before submitting an Animation project.");
+          return;
+        }
+        if (!state.brief.deadline.trim()) {
+          setSubmitError("Add a deadline before submitting an Animation project.");
+          return;
+        }
+        if (state.characterReferenceFiles.length === 0) {
+          setSubmitError("Upload at least one character reference image before submitting an Animation project.");
+          return;
+        }
       }
 
       // Negotiating requires an actual number to send the team — "Submit
@@ -618,9 +735,22 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
       // caller's expectations (order-wizard.tsx just fires this from an
       // onClick, it never awaits the return value).
       (async () => {
-        let uploadedFiles: { name: string; url: string }[] = [];
+        let uploadedFiles: { name: string; url: string; isCharacterReference?: boolean }[] = [];
 
-        if (state.files.length > 0) {
+        // Animation Validation (16 Agustus 2026, Fase 5) — combine the
+        // generic `files` zone with the Animation-only
+        // `characterReferenceFiles` zone into one upload pass (one
+        // signature fetch, one Promise.all) rather than two, tagging each
+        // resulting `order_files` row with isCharacterReference so
+        // submit-order-action.ts/submit-custom-order-action.ts can set
+        // 0046's new column correctly without any other change to how
+        // uploading itself works.
+        const combinedMetas: { meta: UploadedFileMeta; isCharacterReference: boolean }[] = [
+          ...state.files.map((meta) => ({ meta, isCharacterReference: false })),
+          ...state.characterReferenceFiles.map((meta) => ({ meta, isCharacterReference: true })),
+        ];
+
+        if (combinedMetas.length > 0) {
           const signatureResult = await getUploadSignatureAction();
           if (!signatureResult.success) {
             setIsSubmitting(false);
@@ -630,16 +760,20 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
 
           try {
             uploadedFiles = await Promise.all(
-              state.files.map((meta) => {
-                const file = fileBlobs[meta.id];
+              combinedMetas.map(({ meta, isCharacterReference }) => {
+                const file = isCharacterReference ? characterFileBlobs[meta.id] : fileBlobs[meta.id];
                 if (!file) {
-                  // Shouldn't normally happen (removeFile keeps files/
-                  // fileBlobs in sync) — fails loudly instead of silently
-                  // submitting an order missing an attachment the client
-                  // thinks is still there.
+                  // Shouldn't normally happen (removeFile/
+                  // removeCharacterReferenceFile keep their meta/blob maps
+                  // in sync) — fails loudly instead of silently submitting
+                  // an order missing an attachment the client thinks is
+                  // still there.
                   throw new Error(`${meta.name} is missing — please remove and re-attach it.`);
                 }
-                return uploadFileToCloudinary(file, signatureResult);
+                return uploadFileToCloudinary(file, signatureResult).then((uploaded) => ({
+                  ...uploaded,
+                  isCharacterReference,
+                }));
               }),
             );
           } catch (uploadError) {
@@ -719,12 +853,16 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
       state.brief,
       state.files,
       fileBlobs,
+      state.characterReferenceFiles,
+      characterFileBlobs,
+      isAnimationOrder,
     ],
   );
 
   const startOver = React.useCallback(() => {
     clearOrderState();
     setFileBlobs({});
+    setCharacterFileBlobs({});
     setSubmitted(false);
     setSubmittedIntent(null);
     setSubmitError(null);
@@ -741,6 +879,7 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     estimate,
     customEstimate,
     installmentFeePercentage,
+    isAnimationOrder,
     isHydrated,
     canGoNext,
     isSubmitting,
@@ -766,6 +905,9 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     addFiles,
     removeFile,
     getFile,
+    addCharacterReferenceFiles,
+    removeCharacterReferenceFile,
+    getCharacterReferenceFile,
     setAgreedToTerms,
     goToStep,
     goNext,

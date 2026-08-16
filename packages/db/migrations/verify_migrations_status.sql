@@ -183,7 +183,17 @@ from (
         select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
         where t.typname = 'project_status' and e.enumlabel = 'in_production'
       ) then 'APPLIED' else 'MISSING' end,
-      'Simplifies project_status 10->7 (new/approved/in_production/revision/ready_for_delivery/completed/cancelled), kept deliberately separate from order_payment_status (0043). Redefines orders_create_project_on_paid (0029) + notify_on_project_status_change (0032) to match.')
+      'Simplifies project_status 10->7 (new/approved/in_production/revision/ready_for_delivery/completed/cancelled), kept deliberately separate from order_payment_status (0043). Redefines orders_create_project_on_paid (0029) + notify_on_project_status_change (0032) to match.'),
+
+    -- ------------------------------------------------------------------
+    -- Fase 5 (Animation Validation) of the 16 Agustus 2026 refactor.
+    -- ------------------------------------------------------------------
+    (46, '0046_animation_character_reference_files',
+      case when exists (
+        select 1 from information_schema.columns
+        where table_schema = 'public' and table_name = 'order_files' and column_name = 'is_character_reference'
+      ) then 'APPLIED' else 'MISSING' end,
+      'Adds order_files.is_character_reference (default false) — lets the Animation category''s dedicated "Character Reference Images" upload zone be told apart from the generic attachments zone.')
 
 ) as report(migration_no, migration, status, note)
 order by migration_no;

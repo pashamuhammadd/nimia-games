@@ -13,6 +13,7 @@ import type { CustomOrderPaymentMethod } from "../types/custom-order";
 import type { SubmitIntent } from "./use-order-wizard";
 import { sendOrderReceivedEmail } from "../../../lib/email";
 import { notifyNewOrder } from "@nimia/discord";
+import { isAnimationCategoryId } from "../data/category-requirements";
 
 export interface SubmitOrderActionInput {
   intent: SubmitIntent;
@@ -44,7 +45,16 @@ export interface SubmitOrderActionInput {
    * get-upload-signature-action.ts / upload-to-cloudinary.ts) — by the
    * time this runs, there's nothing left to do with these but insert them
    * as `order_files` rows once the order itself exists. */
-  uploadedFiles: { name: string; url: string }[];
+  /** `isCharacterReference` added 16 Agustus 2026 (Animation Validation,
+   * Fase 5) — set true for files uploaded through the Animation-only
+   * "Character Reference Images" zone (useOrderWizard's
+   * addCharacterReferenceFiles/characterReferenceFiles), false/undefined
+   * for the generic attachments zone. Written straight through to the new
+   * order_files.is_character_reference column (0046) below; also used here
+   * to re-validate that at least one was actually provided for an
+   * Animation order (see the check right after the category/service
+   * resolution below). */
+  uploadedFiles: { name: string; url: string; isCharacterReference?: boolean }[];
   /** Added 9 Agustus 2026 (launch-readiness audit finding). Mirrors
    * `state.agreedToTerms` from ReviewSection's checkbox — useOrderWizard's
    * submit() already blocks the call client-side when this is false, but
@@ -88,6 +98,13 @@ function buildDescription(params: {
   ];
   if (brief.targetPlatform.trim()) lines.push(`Target Platform: ${brief.targetPlatform.trim()}`);
   lines.push("", "Description:", brief.projectDescription.trim());
+  // Animation Validation (16 Agustus 2026, Fase 5) — script.trim() is only
+  // ever non-empty for an Animation order (see the required-field check in
+  // submitOrderAction below), so this section simply doesn't appear for
+  // any other category — no extra branch needed here.
+  if (brief.script.trim()) {
+    lines.push("", "Script / Story:", brief.script.trim());
+  }
   if (brief.additionalNotes.trim()) {
     lines.push("", "Additional Notes:", brief.additionalNotes.trim());
   }
@@ -182,6 +199,28 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
 
   if (!input.brief.projectTitle.trim() || !input.brief.projectDescription.trim()) {
     return { ok: false, error: "Add a project title and description before submitting." };
+  }
+
+  // Animation Validation (16 Agustus 2026, Fase 5 — see
+  // FASE0-AUDIT.md section E). Server is the real gate here, per this
+  // codebase's standing convention — useOrderWizard's canGoNext/submit()
+  // checks are UX-only. A bundle order is never Animation (see
+  // data/category-requirements.ts's own comment on why that flow is out of
+  // scope), so this only applies to the category+service branch.
+  const isAnimationOrder = !isBundleOrder && isAnimationCategoryId(category?.id ?? null);
+  if (isAnimationOrder) {
+    if (!input.brief.script.trim()) {
+      return { ok: false, error: "Add a script or story before submitting an Animation project." };
+    }
+    if (!parseDeadline(input.brief.deadline)) {
+      return { ok: false, error: "Add a deadline before submitting an Animation project." };
+    }
+    if (!input.uploadedFiles.some((file) => file.isCharacterReference)) {
+      return {
+        ok: false,
+        error: "Upload at least one character reference image before submitting an Animation project.",
+      };
+    }
   }
 
   let negotiationAmount: number | null = null;
@@ -370,6 +409,10 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
         order_id: order.id,
         file_name: file.name,
         file_url: file.url,
+        // Animation Validation (16 Agustus 2026, Fase 5) — see
+        // 0046_animation_character_reference_files.sql. Defaults to false
+        // for every non-tagged (generic attachments zone) file.
+        is_character_reference: file.isCharacterReference ?? false,
       })),
     );
     if (filesError) {

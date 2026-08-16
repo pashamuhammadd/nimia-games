@@ -151,15 +151,40 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
                 ) : null}
 
                 {wizard.state.step === "brief" ? (
-                  <ProjectBriefForm brief={wizard.state.brief} onChange={wizard.updateBrief} />
+                  <ProjectBriefForm
+                    brief={wizard.state.brief}
+                    onChange={wizard.updateBrief}
+                    isAnimationOrder={wizard.isAnimationOrder}
+                  />
                 ) : null}
 
                 {wizard.state.step === "upload" ? (
-                  <UploadSection
-                    files={wizard.state.files}
-                    onAddFiles={wizard.addFiles}
-                    onRemoveFile={wizard.removeFile}
-                  />
+                  <div className="flex flex-col gap-10">
+                    <UploadSection
+                      files={wizard.state.files}
+                      onAddFiles={wizard.addFiles}
+                      onRemoveFile={wizard.removeFile}
+                    />
+                    {/* Animation Validation (16 Agustus 2026, Fase 5) — a
+                        second, dedicated, required upload zone, only
+                        rendered for Animation orders (see
+                        FASE0-AUDIT.md section E's "Character Images
+                        entirely missing" finding). Images-only accept,
+                        since these are reference art, not general
+                        attachments. */}
+                    {wizard.isAnimationOrder ? (
+                      <UploadSection
+                        files={wizard.state.characterReferenceFiles}
+                        onAddFiles={wizard.addCharacterReferenceFiles}
+                        onRemoveFile={wizard.removeCharacterReferenceFile}
+                        title="Character reference images"
+                        subtitle="Share character designs, model sheets, or visual references our animators should match."
+                        accept=".jpg,.jpeg,.png,.webp,.gif"
+                        helperText="Images only — up to 20.0 MB each"
+                        requiredHint="At least one character reference image is required for Animation projects."
+                      />
+                    ) : null}
+                  </div>
                 ) : null}
 
                 {wizard.state.step === "custom-payment" ? (
@@ -184,6 +209,8 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
                     submitError={wizard.submitError}
                     negotiationOffer={wizard.state.negotiationOffer}
                     onNegotiationOfferChange={wizard.updateNegotiationOffer}
+                    isAnimationOrder={wizard.isAnimationOrder}
+                    characterReferenceFiles={wizard.state.characterReferenceFiles}
                   />
                 ) : null}
               </motion.div>
@@ -271,15 +298,40 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
                 ) : null}
 
                 {wizard.state.step === "brief" ? (
-                  <ProjectBriefForm brief={wizard.state.brief} onChange={wizard.updateBrief} />
+                  <ProjectBriefForm
+                    brief={wizard.state.brief}
+                    onChange={wizard.updateBrief}
+                    isAnimationOrder={wizard.isAnimationOrder}
+                  />
                 ) : null}
 
                 {wizard.state.step === "upload" ? (
-                  <UploadSection
-                    files={wizard.state.files}
-                    onAddFiles={wizard.addFiles}
-                    onRemoveFile={wizard.removeFile}
-                  />
+                  <div className="flex flex-col gap-10">
+                    <UploadSection
+                      files={wizard.state.files}
+                      onAddFiles={wizard.addFiles}
+                      onRemoveFile={wizard.removeFile}
+                    />
+                    {/* Animation Validation (16 Agustus 2026, Fase 5) — a
+                        second, dedicated, required upload zone, only
+                        rendered for Animation orders (see
+                        FASE0-AUDIT.md section E's "Character Images
+                        entirely missing" finding). Images-only accept,
+                        since these are reference art, not general
+                        attachments. */}
+                    {wizard.isAnimationOrder ? (
+                      <UploadSection
+                        files={wizard.state.characterReferenceFiles}
+                        onAddFiles={wizard.addCharacterReferenceFiles}
+                        onRemoveFile={wizard.removeCharacterReferenceFile}
+                        title="Character reference images"
+                        subtitle="Share character designs, model sheets, or visual references our animators should match."
+                        accept=".jpg,.jpeg,.png,.webp,.gif"
+                        helperText="Images only — up to 20.0 MB each"
+                        requiredHint="At least one character reference image is required for Animation projects."
+                      />
+                    ) : null}
+                  </div>
                 ) : null}
 
                 {/* Payment Method step (15 Agustus 2026, generalized from
@@ -323,6 +375,8 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
                           }
                         : null
                     }
+                    isAnimationOrder={wizard.isAnimationOrder}
+                    characterReferenceFiles={wizard.state.characterReferenceFiles}
                   />
                 ) : null}
               </motion.div>
@@ -421,15 +475,35 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
               ) : null}
 
               {wizard.state.step === "brief" ? (
-                <ProjectBriefForm brief={wizard.state.brief} onChange={wizard.updateBrief} />
+                <ProjectBriefForm
+                  brief={wizard.state.brief}
+                  onChange={wizard.updateBrief}
+                  isAnimationOrder={wizard.isAnimationOrder}
+                />
               ) : null}
 
               {wizard.state.step === "upload" ? (
-                <UploadSection
-                  files={wizard.state.files}
-                  onAddFiles={wizard.addFiles}
-                  onRemoveFile={wizard.removeFile}
-                />
+                <div className="flex flex-col gap-10">
+                  <UploadSection
+                    files={wizard.state.files}
+                    onAddFiles={wizard.addFiles}
+                    onRemoveFile={wizard.removeFile}
+                  />
+                  {/* Animation Validation (16 Agustus 2026, Fase 5) — see
+                      the Custom Order branch above's identical comment. */}
+                  {wizard.isAnimationOrder ? (
+                    <UploadSection
+                      files={wizard.state.characterReferenceFiles}
+                      onAddFiles={wizard.addCharacterReferenceFiles}
+                      onRemoveFile={wizard.removeCharacterReferenceFile}
+                      title="Character reference images"
+                      subtitle="Share character designs, model sheets, or visual references our animators should match."
+                      accept=".jpg,.jpeg,.png,.webp,.gif"
+                      helperText="Images only — up to 20.0 MB each"
+                      requiredHint="At least one character reference image is required for Animation projects."
+                    />
+                  ) : null}
+                </div>
               ) : null}
 
               {/* Payment Method step (15 Agustus 2026, generalized from
@@ -459,6 +533,8 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
                   submitError={wizard.submitError}
                   negotiationOffer={wizard.state.negotiationOffer}
                   onNegotiationOfferChange={wizard.updateNegotiationOffer}
+                  isAnimationOrder={wizard.isAnimationOrder}
+                  characterReferenceFiles={wizard.state.characterReferenceFiles}
                 />
               ) : null}
             </motion.div>

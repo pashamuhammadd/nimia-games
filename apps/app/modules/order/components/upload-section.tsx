@@ -10,9 +10,27 @@ export interface UploadSectionProps {
   files: UploadedFileMeta[];
   onAddFiles: (files: File[]) => void;
   onRemoveFile: (id: string) => void;
+  /** Animation Validation (16 Agustus 2026, Fase 5) — every prop below is
+   * optional and defaults to this component's original generic-attachments
+   * copy/behavior, so every existing caller (the one "Upload reference
+   * files" zone each order type already had) is unaffected. They exist so
+   * order-wizard.tsx can render a SECOND instance of this same component —
+   * the Animation-only "Character Reference Images" zone — without
+   * duplicating the drag/drop/list/remove logic above. */
+  title?: string;
+  subtitle?: string;
+  accept?: string;
+  helperText?: string;
+  /** Shown under the heading when this zone is required but still empty
+   * (e.g. "At least one image is required for Animation orders."). Purely
+   * a UX nudge — the real gate is canGoNext's "upload" step branch and
+   * submit-order-action.ts's server-side re-validation. */
+  requiredHint?: string;
 }
 
 const ACCEPTED_TYPES = ".jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm,.mp3,.wav,.pdf,.zip,.rar";
+const DEFAULT_TITLE = "Upload reference files";
+const DEFAULT_SUBTITLE = "Share references, briefs, or existing assets: images, video, audio, PDF, or ZIP.";
 
 // Added 4 Agustus 2026 (P0.3) — a client-side guard so an oversized file is
 // rejected immediately with a clear reason, instead of only failing later
@@ -47,7 +65,16 @@ function iconForType(type: string) {
 // through. The redirect caveat below is a separate, still-true limitation:
 // a real page navigation (e.g. the unauthenticated Submit -> /login
 // redirect) still clears in-memory File blobs, same as before.
-export function UploadSection({ files, onAddFiles, onRemoveFile }: UploadSectionProps) {
+export function UploadSection({
+  files,
+  onAddFiles,
+  onRemoveFile,
+  title = DEFAULT_TITLE,
+  subtitle = DEFAULT_SUBTITLE,
+  accept = ACCEPTED_TYPES,
+  helperText,
+  requiredHint,
+}: UploadSectionProps) {
   const [isDraggingOver, setIsDraggingOver] = React.useState(false);
   const [sizeError, setSizeError] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -70,11 +97,14 @@ export function UploadSection({ files, onAddFiles, onRemoveFile }: UploadSection
   return (
     <div>
       <h2 className="nimia-font-display text-2xl font-bold text-white sm:text-3xl">
-        Upload reference files
+        {title}
       </h2>
       <p className="mt-2 text-white/55">
-        Share references, briefs, or existing assets: images, video, audio, PDF, or ZIP.
+        {subtitle}
       </p>
+      {requiredHint && files.length === 0 ? (
+        <p className="mt-2 text-sm font-medium text-amber-400">{requiredHint}</p>
+      ) : null}
 
       <label
         onDragOver={(e) => {
@@ -98,7 +128,7 @@ export function UploadSection({ files, onAddFiles, onRemoveFile }: UploadSection
           ref={inputRef}
           type="file"
           multiple
-          accept={ACCEPTED_TYPES}
+          accept={accept}
           className="sr-only"
           onChange={(e) => {
             handleFiles(e.target.files);
@@ -110,7 +140,7 @@ export function UploadSection({ files, onAddFiles, onRemoveFile }: UploadSection
           Drag & drop files here, or click to browse
         </p>
         <p className="text-xs text-white/40">
-          Images, video, audio, PDF, ZIP — up to {formatBytes(MAX_FILE_SIZE_BYTES)} each
+          {helperText ?? `Images, video, audio, PDF, ZIP — up to ${formatBytes(MAX_FILE_SIZE_BYTES)} each`}
         </p>
       </label>
 

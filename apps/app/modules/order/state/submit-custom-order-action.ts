@@ -10,6 +10,7 @@ import type { ProjectBrief } from "../types/order-state";
 import type { SubmitIntent } from "./use-order-wizard";
 import { sendOrderReceivedEmail } from "../../../lib/email";
 import { notifyNewOrder } from "@nimia/discord";
+import { hasAnimationSelection } from "../data/category-requirements";
 
 export interface SubmitCustomOrderActionInput {
   intent: SubmitIntent;
@@ -17,7 +18,10 @@ export interface SubmitCustomOrderActionInput {
   paymentMethod: CustomOrderPaymentMethod | null;
   brief: ProjectBrief;
   negotiationOffer: string;
-  uploadedFiles: { name: string; url: string }[];
+  /** `isCharacterReference` added 16 Agustus 2026 (Animation Validation,
+   * Fase 5) — see SubmitOrderActionInput.uploadedFiles' identical comment
+   * in submit-order-action.ts. */
+  uploadedFiles: { name: string; url: string; isCharacterReference?: boolean }[];
   agreedToTerms: boolean;
 }
 
@@ -47,6 +51,10 @@ function buildCustomOrderDescription(params: {
   ];
   if (brief.targetPlatform.trim()) out.push(`Target Platform: ${brief.targetPlatform.trim()}`);
   out.push("", "Description:", brief.projectDescription.trim());
+  // Animation Validation (16 Agustus 2026, Fase 5) — see
+  // submit-order-action.ts's buildDescription's identical comment: only
+  // ever non-empty when at least one selected service is Animation.
+  if (brief.script.trim()) out.push("", "Script / Story:", brief.script.trim());
   if (brief.additionalNotes.trim()) out.push("", "Additional Notes:", brief.additionalNotes.trim());
 
   for (const line of lines) {
@@ -172,6 +180,28 @@ export async function submitCustomOrderAction(
     return { ok: false, error: "None of the selected services could be found. Please rebuild your order." };
   }
 
+  // Animation Validation (16 Agustus 2026, Fase 5 — see
+  // FASE0-AUDIT.md section E). Server is the real gate here, per this
+  // codebase's standing convention — useOrderWizard's canGoNext/submit()
+  // checks are UX-only. Applies to the whole order the moment ANY resolved
+  // line is Animation, per the plan agreed during Fase 5 research (see
+  // data/category-requirements.ts's hasAnimationSelection comment).
+  const isAnimationOrder = hasAnimationSelection(resolvedLines.map((line) => line.categoryId));
+  if (isAnimationOrder) {
+    if (!input.brief.script.trim()) {
+      return { ok: false, error: "Add a script or story before submitting an Animation project." };
+    }
+    if (!parseDeadline(input.brief.deadline)) {
+      return { ok: false, error: "Add a deadline before submitting an Animation project." };
+    }
+    if (!input.uploadedFiles.some((file) => file.isCharacterReference)) {
+      return {
+        ok: false,
+        error: "Upload at least one character reference image before submitting an Animation project.",
+      };
+    }
+  }
+
   const subtotal = resolvedLines.reduce((sum, line) => sum + line.linePrice, 0);
   const installmentFeeAmount =
     input.paymentMethod === "installments" ? Math.round(((subtotal * feePercentage) / 100) * 100) / 100 : 0;
@@ -287,6 +317,9 @@ export async function submitCustomOrderAction(
         order_id: order.id,
         file_name: file.name,
         file_url: file.url,
+        // Animation Validation (16 Agustus 2026, Fase 5) — see
+        // 0046_animation_character_reference_files.sql.
+        is_character_reference: file.isCharacterReference ?? false,
       })),
     );
     if (filesError) {
