@@ -82,6 +82,25 @@ export const EMPTY_STRUCTURED_DATA: StructuredProjectData = {
 
 export type CreativeAgentSessionStatus = "active" | "confirmed" | "abandoned";
 
+/** Pay in Full vs Pay in Installments (16 Agustus 2026, Fase 6 of the
+ * Order/Payment/Invoice/Creative Agent refactor — see FASE0-AUDIT.md's
+ * Implementation Order item 6: "Creative Agent tidak punya step payment
+ * method" was one of the 7 gaps order_flow_simulation_16agst.md's audit
+ * found). Same two literal values as modules/order's
+ * `CustomOrderPaymentMethod` (apps/app) and `public.order_payment_method`
+ * (packages/db/migrations/0038_custom_order_installments.sql) — kept as
+ * its own local type rather than importing across apps (apps/studio and
+ * apps/app are separate Next.js apps in this monorepo; only packages/* is
+ * shared between them), but the literal strings MUST stay in sync with
+ * both, since this value is written straight to `orders.payment_method`
+ * (see state/submit-creative-agent-order-action.ts). Unlike the Order
+ * Wizard's PaymentMethodStep, there is no dollar-amount preview shown
+ * alongside this choice — a Creative Agent order never has a
+ * client-computed price (`proposed_price_usd` stays null on purpose, see
+ * that file's own header comment: the team prices it after review), so
+ * there is no subtotal to split a preview off of. */
+export type CreativeAgentPaymentMethod = "full_payment" | "installments";
+
 /** A reference file the visitor attached mid-chat (P5, 13 Agustus 2026) —
  * uploaded straight to Cloudinary from the browser, never through the AI.
  * See packages/db/migrations/0042's column comment. */

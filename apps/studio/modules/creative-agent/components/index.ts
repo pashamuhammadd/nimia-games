@@ -8,3 +8,4 @@ export { UnderstandingPreviewCard } from "./UnderstandingPreviewCard";
 export { TypingIndicator } from "./TypingIndicator";
 export { AttachFilesControl } from "./AttachFilesControl";
 export { CreativeBriefCard } from "./CreativeBriefCard";
+export { PaymentMethodChoice } from "./PaymentMethodChoice";

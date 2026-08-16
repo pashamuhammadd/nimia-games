@@ -3,9 +3,10 @@
 import * as React from "react";
 import { Check, ExternalLink } from "lucide-react";
 import { cn } from "@nimia/ui";
-import type { StructuredProjectData, UploadedAsset } from "../types";
+import type { CreativeAgentPaymentMethod, StructuredProjectData, UploadedAsset } from "../types";
 import { structuredDataRows } from "../lib/structured-data-fields";
 import { BriefSummaryBlock } from "./BriefSummaryBlock";
+import { PaymentMethodChoice } from "./PaymentMethodChoice";
 
 // Same fallback pattern as modules/order/components/custom-order-review-
 // section.tsx — the Terms of Service page only exists on apps/www.
@@ -22,6 +23,12 @@ export interface CreativeBriefCardProps {
    * action is also idempotent on this, see submit-creative-agent-order-
    * action.ts, but there's no reason to even show the buttons again). */
   orderId: string | null;
+  /** Pay in Full vs Pay in Installments (16 Agustus 2026, Fase 6) — null
+   * until chosen, same "never silently default to one" posture every other
+   * order path's payment step already has. See PaymentMethodChoice's own
+   * header comment for why this has no dollar preview. */
+  paymentMethod: CreativeAgentPaymentMethod | null;
+  onPaymentMethodChange: (method: CreativeAgentPaymentMethod) => void;
   agreedToTerms: boolean;
   onAgreedToTermsChange: (agreed: boolean) => void;
   negotiationOffer: string;
@@ -42,6 +49,8 @@ export function CreativeBriefCard({
   understanding,
   uploadedAssets,
   orderId,
+  paymentMethod,
+  onPaymentMethodChange,
   agreedToTerms,
   onAgreedToTermsChange,
   negotiationOffer,
@@ -114,6 +123,8 @@ export function CreativeBriefCard({
         </div>
       ) : null}
 
+      <PaymentMethodChoice paymentMethod={paymentMethod} onSelect={onPaymentMethodChange} />
+
       <div
         role="checkbox"
         aria-checked={agreedToTerms}
@@ -177,7 +188,7 @@ export function CreativeBriefCard({
       <div className="mt-5 flex flex-wrap gap-3">
         <button
           type="button"
-          disabled={!agreedToTerms || submitting}
+          disabled={!agreedToTerms || !paymentMethod || submitting}
           onClick={() => onSubmit("submit")}
           className="rounded-full bg-[var(--nimia-gold)] px-5 py-2 text-sm font-semibold text-[#1a0f14] transition-transform duration-200 ease-out hover:scale-[1.03] disabled:pointer-events-none disabled:opacity-60"
         >
@@ -185,7 +196,7 @@ export function CreativeBriefCard({
         </button>
         <button
           type="button"
-          disabled={!agreedToTerms || submitting}
+          disabled={!agreedToTerms || !paymentMethod || submitting}
           onClick={() => {
             if (!showNegotiateInput) {
               setShowNegotiateInput(true);

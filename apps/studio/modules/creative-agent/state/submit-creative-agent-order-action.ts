@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
 import { creativeSessionRepository } from "../repository/creative-session.repository";
 import { structuredDataRows } from "../lib/structured-data-fields";
-import type { StructuredProjectData, UploadedAsset } from "../types";
+import type { CreativeAgentPaymentMethod, StructuredProjectData, UploadedAsset } from "../types";
 import { CREATIVE_AGENT_SESSION_COOKIE } from "../constants";
 import { sendOrderReceivedEmail } from "../../../lib/email";
 import { notifyNewOrder } from "@nimia/discord";
@@ -13,6 +13,15 @@ export type CreativeAgentOrderIntent = "submit" | "negotiate";
 
 export interface SubmitCreativeAgentOrderActionInput {
   intent: CreativeAgentOrderIntent;
+  /** Pay in Full vs Pay in Installments (16 Agustus 2026, Fase 6 — see
+   * FASE0-AUDIT.md's Implementation Order item 6 / order_flow_simulation_
+   * 16agst.md's audit finding: Creative Agent had no payment method step
+   * at all). Same required-before-submit posture every other order path's
+   * submit action already has (see modules/order/state/submit-order-
+   * action.ts's identical check) — SERVER is the real gate, per this
+   * codebase's standing convention; the client-side disabled-button check
+   * in CreativeBriefCard is UX only. */
+  paymentMethod: CreativeAgentPaymentMethod | null;
   negotiationOfferUsd: string;
   agreedToTerms: boolean;
 }
@@ -96,6 +105,13 @@ export async function submitCreativeAgentOrderAction(
   if (!input.agreedToTerms) {
     return { ok: false, error: "Please agree to Nimia Studio's project terms before submitting." };
   }
+  // 16 Agustus 2026 (Fase 6) — same validation every other order path's
+  // submit action already has (see submit-order-action.ts /
+  // submit-custom-order-action.ts's identical check, generalized 15
+  // Agustus 2026).
+  if (!input.paymentMethod) {
+    return { ok: false, error: "Choose a payment method before submitting." };
+  }
 
   let negotiationAmount: number | null = null;
   if (input.intent === "negotiate") {
@@ -161,6 +177,15 @@ export async function submitCreativeAgentOrderAction(
       client_id: client.id,
       service_id: null,
       order_flow_type: "custom",
+      // Payment Method (16 Agustus 2026, Fase 6) — same trust tier as every
+      // other order path's payment_method: the client's own stated intent,
+      // not authoritative; Admin can still change it during review. Safe to
+      // set here even though proposed_price_usd stays null (see this file's
+      // own header comment) — derive_order_normal_price() (0038) only acts
+      // once final_price_usd is ALSO set, which happens later when Admin
+      // quotes, so this just sits ready for that trigger rather than
+      // needing to fire anything now.
+      payment_method: input.paymentMethod,
       package_name: packageNameLabel,
       full_name: clientName,
       company_name: client.company_name,
@@ -187,6 +212,9 @@ export async function submitCreativeAgentOrderAction(
       order_id: order.id,
       proposed_by: "client",
       amount_usd: negotiationAmount,
+      // 16 Agustus 2026 (Fase 6) — same field submit-custom-order-action.ts
+      // already sets on its own order_negotiations insert.
+      payment_method: input.paymentMethod,
     });
     if (negotiationError) {
       console.error("[order_negotiations] Failed to save Creative Agent negotiation offer", order.id, negotiationError);
@@ -234,6 +262,11 @@ export async function submitCreativeAgentOrderAction(
     serviceName: packageNameLabel,
     amountUsd: negotiationAmount,
     isNegotiation: input.intent === "negotiate",
+    // 16 Agustus 2026 (Fase 6, Discord alignment) — same field every other
+    // order path's notifyNewOrder call already passes (15 Agustus 2026
+    // pass), lets #new-orders show Full Payment vs Installments at a
+    // glance for Creative Agent orders too.
+    paymentMethod: input.paymentMethod,
   });
 
   if (threadId) {

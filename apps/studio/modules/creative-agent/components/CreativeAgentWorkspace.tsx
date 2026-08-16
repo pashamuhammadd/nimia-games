@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import type { ChatMessage, StructuredProjectData, UploadedAsset } from "../types";
+import type { ChatMessage, CreativeAgentPaymentMethod, StructuredProjectData, UploadedAsset } from "../types";
 import { CreativeInput } from "./CreativeInput";
 import { ConversationThread } from "./ConversationThread";
 import { AttachFilesControl } from "./AttachFilesControl";
@@ -45,6 +45,14 @@ export function CreativeAgentWorkspace() {
   const [confirmedUnderstanding, setConfirmedUnderstanding] = React.useState<StructuredProjectData | null>(null);
   const [uploadedAssets, setUploadedAssets] = React.useState<UploadedAsset[]>([]);
   const [orderId, setOrderId] = React.useState<string | null>(null);
+  // Payment Method (16 Agustus 2026, Fase 6) — same "local component state
+  // only, not persisted server-side or restored on reload" posture
+  // agreedToTerms/negotiationOffer right below already have (see this
+  // component's own restore-on-mount effect above, which never touches
+  // either) — a page reload after confirming the brief already loses those
+  // two, so this isn't a new limitation, just a third field with the same
+  // one.
+  const [paymentMethod, setPaymentMethod] = React.useState<CreativeAgentPaymentMethod | null>(null);
   const [agreedToTerms, setAgreedToTerms] = React.useState(false);
   const [negotiationOffer, setNegotiationOffer] = React.useState("");
   const [submittingOrder, setSubmittingOrder] = React.useState(false);
@@ -155,11 +163,25 @@ export function CreativeAgentWorkspace() {
   }
 
   async function handleSubmitOrder(intent: CreativeAgentOrderIntent) {
+    // Payment Method (16 Agustus 2026, Fase 6) — same guard every other
+    // order path's submit() already has (see modules/order/state/use-
+    // order-wizard.ts's identical check): a client-side nicety so a
+    // visitor doesn't wait on a round trip to find out. The Submit/
+    // Negotiate buttons are already disabled without a selection (see
+    // CreativeBriefCard), so this should be unreachable in practice — this
+    // is defense-in-depth, not the primary gate. submitCreativeAgentOrderAction
+    // re-validates it server-side too, which IS the real gate.
+    if (!paymentMethod) {
+      setOrderSubmitError("Choose a payment method before submitting.");
+      return;
+    }
+
     setSubmittingOrder(true);
     setOrderSubmitError(null);
     try {
       const result = await submitCreativeAgentOrderAction({
         intent,
+        paymentMethod,
         negotiationOfferUsd: negotiationOffer,
         agreedToTerms,
       });
@@ -228,6 +250,8 @@ export function CreativeAgentWorkspace() {
               understanding={confirmedUnderstanding}
               uploadedAssets={uploadedAssets}
               orderId={orderId}
+              paymentMethod={paymentMethod}
+              onPaymentMethodChange={setPaymentMethod}
               agreedToTerms={agreedToTerms}
               onAgreedToTermsChange={setAgreedToTerms}
               negotiationOffer={negotiationOffer}
