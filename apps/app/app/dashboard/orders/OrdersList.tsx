@@ -7,6 +7,7 @@ import { orderStatusMeta } from "../../lib/orderStatus";
 import { formatRelativeTime } from "../../lib/relativeTime";
 import { OrderDetail } from "./OrderDetail";
 import type { PaymentWalletOption, VoucherRedemptionSummary } from "./PaymentPanel";
+import type { InstallmentListItem } from "./InstallmentSchedule";
 
 export interface OrderListItem {
   id: string;
@@ -36,6 +37,16 @@ export interface OrderListItem {
   // app/dashboard/orders/page.tsx; null until apply_voucher_to_order()
   // succeeds for this order (see PaymentPanel.tsx's redeem box).
   voucherRedemption: VoucherRedemptionSummary;
+  // Full Payment vs Installments (15 Agustus 2026 — generalized from Custom
+  // Order to every flow type). Null for every pre-migration-0038 order,
+  // which OrderDetail.tsx treats identically to "full_payment" (falls
+  // through to PaymentPanel, same as always).
+  paymentMethod: "full_payment" | "installments" | null;
+  // Only ever non-empty when paymentMethod === "installments" AND the order
+  // has reached 'awaiting_payment' (materialize_order_installments, 0038,
+  // only generates these rows at that transition) — see
+  // app/dashboard/orders/page.tsx for how this is fetched/attached.
+  installments: InstallmentListItem[];
 }
 
 // Shown once a real quote/price exists (finalPriceUsd, set once staff

@@ -45,3 +45,41 @@ export function orderStatusMeta(status: string) {
     }
   );
 }
+
+// public.installment_status (packages/db/migrations/0038_custom_order_installments.sql)
+// — one row per milestone/invoice on an installments order. Same enum and
+// dotClass colors as apps/admin/app/lib/orderStatus.ts's
+// INSTALLMENT_STATUS_META, but with client-facing label text instead of
+// admin's more operational wording (e.g. "Ready to Pay" instead of
+// "Awaiting Payment", "Locked" instead of "Scheduled") — a client reading
+// their own dashboard needs "what do I do right now", not the same
+// vocabulary Admin uses internally. Added 15 Agustus 2026 alongside
+// InstallmentSchedule.tsx, the client-side counterpart to apps/admin's
+// installment verification UI — previously a client had NO way to see or
+// pay milestone #2/#3 of their own order once #1 was confirmed (see project
+// memory's payment_method_generalization_15agst.md).
+export type InstallmentStatus =
+  | "scheduled"
+  | "pending_payment"
+  | "payment_submitted"
+  | "paid"
+  | "overdue"
+  | "cancelled";
+
+export const INSTALLMENT_STATUS_META: Record<InstallmentStatus, { label: string; dotClass: string }> = {
+  scheduled: { label: "Locked", dotClass: "bg-slate-500" },
+  pending_payment: { label: "Ready to Pay", dotClass: "bg-purple-400" },
+  payment_submitted: { label: "Under Review", dotClass: "bg-amber-400" },
+  paid: { label: "Paid", dotClass: "bg-emerald-400" },
+  overdue: { label: "Overdue", dotClass: "bg-red-400" },
+  cancelled: { label: "Cancelled", dotClass: "bg-slate-400" },
+};
+
+export function installmentStatusMeta(status: string) {
+  return (
+    INSTALLMENT_STATUS_META[status as InstallmentStatus] ?? {
+      label: status,
+      dotClass: "bg-slate-400",
+    }
+  );
+}

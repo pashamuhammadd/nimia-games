@@ -9,8 +9,10 @@ import { getPaymentQuoteAction, submitPaymentAction, applyVoucherAction, type Pa
 
 // Display labels for public.crypto_network (packages/db/migrations/0013,
 // extended with 'ton' in 0014) — same values as payment_wallets.network,
-// just human-readable.
-const NETWORK_LABELS: Record<string, string> = {
+// just human-readable. Exported (15 Agustus 2026) so InstallmentSchedule.tsx
+// can reuse the exact same labels for its per-milestone network picker
+// instead of drifting out of sync with a second copy.
+export const NETWORK_LABELS: Record<string, string> = {
   ethereum: "Ethereum",
   bsc: "BNB Smart Chain (BSC)",
   tron: "Tron",
@@ -54,11 +56,16 @@ export interface PaymentPanelProps {
   };
 }
 
-function formatCryptoAmount(amount: number, symbol: string) {
+// Exported (15 Agustus 2026) for the same reason as NETWORK_LABELS above —
+// InstallmentSchedule.tsx's per-milestone pay flow needs the identical
+// "Send exactly X SYMBOL" formatting.
+export function formatCryptoAmount(amount: number, symbol: string) {
   return `${amount.toLocaleString("en-US", { maximumFractionDigits: 6 })} ${symbol}`;
 }
 
-function CopyableAddress({ address }: { address: string }) {
+// Exported (15 Agustus 2026) — see formatCryptoAmount's comment above; same
+// reasoning.
+export function CopyableAddress({ address }: { address: string }) {
   const [copied, setCopied] = React.useState(false);
 
   async function handleCopy() {

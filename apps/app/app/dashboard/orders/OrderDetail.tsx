@@ -3,6 +3,7 @@
 import { orderStatusMeta } from "../../lib/orderStatus";
 import { formatRelativeTime } from "../../lib/relativeTime";
 import { PaymentPanel, type PaymentWalletOption } from "./PaymentPanel";
+import { InstallmentSchedule } from "./InstallmentSchedule";
 import type { OrderListItem } from "./OrdersList";
 
 // Statuses where the payment flow actually has something to show — before
@@ -48,23 +49,42 @@ export function OrderDetail({
 
       {showPayment ? (
         <div className="border-t border-white/[0.08] pt-4">
-          <PaymentPanel
-            orderId={order.id}
-            status={order.status}
-            finalPriceUsd={order.finalPriceUsd}
-            walletOptions={walletOptions}
-            voucherRedemption={order.voucherRedemption}
-            payment={{
-              network: order.paymentNetwork,
-              token: order.paymentToken,
-              walletAddress: order.paymentWalletAddress,
-              expectedAmount: order.paymentExpectedAmount,
-              txHash: order.paymentTxHash,
-              submittedAt: order.paymentSubmittedAt,
-              verifiedAt: order.paymentVerifiedAt,
-              underpaidNote: order.paymentUnderpaidNote,
-            }}
-          />
+          {order.paymentMethod === "installments" ? (
+            // Installments order (15 Agustus 2026 — generalized from Custom
+            // Order to every flow, see project memory's
+            // payment_method_generalization_15agst.md): each milestone pays
+            // independently, so this renders the whole schedule instead of
+            // PaymentPanel's single order-level payment flow. Note this
+            // stays mounted even once order.status flips to "paid" —
+            // handle_installment_paid (0038) flips the PARENT order to
+            // 'paid' the moment installment #1 clears (product decision
+            // #1), while milestone #2/#3 can still be sitting there
+            // unpaid — showPayment's PAYMENT_VISIBLE_STATUSES already
+            // includes "paid" for exactly this reason.
+            <InstallmentSchedule
+              orderId={order.id}
+              walletOptions={walletOptions}
+              installments={order.installments}
+            />
+          ) : (
+            <PaymentPanel
+              orderId={order.id}
+              status={order.status}
+              finalPriceUsd={order.finalPriceUsd}
+              walletOptions={walletOptions}
+              voucherRedemption={order.voucherRedemption}
+              payment={{
+                network: order.paymentNetwork,
+                token: order.paymentToken,
+                walletAddress: order.paymentWalletAddress,
+                expectedAmount: order.paymentExpectedAmount,
+                txHash: order.paymentTxHash,
+                submittedAt: order.paymentSubmittedAt,
+                verifiedAt: order.paymentVerifiedAt,
+                underpaidNote: order.paymentUnderpaidNote,
+              }}
+            />
+          )}
         </div>
       ) : null}
     </div>

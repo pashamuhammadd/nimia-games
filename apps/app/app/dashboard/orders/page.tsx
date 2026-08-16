@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { OrdersList, type OrderListItem } from "./OrdersList";
 import { EmptyOrdersState } from "./EmptyOrdersState";
 import type { PaymentWalletOption } from "./PaymentPanel";
+import type { InstallmentListItem } from "./InstallmentSchedule";
 
 export const metadata = { title: "Orders" };
 
@@ -70,7 +71,13 @@ export default async function OrdersPage({
         // 0021_vouchers.sql), so there's at most one row per order.
         // package_name added (12 Agustus 2026, order-flow audit fix) — see
         // packages/db/migrations/0036_order_package_name.sql.
-        "id, description, status, budget, final_price_usd, proposed_price_usd, created_at, services(name), package_name, payment_network, payment_token, payment_wallet_address, payment_expected_amount, payment_tx_hash, payment_submitted_at, payment_verified_at, payment_underpaid_note, voucher_redemptions(discount_percent, original_price_usd, discounted_price_usd, vouchers(code))",
+        // payment_method added (15 Agustus 2026, payment method
+        // generalization — see project memory's
+        // payment_method_generalization_15agst.md) so this page can tell
+        // OrdersList/OrderDetail whether to render PaymentPanel (full
+        // payment / legacy null) or InstallmentSchedule (installments) for
+        // each order — see packages/db/migrations/0038_custom_order_installments.sql.
+        "id, description, status, budget, final_price_usd, proposed_price_usd, created_at, services(name), package_name, payment_method, payment_network, payment_token, payment_wallet_address, payment_expected_amount, payment_tx_hash, payment_submitted_at, payment_verified_at, payment_underpaid_note, voucher_redemptions(discount_percent, original_price_usd, discounted_price_usd, vouchers(code))",
         { count: "exact" },
       )
       .eq("client_id", client.id)
@@ -113,6 +120,11 @@ export default async function OrdersPage({
         paymentSubmittedAt: o.payment_submitted_at,
         paymentVerifiedAt: o.payment_verified_at,
         paymentUnderpaidNote: o.payment_underpaid_note,
+        paymentMethod: o.payment_method ?? null,
+        // Filled in below, after fetching order_installments for every
+        // installments-method order on this page in one batched query
+        // (rather than one query per order) — see that block's own comment.
+        installments: [],
         voucherRedemption: redemptionRow
           ? {
               code: voucherRow?.code ?? "",
@@ -123,6 +135,54 @@ export default async function OrdersPage({
           : null,
       };
     });
+
+    // Milestone schedule for every installments-method order on this page
+    // (15 Agustus 2026 — see project memory's
+    // payment_method_generalization_15agst.md). One batched query keyed off
+    // the order ids already fetched above, instead of N+1 queries — RLS
+    // (order_installments_select_own_or_admin, 0038) already scopes this to
+    // rows the signed-in client owns regardless, the explicit `.in()` below
+    // is just to avoid over-fetching. Empty for every order whose
+    // paymentMethod isn't "installments", and for an installments order
+    // that hasn't reached 'awaiting_payment' yet (materialize_order_installments
+    // only generates rows at that transition).
+    const installmentOrderIds = orders.filter((o) => o.paymentMethod === "installments").map((o) => o.id);
+    if (installmentOrderIds.length > 0) {
+      const { data: installmentRows } = await supabase
+        .from("order_installments")
+        .select(
+          "id, order_id, sequence, label, percentage, amount_usd, status, payment_network, payment_token, payment_wallet_address, payment_expected_amount, payment_tx_hash, payment_submitted_at, payment_verified_at, payment_underpaid_note",
+        )
+        .in("order_id", installmentOrderIds)
+        .order("sequence", { ascending: true });
+
+      const installmentsByOrderId = new Map<string, InstallmentListItem[]>();
+      for (const row of (installmentRows ?? []) as any[]) {
+        const list = installmentsByOrderId.get(row.order_id) ?? [];
+        list.push({
+          id: row.id,
+          sequence: row.sequence,
+          label: row.label,
+          percentage: Number(row.percentage),
+          amountUsd: Number(row.amount_usd),
+          status: row.status,
+          paymentNetwork: row.payment_network,
+          paymentToken: row.payment_token,
+          paymentWalletAddress: row.payment_wallet_address,
+          paymentExpectedAmount: row.payment_expected_amount != null ? Number(row.payment_expected_amount) : null,
+          paymentTxHash: row.payment_tx_hash,
+          paymentSubmittedAt: row.payment_submitted_at,
+          paymentVerifiedAt: row.payment_verified_at,
+          paymentUnderpaidNote: row.payment_underpaid_note,
+        });
+        installmentsByOrderId.set(row.order_id, list);
+      }
+
+      orders = orders.map((o) => ({
+        ...o,
+        installments: installmentsByOrderId.get(o.id) ?? [],
+      }));
+    }
   }
 
   // payment_wallets metadata (network + accepted currencies, NOT the
