@@ -176,7 +176,14 @@ from (
         ) then 'MISSING — order_receipts not yet extended with installment_id/amount_usd'
         else 'APPLIED'
       end,
-      'Drops the dead 0005 billing trio + invoice_status/payment_status enums; extends order_receipts for per-installment receipts; redesigns get_or_create_order_receipt(order_id, installment_id).')
+      'Drops the dead 0005 billing trio + invoice_status/payment_status enums; extends order_receipts for per-installment receipts; redesigns get_or_create_order_receipt(order_id, installment_id).'),
+
+    (45, '0045_project_status_simplify',
+      case when exists (
+        select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+        where t.typname = 'project_status' and e.enumlabel = 'in_production'
+      ) then 'APPLIED' else 'MISSING' end,
+      'Simplifies project_status 10->7 (new/approved/in_production/revision/ready_for_delivery/completed/cancelled), kept deliberately separate from order_payment_status (0043). Redefines orders_create_project_on_paid (0029) + notify_on_project_status_change (0032) to match.')
 
 ) as report(migration_no, migration, status, note)
 order by migration_no;

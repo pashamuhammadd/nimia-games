@@ -114,16 +114,20 @@ export default async function DashboardOverviewPage() {
         title: projectActivityLabel(u.to_status),
         subtitle: idToTitle.get(u.project_id) ?? "Project",
         timeLabel: formatRelativeTime(u.created_at),
+        // project_status simplified 10->7 (16 Agustus 2026,
+        // 0045_project_status_simplify.sql, State Architecture) — 'paid' is
+        // now 'approved' and 'final_review' is now 'ready_for_delivery'.
+        // The old 'waiting_payment' tone branch is dropped: that value was
+        // already dead (nothing ever wrote it, see the migration's own
+        // comment) and doesn't exist in the new enum at all.
         tone:
-          u.to_status === "completed" || u.to_status === "paid"
+          u.to_status === "completed" || u.to_status === "approved"
             ? "success"
-            : u.to_status === "waiting_payment"
-              ? "payment"
-              : u.to_status === "revision" || u.to_status === "final_review"
-                ? "upload"
-                : u.to_status === "cancelled"
-                  ? "cancelled"
-                  : "neutral",
+            : u.to_status === "revision" || u.to_status === "ready_for_delivery"
+              ? "upload"
+              : u.to_status === "cancelled"
+                ? "cancelled"
+                : "neutral",
       }));
     }
   }
