@@ -7,6 +7,7 @@ import { OrdersList, type OrderListItem } from "./OrdersList";
 import { EmptyOrdersState } from "./EmptyOrdersState";
 import type { PaymentWalletOption } from "./PaymentPanel";
 import type { InstallmentListItem } from "./InstallmentSchedule";
+import { getOrderPaymentSummary } from "@/modules/order/pricing/order-payment-summary";
 
 export const metadata = { title: "Orders" };
 
@@ -125,6 +126,14 @@ export default async function OrdersPage({
         // installments-method order on this page in one batched query
         // (rather than one query per order) — see that block's own comment.
         installments: [],
+        // Recomputed below once `installments` is filled in — this initial
+        // pass (installments always []) is only ever the correct final
+        // value for a legacy order that never gets any rows attached.
+        paymentSummary: getOrderPaymentSummary({
+          finalPriceUsd: o.final_price_usd,
+          orderStatus: o.status,
+          installments: [],
+        }),
         voucherRedemption: redemptionRow
           ? {
               code: voucherRow?.code ?? "",
@@ -136,17 +145,25 @@ export default async function OrdersPage({
       };
     });
 
-    // Milestone schedule for every installments-method order on this page
-    // (15 Agustus 2026 — see project memory's
-    // payment_method_generalization_15agst.md). One batched query keyed off
-    // the order ids already fetched above, instead of N+1 queries — RLS
+    // Milestone schedule for every order that has a payment_method set (16
+    // Agustus 2026, Fase 1 Payment Architecture — widened from
+    // "installments"-only, see project memory's
+    // order_payment_invoice_refactor_fase0.md). materialize_order_installments
+    // (0038) always generates rows for a full_payment order too (a single
+    // 100% row) — before this widening, this page silently dropped that row
+    // for full_payment orders, which is exactly why OrderDetail.tsx used to
+    // fall back to the legacy PaymentPanel/orders.payment_* flow for them
+    // instead of the same order_installments-backed flow installments
+    // orders already use. One batched query keyed off the order ids already
+    // fetched above, instead of N+1 queries — RLS
     // (order_installments_select_own_or_admin, 0038) already scopes this to
     // rows the signed-in client owns regardless, the explicit `.in()` below
-    // is just to avoid over-fetching. Empty for every order whose
-    // paymentMethod isn't "installments", and for an installments order
-    // that hasn't reached 'awaiting_payment' yet (materialize_order_installments
-    // only generates rows at that transition).
-    const installmentOrderIds = orders.filter((o) => o.paymentMethod === "installments").map((o) => o.id);
+    // is just to avoid over-fetching. Still empty for a genuinely LEGACY
+    // order (payment_method null — predates this column, or a Creative
+    // Agent order today), and for any order that hasn't reached
+    // 'awaiting_payment' yet (materialize_order_installments only generates
+    // rows at that transition).
+    const installmentOrderIds = orders.filter((o) => o.paymentMethod != null).map((o) => o.id);
     if (installmentOrderIds.length > 0) {
       const { data: installmentRows } = await supabase
         .from("order_installments")
@@ -183,6 +200,23 @@ export default async function OrdersPage({
         installments: installmentsByOrderId.get(o.id) ?? [],
       }));
     }
+
+    // Paid / Remaining / payment status (16 Agustus 2026, Fase 1 Payment
+    // Architecture — see @/modules/order/pricing/order-payment-summary's own
+    // header comment). Computed here in TS from data already fetched above
+    // rather than one get_order_payment_summary() RPC call per order on this
+    // paginated list — same mirror-for-display, DB-is-authoritative posture
+    // this app already uses for the installment fee preview. Answers the
+    // client-facing questions Fase 7 of the refactor asks for directly:
+    // "how much have I paid, how much is left".
+    orders = orders.map((o) => ({
+      ...o,
+      paymentSummary: getOrderPaymentSummary({
+        finalPriceUsd: o.finalPriceUsd,
+        orderStatus: o.status,
+        installments: o.installments.map((inst) => ({ amountUsd: inst.amountUsd, status: inst.status as any })),
+      }),
+    }));
   }
 
   // payment_wallets metadata (network + accepted currencies, NOT the

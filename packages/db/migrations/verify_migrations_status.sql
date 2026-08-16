@@ -154,7 +154,29 @@ from (
         where table_schema = 'public' and table_name = 'creative_agent_sessions'
           and column_name = 'order_id'
       ) then 'APPLIED' else 'MISSING' end,
-      'Adds uploaded_assets + order_id to creative_agent_sessions. Requires 0041 first.')
+      'Adds uploaded_assets + order_id to creative_agent_sessions. Requires 0041 first.'),
+
+    -- ------------------------------------------------------------------
+    -- Fase 1/2 of the 16 Agustus 2026 Order/Payment/Invoice refactor.
+    -- ------------------------------------------------------------------
+    (43, '0043_order_payment_summary',
+      case when exists (
+        select 1 from pg_type where typname = 'order_payment_status'
+      ) then 'APPLIED' else 'MISSING' end,
+      'get_order_payment_summary() RPC + order_payment_status enum — the fix for installment orders'' invoices showing the full price instead of what was actually paid.'),
+
+    (44, '0044_invoice_architecture_cleanup',
+      case
+        when exists (
+          select 1 from information_schema.tables where table_schema = 'public' and table_name = 'invoices'
+        ) then 'MISSING — dead invoices/invoice_items/payments/receipts trio (0005) still present'
+        when not exists (
+          select 1 from information_schema.columns
+          where table_schema = 'public' and table_name = 'order_receipts' and column_name = 'installment_id'
+        ) then 'MISSING — order_receipts not yet extended with installment_id/amount_usd'
+        else 'APPLIED'
+      end,
+      'Drops the dead 0005 billing trio + invoice_status/payment_status enums; extends order_receipts for per-installment receipts; redesigns get_or_create_order_receipt(order_id, installment_id).')
 
 ) as report(migration_no, migration, status, note)
 order by migration_no;

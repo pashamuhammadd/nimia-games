@@ -532,10 +532,28 @@ export function OrderDetailPanel({
                       </span>
                       <span className="text-white/80">${inst.amount_usd.toLocaleString("en-US")}</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className={`h-1.5 w-1.5 rounded-full ${instMeta.dotClass}`} aria-hidden="true" />
-                      <span className="text-xs font-medium text-white/50">{instMeta.label}</span>
-                      <span className="text-xs text-white/35">· {inst.percentage}%</span>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`h-1.5 w-1.5 rounded-full ${instMeta.dotClass}`} aria-hidden="true" />
+                        <span className="text-xs font-medium text-white/50">{instMeta.label}</span>
+                        <span className="text-xs text-white/35">· {inst.percentage}%</span>
+                      </div>
+                      {inst.status === "paid" ? (
+                        // Per-milestone receipt (16 Agustus 2026, Fase 2
+                        // Invoice Architecture) — always passes
+                        // ?installment= explicitly so this works whether
+                        // this is the order's only installment or one of
+                        // several; get_or_create_order_receipt raises if a
+                        // multi-installment order's receipt is requested
+                        // without one.
+                        <a
+                          href={`/api/orders/${order.id}/receipt?installment=${inst.id}`}
+                          className="flex shrink-0 items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                        >
+                          <Download className="h-3 w-3" aria-hidden="true" />
+                          Receipt
+                        </a>
+                      ) : null}
                     </div>
 
                     {inst.payment_tx_hash ? (
@@ -834,7 +852,18 @@ export function OrderDetailPanel({
             </div>
           ) : null}
 
-          {order.status === "paid" ? (
+          {/* Order-level download (16 Agustus 2026, Fase 2 Invoice
+              Architecture — narrowed from `order.status === "paid"` alone).
+              order.status flips to 'paid' the moment installment #1 clears
+              (handle_installment_paid, 0038, product decision #1), which
+              can be while #2/#3 are still unpaid — get_or_create_order_receipt
+              now REQUIRES an explicit installment for a multi-installment
+              order, so this generic link only makes sense for a
+              single-payment order (0 or 1 order_installments row: legacy,
+              or a full_payment order's one materialized row). A
+              multi-milestone order relies on the per-milestone "Receipt"
+              links inside Installment Schedule above instead. */}
+          {order.status === "paid" && order.order_installments.length <= 1 ? (
             <a
               href={`/api/orders/${order.id}/receipt`}
               className="flex w-fit items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"

@@ -59,11 +59,27 @@ export default async function DashboardOverviewPage() {
           .select("id", { count: "exact", head: true })
           .eq("client_id", client.id)
           .eq("status", "quotation_sent"),
+        // Fix (16 Agustus 2026, Fase 2 Invoice Architecture): this used to
+        // count public.invoices, the dead legacy billing table (0005) —
+        // nothing has written to it since the crypto-payment flow (0013)
+        // replaced the old IDR/manual invoice flow it belonged to (see
+        // 0024_order_receipts.sql's own comment on the same trio, and
+        // packages/db/migrations/0044_invoice_architecture_cleanup.sql,
+        // which drops that table outright). Same fix apps/admin's Overview
+        // page already applied on 10 Agustus 2026 for the identical dead
+        // query: count orders actually waiting on money (quoted-but-unpaid
+        // + submitted-but-unverified) instead of a table nothing writes to.
+        // Note this doesn't (yet) count an order that's already 'paid' but
+        // still has an unpaid installment remaining — same scope admin's
+        // version stops at; a true "needs attention" count spanning
+        // partially_paid installment orders would need a per-order
+        // getOrderPaymentSummary pass, which is a nice-to-have beyond what
+        // dropping the dead table strictly requires here.
         supabase
-          .from("invoices")
+          .from("orders")
           .select("id", { count: "exact", head: true })
           .eq("client_id", client.id)
-          .in("status", ["unpaid", "partially_paid", "overdue"]),
+          .in("status", ["awaiting_payment", "payment_submitted"]),
       ]);
 
     const allProjects = projects ?? [];

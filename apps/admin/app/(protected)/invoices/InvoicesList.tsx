@@ -11,16 +11,25 @@ import { formatRelativeTime } from "../../lib/relativeTime";
 // this page is the finance-facing view of every order that has actually
 // been paid — one dedicated, searchable place to browse and re-download
 // every PDF receipt instead of hunting through Orders one at a time.
+//
+// Rewritten (16 Agustus 2026, Fase 2 Invoice Architecture) — one row per
+// order_receipts row (one ACTUAL payment) instead of one row per paid
+// order, so a multi-milestone order now correctly shows up as several
+// rows here, each with its own amount — see page.tsx's own comment.
 export type InvoiceRow = {
   orderId: string;
+  installmentId: string | null;
   clientLabel: string;
   serviceName: string;
   amountUsd: number;
+  // e.g. "Installment 1 of 2", "Installment 2 of 2 (Final)", "Full
+  // Payment", or null for a legacy pre-installments receipt.
+  label: string | null;
   verifiedAt: string | null;
   createdAt: string;
   network: string | null;
   token: string | null;
-  receiptNumber: string | null;
+  receiptNumber: string;
 };
 
 const NETWORK_LABELS: Record<string, string> = {
@@ -61,7 +70,7 @@ export function InvoicesList({ invoices }: { invoices: InvoiceRow[] }) {
       (invoice) =>
         invoice.clientLabel.toLowerCase().includes(q) ||
         invoice.serviceName.toLowerCase().includes(q) ||
-        (invoice.receiptNumber ?? "").toLowerCase().includes(q),
+        invoice.receiptNumber.toLowerCase().includes(q),
     );
   }, [invoices, query]);
 
@@ -92,7 +101,7 @@ export function InvoicesList({ invoices }: { invoices: InvoiceRow[] }) {
       <div className="flex flex-col gap-3">
         {filtered.map((invoice) => (
           <div
-            key={invoice.orderId}
+            key={invoice.installmentId ?? invoice.orderId}
             className="flex flex-col gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex min-w-0 items-center gap-3">
@@ -105,21 +114,20 @@ export function InvoicesList({ invoices }: { invoices: InvoiceRow[] }) {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate text-sm font-semibold text-white">{invoice.clientLabel}</p>
-                  {invoice.receiptNumber ? (
-                    <code className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-white/50">
-                      {invoice.receiptNumber}
-                    </code>
-                  ) : (
+                  {invoice.label ? (
                     <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-white/40">
-                      Generating on download
+                      {invoice.label}
                     </span>
-                  )}
+                  ) : null}
+                  <code className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-white/50">
+                    {invoice.receiptNumber}
+                  </code>
                 </div>
                 <p className="mt-0.5 truncate text-xs text-white/45">
                   {invoice.serviceName} ·{" "}
                   {invoice.verifiedAt
                     ? `Paid ${formatRelativeTime(invoice.verifiedAt)}`
-                    : `Submitted ${formatRelativeTime(invoice.createdAt)}`}
+                    : `Issued ${formatRelativeTime(invoice.createdAt)}`}
                   {invoice.network
                     ? ` · ${NETWORK_LABELS[invoice.network] ?? invoice.network}${invoice.token ? ` (${invoice.token})` : ""}`
                     : ""}
@@ -130,7 +138,11 @@ export function InvoicesList({ invoices }: { invoices: InvoiceRow[] }) {
             <div className="flex shrink-0 items-center gap-3 self-start sm:self-center">
               <p className="text-base font-bold text-white">${invoice.amountUsd.toLocaleString("en-US")}</p>
               <a
-                href={`/api/orders/${invoice.orderId}/receipt`}
+                href={
+                  invoice.installmentId
+                    ? `/api/orders/${invoice.orderId}/receipt?installment=${invoice.installmentId}`
+                    : `/api/orders/${invoice.orderId}/receipt`
+                }
                 className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-semibold text-white/80 transition-colors hover:bg-white/10 hover:text-white"
               >
                 <Download className="h-3.5 w-3.5" aria-hidden="true" />

@@ -72,6 +72,15 @@ const styles = StyleSheet.create({
   amountRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 },
   amountLabel: { fontSize: 11, fontFamily: "Helvetica-Bold" },
   amount: { fontSize: 20, fontFamily: "Helvetica-Bold", color: BRAND.crimson },
+  // Payment summary block (16 Agustus 2026, Fase 2 Invoice Architecture) —
+  // Project Total / Paid to Date / Remaining, so a receipt for one
+  // installment out of several never reads as if it settled the whole
+  // order.
+  summaryRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
+  summaryLabel: { fontSize: 9, color: BRAND.muted },
+  summaryValue: { fontSize: 10, fontFamily: "Helvetica-Bold" },
+  remainingValue: { fontSize: 10, fontFamily: "Helvetica-Bold", color: "#b45309" },
+  paidInFullValue: { fontSize: 10, fontFamily: "Helvetica-Bold", color: "#059669" },
   footer: {
     position: "absolute",
     bottom: 30,
@@ -89,12 +98,31 @@ export type OrderReceiptDocumentProps = {
   billedToName: string;
   billedToEmail: string;
   serviceName: string;
+  // Amount covered by THIS receipt specifically — for a single-payment
+  // order this equals projectTotalUsd, but for one installment out of a
+  // multi-milestone order it's just that milestone's share (16 Agustus
+  // 2026, Fase 2 Invoice Architecture — this is the field the original bug
+  // report was about: a receipt must never claim more was paid than what
+  // it actually covers).
   amountUsd: number;
   network: string | null;
   currency: string | null;
   txHash: string | null;
   verifiedAt: string | null;
   orderId: string;
+  // Null for a legacy/single-payment order (nothing to disambiguate); set
+  // for any order with order_installments rows, e.g. "Full Payment" (the
+  // single-row case) or "Installment 2 of 3 (Final)" — mirrors
+  // get_or_create_order_receipt()'s own label logic
+  // (0044_invoice_architecture_cleanup.sql).
+  installmentLabel: string | null;
+  // The order's full price, total paid across every installment to date,
+  // and what's left — from get_order_payment_summary() (0043), so this PDF
+  // always shows the real, current state instead of assuming this one
+  // receipt represents the whole order.
+  projectTotalUsd: number;
+  paidAmountUsd: number;
+  remainingBalanceUsd: number;
 };
 
 function formatDate(iso: string) {
@@ -117,14 +145,24 @@ export function OrderReceiptDocument({
   txHash,
   verifiedAt,
   orderId,
+  installmentLabel,
+  projectTotalUsd,
+  paidAmountUsd,
+  remainingBalanceUsd,
 }: OrderReceiptDocumentProps) {
+  const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const isPaidInFull = remainingBalanceUsd <= 0;
+
   return (
     <Document title={`Receipt ${receiptNumber}`}>
       <Page size="A4" style={styles.page}>
         <Image src={LOGO_URL} style={styles.logo} />
 
         <Text style={styles.title}>Payment Receipt</Text>
-        <Text style={styles.subtitle}>Nimia Studio · Indie game development studio</Text>
+        <Text style={styles.subtitle}>
+          Nimia Studio · Indie game development studio
+          {installmentLabel ? ` · ${installmentLabel}` : ""}
+        </Text>
 
         <View style={styles.row}>
           <Text style={styles.label}>Receipt #</Text>
@@ -150,9 +188,35 @@ export function OrderReceiptDocument({
           <Text style={styles.value}>{serviceName}</Text>
 
           <View style={styles.amountRow}>
-            <Text style={styles.amountLabel}>Amount paid</Text>
-            <Text style={styles.amount}>
-              ${amountUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <Text style={styles.amountLabel}>
+              {installmentLabel ? `Amount paid — ${installmentLabel}` : "Amount paid"}
+            </Text>
+            <Text style={styles.amount}>{money(amountUsd)}</Text>
+          </View>
+        </View>
+
+        {/* Project Total / Paid to Date / Remaining (16 Agustus 2026, Fase
+            2 Invoice Architecture) — always shown, even for a
+            single-payment order (where paidAmountUsd === projectTotalUsd
+            and remainingBalanceUsd is 0), so this section is never the
+            place a partially-paid installment order's true status gets
+            hidden. This is the fix for the bug this whole refactor started
+            from: a receipt for ONE installment must never be read as
+            proof the FULL project price was received. */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Payment summary</Text>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Project total</Text>
+            <Text style={styles.summaryValue}>{money(projectTotalUsd)}</Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Paid to date</Text>
+            <Text style={styles.summaryValue}>{money(paidAmountUsd)}</Text>
+          </View>
+          <View style={{ ...styles.summaryRow, marginBottom: 0 }}>
+            <Text style={styles.summaryLabel}>{isPaidInFull ? "Status" : "Remaining balance"}</Text>
+            <Text style={isPaidInFull ? styles.paidInFullValue : styles.remainingValue}>
+              {isPaidInFull ? "Paid in full" : money(remainingBalanceUsd)}
             </Text>
           </View>
         </View>

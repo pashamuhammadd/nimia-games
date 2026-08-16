@@ -167,3 +167,12 @@ export function markInstallmentPaid(
 
   return { installments: updated, orderShouldBePaid: paidSequence === 1 };
 }
+
+// getOrderPaymentSummary() moved OUT of this file (16 Agustus 2026, Fase 1
+// Payment Architecture) into ../order-payment-summary.ts — unlike every
+// other export in this file, it mirrors a PLAIN read-only SQL function
+// (get_order_payment_summary, 0043), not a trigger body that only ever runs
+// inside Postgres, so it's legitimately reusable as real application code
+// (apps/app's Orders list/detail pages import it directly for display) —
+// see that file's own header comment for the full reasoning. Its test file
+// (order-payment-summary.test.ts) now imports from there instead of here.

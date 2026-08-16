@@ -7,26 +7,36 @@ import { renderOrderReceiptPdf } from "@nimia/pdf";
 export const runtime = "nodejs";
 
 // Admin-side PDF receipt download (4 Agustus 2026, P1 item #6 — Invoice/PDF
-// generation). GET /api/orders/[id]/receipt. Byte-for-byte the same route as
-// apps/studio's — deliberately duplicated rather than shared, since apps/*
-// route handlers in this monorepo aren't cross-imported (each app owns its
-// own app/api tree) and the two callers differ only in WHO is allowed to
-// reach this URL (studio: authenticated client; admin: authenticated staff).
+// generation). GET /api/orders/[id]/receipt[?installment=<uuid>]. Byte-for-
+// byte the same route as apps/app's — deliberately duplicated rather than
+// shared, since apps/* route handlers in this monorepo aren't cross-imported
+// (each app owns its own app/api tree) and the two callers differ only in
+// WHO is allowed to reach this URL (app: authenticated client; admin:
+// authenticated staff).
 //
 // Authorization is NOT re-derived in this file — the `orders` SELECT below
 // is already gated by RLS (an admin sees every row via is_admin()), and
-// get_or_create_order_receipt() (packages/db/migrations/0024_order_receipts.sql)
-// re-checks ownership/admin AND status='paid' itself before returning
-// anything. Same "RLS/RPC is the real boundary, this file is just
+// get_or_create_order_receipt() (packages/db/migrations/
+// 0044_invoice_architecture_cleanup.sql) re-checks ownership/admin itself
+// before returning anything (a legacy order additionally requires
+// status='paid'; an installment additionally requires that specific row's
+// status='paid'). Same "RLS/RPC is the real boundary, this file is just
 // convenience" convention as every other money-related action in this app.
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+//
+// ?installment= (16 Agustus 2026, Fase 2 Invoice Architecture) — which
+// order_installments row this receipt is for. Omitted entirely for a
+// single-payment order (full_payment or legacy pre-installments) — the RPC
+// auto-resolves to the one row/receipt that exists. Required once an order
+// has more than one installment (the RPC raises if it's ambiguous).
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id: orderId } = await context.params;
+  const installmentId = new URL(request.url).searchParams.get("installment");
   const supabase = createServerClient(await cookies());
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .select(
-      "id, full_name, company_name, email, final_price_usd, payment_network, payment_token, payment_tx_hash, payment_verified_at, services(name), package_name",
+      "id, full_name, company_name, email, payment_network, payment_token, payment_tx_hash, payment_verified_at, services(name), package_name",
     )
     .eq("id", orderId)
     .single();
@@ -37,6 +47,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
   const { data: receiptRows, error: receiptError } = await supabase.rpc("get_or_create_order_receipt", {
     p_order_id: orderId,
+    p_installment_id: installmentId,
   });
   if (receiptError) {
     return new Response(receiptError.message, { status: 403 });
@@ -47,6 +58,28 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   }
 
   const service = Array.isArray((order as any).services) ? (order as any).services[0] : (order as any).services;
+
+  // Payment method fields (network/token/tx hash/verified date) come from
+  // the SPECIFIC installment row when this receipt is for one — see
+  // apps/app's identical comment on this same block.
+  let paymentNetwork = (order as any).payment_network as string | null;
+  let paymentToken = (order as any).payment_token as string | null;
+  let paymentTxHash = (order as any).payment_tx_hash as string | null;
+  let paymentVerifiedAt = (order as any).payment_verified_at as string | null;
+
+  if (receipt.installment_id) {
+    const { data: installment } = await supabase
+      .from("order_installments")
+      .select("payment_network, payment_token, payment_tx_hash, payment_verified_at")
+      .eq("id", receipt.installment_id)
+      .single();
+    if (installment) {
+      paymentNetwork = installment.payment_network;
+      paymentToken = installment.payment_token;
+      paymentTxHash = installment.payment_tx_hash;
+      paymentVerifiedAt = installment.payment_verified_at;
+    }
+  }
 
   const pdfBuffer = await renderOrderReceiptPdf({
     receiptNumber: receipt.receipt_number,
@@ -59,12 +92,16 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     // a service row — without this fallback every bundle-order receipt
     // read "Custom Project" instead of the package actually purchased.
     serviceName: service?.name ?? (order as any).package_name ?? "Custom Project",
-    amountUsd: Number((order as any).final_price_usd ?? 0),
-    network: (order as any).payment_network,
-    currency: (order as any).payment_token,
-    txHash: (order as any).payment_tx_hash,
-    verifiedAt: (order as any).payment_verified_at,
+    amountUsd: Number(receipt.amount_usd ?? 0),
+    network: paymentNetwork,
+    currency: paymentToken,
+    txHash: paymentTxHash,
+    verifiedAt: paymentVerifiedAt,
     orderId: (order as any).id,
+    installmentLabel: receipt.installment_label ?? null,
+    projectTotalUsd: Number(receipt.project_total_usd ?? 0),
+    paidAmountUsd: Number(receipt.paid_amount_usd ?? 0),
+    remainingBalanceUsd: Number(receipt.remaining_amount_usd ?? 0),
   });
 
   // Response()'s TS types want a plain Uint8Array/ArrayBufferView, not a

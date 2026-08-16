@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Lock, Clock, ShieldCheck, AlertTriangle, Wallet } from "lucide-react";
+import { Lock, Clock, ShieldCheck, AlertTriangle, Wallet, Download } from "lucide-react";
 import { cn, Listbox, Input, Label, Button } from "@nimia/ui";
 import { formatRelativeTime } from "../../lib/relativeTime";
 import { installmentStatusMeta } from "../../lib/orderStatus";
@@ -284,11 +284,22 @@ function MilestonePayForm({
 }
 
 function MilestoneCard({
+  orderId,
   installment,
   walletOptions,
+  isOnlyInstallment,
 }: {
+  orderId: string;
   installment: InstallmentListItem;
   walletOptions: PaymentWalletOption[];
+  // True for a full_payment order's single materialized row (16 Agustus
+  // 2026, Fase 1 Payment Architecture — full_payment orders now render
+  // through this same component instead of PaymentPanel, see OrderDetail.tsx).
+  // "Milestone 1 — Full Payment" reads oddly for a one-shot payment with no
+  // actual milestones to speak of, so this card drops the "Milestone N —"
+  // framing and just shows the label plainly in that case. An installments
+  // order (2+ rows) always passes false here, unchanged.
+  isOnlyInstallment: boolean;
 }) {
   const meta = installmentStatusMeta(installment.status);
 
@@ -297,10 +308,12 @@ function MilestoneCard({
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-white">
-            Milestone {installment.sequence} — {installment.label}
+            {isOnlyInstallment ? installment.label : `Milestone ${installment.sequence} — ${installment.label}`}
           </p>
           <p className="mt-0.5 text-xs text-white/45">
-            ${installment.amountUsd.toLocaleString("en-US")} ({installment.percentage}%)
+            {isOnlyInstallment
+              ? `$${installment.amountUsd.toLocaleString("en-US")}`
+              : `$${installment.amountUsd.toLocaleString("en-US")} (${installment.percentage}%)`}
           </p>
         </div>
         <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-white/70">
@@ -311,14 +324,30 @@ function MilestoneCard({
 
       {installment.status === "paid" ? (
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3">
-            <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-300" aria-hidden="true" />
-            <div>
-              <p className="text-sm font-semibold text-emerald-300">Payment verified</p>
-              {installment.paymentVerifiedAt ? (
-                <p className="text-xs text-white/50">Confirmed {formatRelativeTime(installment.paymentVerifiedAt)}</p>
-              ) : null}
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-300" aria-hidden="true" />
+              <div>
+                <p className="text-sm font-semibold text-emerald-300">Payment verified</p>
+                {installment.paymentVerifiedAt ? (
+                  <p className="text-xs text-white/50">
+                    Confirmed {formatRelativeTime(installment.paymentVerifiedAt)}
+                  </p>
+                ) : null}
+              </div>
             </div>
+            {/* Per-milestone receipt (16 Agustus 2026, Fase 2 Invoice
+                Architecture) — always passes ?installment= explicitly
+                rather than relying on get_or_create_order_receipt's
+                single-row auto-resolve, so this link is correct whether
+                this card is the only milestone or one of several. */}
+            <a
+              href={`/api/orders/${orderId}/receipt?installment=${installment.id}`}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs font-semibold text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <Download className="h-3.5 w-3.5" aria-hidden="true" />
+              Receipt
+            </a>
           </div>
           {installment.paymentNetwork && installment.paymentToken && installment.paymentExpectedAmount != null ? (
             <MilestoneSummaryRows installment={installment} />
@@ -357,6 +386,7 @@ function MilestoneCard({
 }
 
 export function InstallmentSchedule({
+  orderId,
   walletOptions,
   installments,
 }: {
@@ -373,14 +403,27 @@ export function InstallmentSchedule({
     return null;
   }
 
+  // A full_payment order always materializes exactly one row ("Full
+  // Payment", 100% — materialize_order_installments, 0038); an installments
+  // order always materializes 2+. So "exactly one row" is a reliable signal
+  // for "this is really a single payment, not a milestone schedule" without
+  // needing the caller to separately pass payment_method through.
+  const isSinglePayment = installments.length === 1;
+
   return (
     <div className="flex flex-col gap-3">
       <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/35">
         <Wallet className="h-3.5 w-3.5" aria-hidden="true" />
-        Payment Schedule
+        {isSinglePayment ? "Payment" : "Payment Schedule"}
       </span>
       {installments.map((installment) => (
-        <MilestoneCard key={installment.id} installment={installment} walletOptions={walletOptions} />
+        <MilestoneCard
+          key={installment.id}
+          orderId={orderId}
+          installment={installment}
+          walletOptions={walletOptions}
+          isOnlyInstallment={isSinglePayment}
+        />
       ))}
     </div>
   );

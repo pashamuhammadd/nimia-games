@@ -8,6 +8,7 @@ import { formatRelativeTime } from "../../lib/relativeTime";
 import { OrderDetail } from "./OrderDetail";
 import type { PaymentWalletOption, VoucherRedemptionSummary } from "./PaymentPanel";
 import type { InstallmentListItem } from "./InstallmentSchedule";
+import type { OrderPaymentSummary } from "@/modules/order/pricing/order-payment-summary";
 
 export interface OrderListItem {
   id: string;
@@ -42,11 +43,18 @@ export interface OrderListItem {
   // which OrderDetail.tsx treats identically to "full_payment" (falls
   // through to PaymentPanel, same as always).
   paymentMethod: "full_payment" | "installments" | null;
-  // Only ever non-empty when paymentMethod === "installments" AND the order
-  // has reached 'awaiting_payment' (materialize_order_installments, 0038,
-  // only generates these rows at that transition) — see
-  // app/dashboard/orders/page.tsx for how this is fetched/attached.
+  // Non-empty whenever paymentMethod is set (full_payment OR installments —
+  // widened 16 Agustus 2026, Fase 1 Payment Architecture, see that file's
+  // own comment) AND the order has reached 'awaiting_payment'
+  // (materialize_order_installments, 0038, only generates these rows at
+  // that transition) — see app/dashboard/orders/page.tsx for how this is
+  // fetched/attached.
   installments: InstallmentListItem[];
+  // Paid / Remaining / payment status (16 Agustus 2026, Fase 1 Payment
+  // Architecture) — computed once in page.tsx from finalPriceUsd/status/
+  // installments above, so every place that needs "how much has this client
+  // actually paid" reads the same number instead of re-deriving it.
+  paymentSummary: OrderPaymentSummary;
 }
 
 // Shown once a real quote/price exists (finalPriceUsd, set once staff
@@ -61,6 +69,26 @@ function priceLabel(order: OrderListItem) {
   }
   if (order.budget) return order.budget;
   return "Pending quote";
+}
+
+// Compact "Paid $150/$300" / "Paid in Full" line under the price (16
+// Agustus 2026, Fase 1 Payment Architecture + Fase 7's client-UX principle:
+// "client harus selalu tahu berapa yang sudah dibayar, berapa sisanya").
+// Only shown once a payment_method is actually set (hasInstallments true —
+// see paymentSummary's own comment on OrderListItem) — a legacy/no-price
+// order or one still in pre-payment review has nothing meaningful to show
+// here, priceLabel above already covers that case.
+function paymentSummaryLabel(order: OrderListItem): { text: string; toneClass: string } | null {
+  const summary = order.paymentSummary;
+  if (!summary.hasInstallments) return null;
+  if (summary.paymentStatus === "paid") return { text: "Paid in Full", toneClass: "text-emerald-400" };
+  if (summary.paymentStatus === "partially_paid") {
+    return {
+      text: `Paid $${summary.paidAmountUsd.toLocaleString("en-US")} / $${summary.totalAmountUsd.toLocaleString("en-US")}`,
+      toneClass: "text-amber-300",
+    };
+  }
+  return { text: "Payment Required", toneClass: "text-white/40" };
 }
 
 // List view for /dashboard/orders (3 Agustus 2026, per user request — this
@@ -121,6 +149,12 @@ export function OrdersList({
               <div className="shrink-0 text-left sm:text-right">
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-white/35">Price</p>
                 <p className="mt-0.5 text-base font-bold text-white">{priceLabel(order)}</p>
+                {(() => {
+                  const paymentLabel = paymentSummaryLabel(order);
+                  return paymentLabel ? (
+                    <p className={cn("mt-0.5 text-xs font-medium", paymentLabel.toneClass)}>{paymentLabel.text}</p>
+                  ) : null;
+                })()}
               </div>
             </motion.button>
           );
