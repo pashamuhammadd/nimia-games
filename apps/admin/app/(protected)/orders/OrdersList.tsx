@@ -65,7 +65,18 @@ export type OrderListItem = {
   // apps/app/modules/order/state/submit-order-action.ts) — payment_method
   // is null only for a legacy order that predates that step existing at
   // all, regardless of flow type.
-  order_flow_type: "project_builder" | "package" | "custom";
+  // 16 Agustus 2026 (Fase 7, Unified Order Creation) — added
+  // "creative_agent" (0047_creative_agent_order_flow_type.sql): Creative
+  // Agent orders (apps/studio) used to write "custom" here, identical to a
+  // real Custom Order Builder submission from apps/app — see that
+  // migration's own header comment. Not read as a property anywhere in
+  // this file today (confirmed by grep before widening this type) — the
+  // "what is this order" label below still reads
+  // `services?.name ?? package_name ?? "Custom Project"`, which already
+  // differs in practice ("Creative Agent Brief: X" vs "Custom Order: X"),
+  // so nothing else needed to change here for existing orders to keep
+  // rendering correctly.
+  order_flow_type: "project_builder" | "package" | "custom" | "creative_agent";
   payment_method: "full_payment" | "installments" | null;
   payment_plan: "none" | "two_milestones" | "three_milestones" | "custom";
   normal_price_usd: number | null;

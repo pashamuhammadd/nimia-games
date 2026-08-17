@@ -1,0 +1,46 @@
+-- ============================================================
+-- 0047: Fase 7 (Unified Order Creation) — distinguish Creative Agent
+-- orders from Custom Order Builder orders
+--
+-- FASE0-AUDIT.md's Implementation Order item 7 asked for a REVIEW: does
+-- Creative Agent (apps/studio) need to be refactored to reuse
+-- apps/app/modules/order/state/submit-order-action.ts, or is it enough to
+-- make its OUTPUT consistent with the other three order-creation paths?
+--
+-- Conclusion (documented here since this is the concrete result of that
+-- review): keep submitCreativeAgentOrderAction as its own action. The
+-- reasoning already in that file's own header comment still holds — a
+-- Creative Agent brief is freeform AI-extracted text with no catalog line
+-- items to price against, so forcing it through submitOrderAction/
+-- submitCustomOrderAction would mean either inventing a fake catalog match
+-- (fragile, easy to misprice) or stripping those actions down until they
+-- no longer resembled themselves. Every other piece of "output" was
+-- already aligned by Fase 6 (payment_method now set on both `orders` and
+-- `order_negotiations`, notifyNewOrder now receives paymentMethod) — the
+-- one genuine gap left, per FASE0-AUDIT.md section A's own finding, is
+-- `orders.order_flow_type`: Creative Agent writes 'custom', identical to a
+-- real Custom Order Builder submission, so the two are NOT distinguishable
+-- from the data alone (package_name text happens to differ in practice —
+-- "Creative Agent Brief: X" vs "Custom Order: X" — but nothing enforces
+-- that, and no code should rely on free text for this).
+--
+-- Fix: add a 4th value to the existing `order_flow_type` enum
+-- (packages/db/migrations/0038_custom_order_installments.sql) rather than
+-- inventing a parallel column — additive, and every consumer of this enum
+-- was audited (16 Agustus 2026) to confirm none of them exhaustively
+-- switch/branch on the 3 old values in a way a 4th value would silently
+-- break: `setOrderPaymentPlanAction` (apps/admin) selects the column but
+-- never actually branches on it (dead select, vestige of an older gate —
+-- see that function's own header comment), and apps/admin's OrdersList.tsx
+-- only TYPES the column, never reads `.order_flow_type` as a property
+-- anywhere. That TS union type is widened in the same batch as this
+-- migration (apps/admin/app/(protected)/orders/OrdersList.tsx) so the two
+-- stay in sync.
+--
+-- `ALTER TYPE ... ADD VALUE` is a single, standalone, non-transactional-
+-- unsafe statement — safe to run on its own exactly like every other
+-- migration in this repo, and does not touch/rewrite any existing row
+-- (existing orders keep whatever order_flow_type they already have).
+-- ============================================================
+
+alter type public.order_flow_type add value if not exists 'creative_agent';

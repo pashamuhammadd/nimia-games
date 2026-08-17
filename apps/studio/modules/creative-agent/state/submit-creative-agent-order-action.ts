@@ -176,7 +176,11 @@ export async function submitCreativeAgentOrderAction(
     .insert({
       client_id: client.id,
       service_id: null,
-      order_flow_type: "custom",
+      // 16 Agustus 2026 (Fase 7, Unified Order Creation) — was "custom"
+      // until this migration, indistinguishable from a real Custom Order
+      // Builder submission. See 0047_creative_agent_order_flow_type.sql's
+      // own header comment for the full review this came out of.
+      order_flow_type: "creative_agent",
       // Payment Method (16 Agustus 2026, Fase 6) — same trust tier as every
       // other order path's payment_method: the client's own stated intent,
       // not authoritative; Admin can still change it during review. Safe to

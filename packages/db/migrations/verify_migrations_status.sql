@@ -193,7 +193,17 @@ from (
         select 1 from information_schema.columns
         where table_schema = 'public' and table_name = 'order_files' and column_name = 'is_character_reference'
       ) then 'APPLIED' else 'MISSING' end,
-      'Adds order_files.is_character_reference (default false) — lets the Animation category''s dedicated "Character Reference Images" upload zone be told apart from the generic attachments zone.')
+      'Adds order_files.is_character_reference (default false) — lets the Animation category''s dedicated "Character Reference Images" upload zone be told apart from the generic attachments zone.'),
+
+    -- ------------------------------------------------------------------
+    -- Fase 7 (Unified Order Creation) of the 16 Agustus 2026 refactor.
+    -- ------------------------------------------------------------------
+    (47, '0047_creative_agent_order_flow_type',
+      case when exists (
+        select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+        where t.typname = 'order_flow_type' and e.enumlabel = 'creative_agent'
+      ) then 'APPLIED' else 'MISSING' end,
+      'Adds ''creative_agent'' to the order_flow_type enum — lets Creative Agent orders (apps/studio) be told apart from real Custom Order Builder submissions, which both used to write ''custom''.')
 
 ) as report(migration_no, migration, status, note)
 order by migration_no;
