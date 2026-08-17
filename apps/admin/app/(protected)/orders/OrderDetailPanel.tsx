@@ -20,6 +20,7 @@ import {
 import { cn } from "@nimia/ui";
 import { orderStatusMeta, installmentStatusMeta } from "../../lib/orderStatus";
 import { formatRelativeTime } from "../../lib/relativeTime";
+import { operationalBucketMeta } from "../../lib/operationalStatus";
 import {
   approveOrderAction,
   rejectOrderAction,
@@ -176,11 +177,46 @@ export function OrderDetailPanel({
       <div>
         <span className="text-xs font-semibold uppercase tracking-wider text-white/35">Order from</span>
         <h2 className="mt-1 text-lg font-bold text-white">{clientLabel}</h2>
-        <div className="mt-1.5 flex items-center gap-1.5">
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <span className={`h-1.5 w-1.5 rounded-full ${meta.dotClass}`} aria-hidden="true" />
           <span className="text-xs font-medium text-white/55">{meta.label}</span>
+          {/* Operational bucket (16 Agustus 2026, Fase 9) — see
+              ../../lib/operationalStatus.ts's own header comment. */}
+          {(() => {
+            const bucketMeta = operationalBucketMeta(order.operationalBucket);
+            return (
+              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/60">
+                <span className={cn("h-1.5 w-1.5 rounded-full", bucketMeta.dotClass)} aria-hidden="true" />
+                {bucketMeta.label}
+              </span>
+            );
+          })()}
         </div>
       </div>
+
+      {/* Paid / Remaining (16 Agustus 2026, Fase 9) — FASE0-AUDIT.md
+          problem #9: no "Paid $X/$Y"/"Remaining" anywhere in admin.
+          Mirrors apps/app's OrderDetail.tsx card exactly (same visual
+          language, same paymentSummary shape) so the same order reads the
+          same way in both apps. Only rendered once a real price exists. */}
+      {order.paymentSummary.totalAmountUsd > 0 ? (
+        <div className="flex flex-col gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+              {order.paymentSummary.paymentStatus === "paid" ? "Paid in Full" : "Project Total"}
+            </p>
+            <p className="text-base font-bold text-white">
+              {`$${order.paymentSummary.totalAmountUsd.toLocaleString("en-US")}`}
+            </p>
+          </div>
+          {order.paymentSummary.paymentStatus !== "paid" ? (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-white/50">{`Paid $${order.paymentSummary.paidAmountUsd.toLocaleString("en-US")}`}</span>
+              <span className="font-semibold text-amber-300">{`$${order.paymentSummary.remainingAmountUsd.toLocaleString("en-US")} remaining`}</span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
         <div className="flex items-center gap-2 text-white/70">

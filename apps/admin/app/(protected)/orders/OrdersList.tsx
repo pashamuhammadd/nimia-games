@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { Modal } from "@nimia/ui";
+import { Modal, cn } from "@nimia/ui";
 import { orderStatusMeta } from "../../lib/orderStatus";
 import { formatRelativeTime } from "../../lib/relativeTime";
+import type { OrderPaymentSummary } from "../../lib/orderPaymentSummary";
+import { operationalBucketMeta, type OperationalBucket } from "../../lib/operationalStatus";
 import { OrderDetailPanel } from "./OrderDetailPanel";
 
 export type NegotiationOfferRow = {
@@ -81,6 +83,12 @@ export type OrderListItem = {
   payment_plan: "none" | "two_milestones" | "three_milestones" | "custom";
   normal_price_usd: number | null;
   order_installments: OrderInstallmentRow[];
+  // Fase 9 (16 Agustus 2026, Admin dashboard operational views) — both
+  // computed server-side in page.tsx (mapOrderRow), not here, so this
+  // list/detail pair never duplicates the join+classification logic. See
+  // ../../lib/orderPaymentSummary.ts and ../../lib/operationalStatus.ts.
+  paymentSummary: OrderPaymentSummary;
+  operationalBucket: OperationalBucket;
 };
 
 export type OrderInstallmentRow = {
@@ -117,6 +125,10 @@ function thumbnailGradient(seed: string) {
 function initialsFor(text: string) {
   const words = text.trim().split(/\s+/).filter(Boolean);
   return (words[0]?.[0] ?? "?").toUpperCase() + (words[1]?.[0] ?? "").toUpperCase();
+}
+
+function formatUsd(amount: number) {
+  return `$${amount.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
 }
 
 // Rendered as a card list rather than a literal <table> — matches the
@@ -202,6 +214,19 @@ export function OrdersList({ orders }: { orders: OrderListItem[] }) {
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className={`h-1.5 w-1.5 rounded-full ${meta.dotClass}`} aria-hidden="true" />
                   <span className="text-xs font-medium text-white/50">{meta.label}</span>
+                  {/* Operational bucket (16 Agustus 2026, Fase 9) — a
+                      coarser, grouped lens ADDED alongside the precise raw
+                      status above, not replacing it. See
+                      ../../lib/operationalStatus.ts's own header comment. */}
+                  {(() => {
+                    const bucketMeta = operationalBucketMeta(order.operationalBucket);
+                    return (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/60">
+                        <span className={cn("h-1.5 w-1.5 rounded-full", bucketMeta.dotClass)} aria-hidden="true" />
+                        {bucketMeta.label}
+                      </span>
+                    );
+                  })()}
                   {latestOffer ? (
                     <span className="text-xs text-white/35">
                       · {latestOffer.proposed_by === "client" ? "Client offered" : "You offered"} $
@@ -231,6 +256,18 @@ export function OrdersList({ orders }: { orders: OrderListItem[] }) {
                     </span>
                   ) : null}
                 </div>
+                {/* Paid/Remaining (16 Agustus 2026, Fase 9) —
+                    FASE0-AUDIT.md problem #9: "Tidak ada kolom 'Paid
+                    $X/$Y' atau 'Remaining' langsung di row." Only shown
+                    once a real price exists. */}
+                {order.paymentSummary.totalAmountUsd > 0 ? (
+                  <p className="mt-1 text-xs font-medium text-white/45">
+                    Paid {formatUsd(order.paymentSummary.paidAmountUsd)} / {formatUsd(order.paymentSummary.totalAmountUsd)}
+                    {order.paymentSummary.remainingAmountUsd > 0 ? (
+                      <span className="text-amber-300/80"> · Remaining {formatUsd(order.paymentSummary.remainingAmountUsd)}</span>
+                    ) : null}
+                  </p>
+                ) : null}
               </div>
 
               <span className="shrink-0 self-start rounded-lg border border-white/10 px-3.5 py-2 text-center text-xs font-semibold text-white/80 sm:self-center">
