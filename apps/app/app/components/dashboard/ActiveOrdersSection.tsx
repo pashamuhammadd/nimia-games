@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { cn } from "@nimia/ui";
+import type { OrderPaymentSummary } from "@/modules/order/pricing/order-payment-summary";
 
 export type ActiveOrderItem = {
   id: string;
@@ -11,6 +12,13 @@ export type ActiveOrderItem = {
   dotClass: string;
   progress: number;
   updatedLabel: string;
+  // Fase 8 (16 Agustus 2026, Client dashboard payment summary) — null for
+  // a project whose linked order couldn't be resolved (see
+  // getProjectPaymentSummaries' own header comment); a project with a
+  // resolvable order but $0/no price set still gets a summary object, so
+  // the render below additionally checks totalAmountUsd > 0 before
+  // showing anything.
+  paymentSummary: OrderPaymentSummary | null;
 };
 
 // Deterministic accent gradient per project so the same project always
@@ -33,6 +41,10 @@ function thumbnailGradient(seed: string) {
 function initialsFor(title: string) {
   const words = title.trim().split(/\s+/).filter(Boolean);
   return (words[0]?.[0] ?? "?").toUpperCase() + (words[1]?.[0] ?? "").toUpperCase();
+}
+
+function formatUsd(amount: number) {
+  return `$${amount.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
 }
 
 export function ActiveOrdersSection({
@@ -98,6 +110,23 @@ export function ActiveOrdersSection({
                 </span>
               </div>
               <p className="mt-1.5 text-xs text-white/35">Updated {order.updatedLabel}</p>
+              {/* Payment summary aggregate (16 Agustus 2026, Fase 8) —
+                  FASE0-AUDIT.md problem #12: no single place on a project
+                  card shows what's been paid vs what's left. Only rendered
+                  once a real price exists (paymentSummary null, or
+                  totalAmountUsd === 0, both mean "nothing to summarize
+                  yet" — e.g. a project whose order hasn't been quoted). */}
+              {order.paymentSummary && order.paymentSummary.totalAmountUsd > 0 ? (
+                <p className="mt-1 text-xs font-medium text-white/50">
+                  Paid {formatUsd(order.paymentSummary.paidAmountUsd)} / {formatUsd(order.paymentSummary.totalAmountUsd)}
+                  {order.paymentSummary.remainingAmountUsd > 0 ? (
+                    <span className="text-amber-300/80">
+                      {" "}
+                      · Remaining {formatUsd(order.paymentSummary.remainingAmountUsd)}
+                    </span>
+                  ) : null}
+                </p>
+              ) : null}
             </div>
 
             <Link

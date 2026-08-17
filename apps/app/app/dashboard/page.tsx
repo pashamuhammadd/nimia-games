@@ -7,6 +7,7 @@ import { RecentActivityTimeline, type ActivityItem } from "../components/dashboa
 import { EmptyDashboardState } from "../components/dashboard/EmptyDashboardState";
 import { projectStatusMeta, projectActivityLabel } from "../lib/projectStatus";
 import { formatRelativeTime } from "../lib/relativeTime";
+import { getProjectPaymentSummaries } from "@/modules/order/pricing/order-payment-summary";
 
 export const metadata = { title: "Dashboard" };
 
@@ -50,7 +51,12 @@ export default async function DashboardOverviewPage() {
         supabase.from("orders").select("id", { count: "exact", head: true }).eq("client_id", client.id),
         supabase
           .from("projects")
-          .select("id, title, status, progress, updated_at")
+          // order_id added (16 Agustus 2026, Fase 8 Client Dashboard —
+          // payment summary on project card) — see
+          // @/modules/order/pricing/order-payment-summary's
+          // getProjectPaymentSummaries, which needs it to join through to
+          // orders/order_installments below.
+          .select("id, title, status, progress, updated_at, order_id")
           .eq("client_id", client.id)
           .order("updated_at", { ascending: false })
           .limit(50),
@@ -88,7 +94,18 @@ export default async function DashboardOverviewPage() {
     pendingPaymentCount = paymentCount ?? 0;
     activeOrdersCount = allProjects.filter((p) => !["completed", "cancelled"].includes(p.status)).length;
 
-    activeOrders = allProjects.slice(0, 3).map((p) => {
+    // Payment summary (16 Agustus 2026, Fase 8) — only computed for the
+    // top 3 projects actually rendered on this overview card (not all
+    // `allProjects`, which can be up to 50) since that's all
+    // ActiveOrdersSection ever shows; /dashboard/projects computes it for
+    // its own full, paginated-by-page list separately.
+    const topProjects = allProjects.slice(0, 3);
+    const paymentSummaries = await getProjectPaymentSummaries(
+      supabase,
+      topProjects.map((p) => ({ id: p.id, orderId: p.order_id })),
+    );
+
+    activeOrders = topProjects.map((p) => {
       const meta = projectStatusMeta(p.status);
       return {
         id: p.id,
@@ -97,6 +114,7 @@ export default async function DashboardOverviewPage() {
         dotClass: meta.dotClass,
         progress: p.progress,
         updatedLabel: formatRelativeTime(p.updated_at),
+        paymentSummary: paymentSummaries.get(p.id) ?? null,
       };
     });
 

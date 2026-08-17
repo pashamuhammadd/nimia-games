@@ -84,3 +84,100 @@ export function getOrderPaymentSummary(input: {
 
   return { totalAmountUsd: total, paidAmountUsd: paid, remainingAmountUsd: remaining, paymentStatus, hasInstallments };
 }
+
+// ----------------------------------------------------------------------
+// getProjectPaymentSummaries — Fase 8 (Client dashboard, payment summary
+// on the project card) of the 16 Agustus 2026 Order/Payment/Invoice
+// refactor. FASE0-AUDIT.md's Current Problems item #12: "Client dashboard
+// tidak punya ringkasan 'Paid $150/$300, Remaining $150' di level project
+// card — InstallmentSchedule.tsx menunjukkan tiap milestone tapi tidak ada
+// agregat di satu tempat."
+//
+// `projects` itself carries no payment data — the join path is
+// projects.order_id -> orders -> order_installments (projects.order_id is
+// a nullable, unique FK, see packages/db/migrations/0003_orders_projects.sql).
+// This is the same "one batched query keyed off the ids already in hand,
+// not N+1" pattern apps/app/app/dashboard/orders/page.tsx already
+// established for the Orders list — extracted here so both dashboard
+// surfaces that show project cards (the /dashboard overview's
+// ActiveOrdersSection and /dashboard/projects' ProjectsList) share one
+// implementation instead of two hand-copied versions drifting apart.
+//
+// A project with no linked order (order_id null — shouldn't normally
+// happen since projects are only ever created from a paid order via
+// orders_create_project_after_paid, 0029, but the column is nullable) or
+// whose linked order 404s under RLS simply gets `null` in the returned
+// map; callers render nothing rather than a fabricated $0 summary.
+//
+// `supabase` is left untyped (matches this module's and the rest of
+// apps/app's existing posture — Database is still the `any` placeholder,
+// see packages/db/src/types.ts) rather than importing a client type this
+// codebase doesn't actually have generated yet.
+export interface ProjectPaymentJoinInput {
+  id: string;
+  orderId: string | null;
+}
+
+export async function getProjectPaymentSummaries(
+  supabase: any,
+  projects: ProjectPaymentJoinInput[],
+): Promise<Map<string, OrderPaymentSummary | null>> {
+  const result = new Map<string, OrderPaymentSummary | null>();
+
+  const projectsWithOrder = projects.filter((p) => p.orderId != null);
+  if (projectsWithOrder.length === 0) return result;
+
+  const orderIds = Array.from(new Set(projectsWithOrder.map((p) => p.orderId as string)));
+
+  // RLS (orders_select_own_or_admin) already scopes this to orders the
+  // signed-in client owns regardless — the explicit .in() is just to
+  // avoid over-fetching, same posture orders/page.tsx's own comment
+  // documents for its identical installments batch-fetch below.
+  const { data: orderRows } = await supabase
+    .from("orders")
+    .select("id, final_price_usd, status, payment_method")
+    .in("id", orderIds);
+
+  const ordersById = new Map<string, { final_price_usd: number | null; status: string; payment_method: string | null }>();
+  for (const o of (orderRows ?? []) as any[]) ordersById.set(o.id, o);
+
+  const installmentOrderIds = (orderRows ?? [])
+    .filter((o: any) => o.payment_method != null)
+    .map((o: any) => o.id as string);
+
+  const installmentsByOrderId = new Map<string, { amountUsd: number; status: AnyInstallmentStatus }[]>();
+  if (installmentOrderIds.length > 0) {
+    const { data: installmentRows } = await supabase
+      .from("order_installments")
+      .select("order_id, amount_usd, status")
+      .in("order_id", installmentOrderIds);
+
+    for (const row of (installmentRows ?? []) as any[]) {
+      const list = installmentsByOrderId.get(row.order_id) ?? [];
+      list.push({ amountUsd: Number(row.amount_usd), status: row.status });
+      installmentsByOrderId.set(row.order_id, list);
+    }
+  }
+
+  for (const project of projectsWithOrder) {
+    const order = ordersById.get(project.orderId as string);
+    if (!order) {
+      // Order not found (shouldn't happen for a real project, but RLS or
+      // a deleted order — projects.order_id is `on delete set null`, so
+      // this branch is mostly theoretical) — no summary rather than a
+      // fabricated one.
+      result.set(project.id, null);
+      continue;
+    }
+    result.set(
+      project.id,
+      getOrderPaymentSummary({
+        finalPriceUsd: order.final_price_usd,
+        orderStatus: order.status,
+        installments: installmentsByOrderId.get(project.orderId as string) ?? [],
+      }),
+    );
+  }
+
+  return result;
+}

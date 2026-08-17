@@ -7,6 +7,7 @@ import { Gift } from "lucide-react";
 import { Modal, cn } from "@nimia/ui";
 import { projectStatusMeta } from "../../lib/projectStatus";
 import { formatRelativeTime } from "../../lib/relativeTime";
+import type { OrderPaymentSummary } from "@/modules/order/pricing/order-payment-summary";
 
 // Real implementation (10 Agustus 2026) — replaces the "Coming in Phase 5"
 // placeholder. Read-only for the client (projects_select_own_or_admin,
@@ -29,7 +30,15 @@ export type ProjectRow = {
   deadline: string | null;
   createdAt: string;
   updates: ProjectUpdateRow[];
+  // Fase 8 (16 Agustus 2026, Client dashboard payment summary) — null for
+  // a project whose linked order couldn't be resolved (see
+  // getProjectPaymentSummaries' own header comment).
+  paymentSummary: OrderPaymentSummary | null;
 };
+
+function formatUsd(amount: number) {
+  return `$${amount.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+}
 
 export function ProjectsList({ projects }: { projects: ProjectRow[] }) {
   const [selected, setSelected] = React.useState<ProjectRow | null>(null);
@@ -66,6 +75,22 @@ export function ProjectsList({ projects }: { projects: ProjectRow[] }) {
                 {project.progress}% complete · Started {formatRelativeTime(project.createdAt)}
                 {project.deadline ? ` · Deadline ${project.deadline}` : ""}
               </p>
+              {/* Payment summary aggregate (16 Agustus 2026, Fase 8) —
+                  FASE0-AUDIT.md problem #12: "InstallmentSchedule.tsx
+                  menunjukkan tiap milestone tapi tidak ada agregat di satu
+                  tempat." Only rendered once a real price exists. */}
+              {project.paymentSummary && project.paymentSummary.totalAmountUsd > 0 ? (
+                <p className="text-xs font-medium text-white/50">
+                  Paid {formatUsd(project.paymentSummary.paidAmountUsd)} /{" "}
+                  {formatUsd(project.paymentSummary.totalAmountUsd)}
+                  {project.paymentSummary.remainingAmountUsd > 0 ? (
+                    <span className="text-amber-300/80">
+                      {" "}
+                      · Remaining {formatUsd(project.paymentSummary.remainingAmountUsd)}
+                    </span>
+                  ) : null}
+                </p>
+              ) : null}
             </motion.button>
           );
         })}
@@ -92,6 +117,20 @@ export function ProjectsList({ projects }: { projects: ProjectRow[] }) {
                   style={{ width: `${Math.min(100, Math.max(0, selected.progress))}%` }}
                 />
               </div>
+              {selected.paymentSummary && selected.paymentSummary.totalAmountUsd > 0 ? (
+                <p className="mt-2 text-xs font-medium text-white/60">
+                  Paid {formatUsd(selected.paymentSummary.paidAmountUsd)} /{" "}
+                  {formatUsd(selected.paymentSummary.totalAmountUsd)}
+                  {selected.paymentSummary.remainingAmountUsd > 0 ? (
+                    <span className="text-amber-300/80">
+                      {" "}
+                      · Remaining {formatUsd(selected.paymentSummary.remainingAmountUsd)}
+                    </span>
+                  ) : (
+                    <span className="text-emerald-300/80"> · Fully paid</span>
+                  )}
+                </p>
+              ) : null}
             </div>
 
             {selected.startDate || selected.deadline ? (

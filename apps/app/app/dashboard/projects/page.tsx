@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
 import { ProjectsList, type ProjectRow } from "./ProjectsList";
+import { getProjectPaymentSummaries } from "@/modules/order/pricing/order-payment-summary";
 
 export const metadata = { title: "Projects" };
 
@@ -25,11 +26,22 @@ export default async function ProjectsPage() {
   if (client) {
     const { data } = await supabase
       .from("projects")
-      .select("id, title, status, progress, start_date, deadline, created_at, project_updates(id, to_status, note, created_at)")
+      // order_id added (16 Agustus 2026, Fase 8 Client Dashboard —
+      // payment summary on project card) — join path to
+      // orders/order_installments, see getProjectPaymentSummaries.
+      .select(
+        "id, title, status, progress, start_date, deadline, created_at, order_id, project_updates(id, to_status, note, created_at)",
+      )
       .eq("client_id", client.id)
       .order("created_at", { ascending: false });
 
-    projects = (data ?? []).map((p: any) => {
+    const rows = data ?? [];
+    const paymentSummaries = await getProjectPaymentSummaries(
+      supabase,
+      rows.map((p: any) => ({ id: p.id, orderId: p.order_id })),
+    );
+
+    projects = rows.map((p: any) => {
       const updates = Array.isArray(p.project_updates) ? p.project_updates : [];
       return {
         id: p.id,
@@ -45,6 +57,7 @@ export default async function ProjectsPage() {
           note: u.note,
           createdAt: u.created_at,
         })),
+        paymentSummary: paymentSummaries.get(p.id) ?? null,
       };
     });
   }
