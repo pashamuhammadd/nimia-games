@@ -212,7 +212,25 @@ from (
       case when exists (
         select 1 from pg_trigger where tgname = 'order_installments_notify_after_status_change'
       ) then 'APPLIED' else 'MISSING' end,
-      'Adds in-app bell coverage for order_installments: staff notified when a milestone payment is submitted, client notified when their milestone is verified or flagged as underpaid. Purely additive trigger, no schema change.')
+      'Adds in-app bell coverage for order_installments: staff notified when a milestone payment is submitted, client notified when their milestone is verified or flagged as underpaid. Purely additive trigger, no schema change.'),
+
+    -- ------------------------------------------------------------------
+    -- Fase 13 (Build verification) click-test bugfix, 18 Agustus 2026.
+    -- ------------------------------------------------------------------
+    (49, '0049_fix_materialize_installments_status_cast',
+      case
+        when not exists (
+          select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public' and p.proname = 'materialize_order_installments'
+        ) then 'MISSING — function not found at all (0038 not applied?)'
+        when (
+          select pg_get_functiondef(p.oid) ilike '%::public.installment_status%'
+          from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public' and p.proname = 'materialize_order_installments'
+        ) then 'APPLIED'
+        else 'MISSING — still the buggy 0038 version (installment_status cast missing), Send for Payment on any installments/cicilan order will fail with "column status is of type installment_status but expression is of type text"'
+      end,
+      'Fixes materialize_order_installments(): the 2-3-milestone CASE expression building the status value resolved to plain text, which Postgres cannot implicitly cast to the installment_status enum. Only affected cicilan (installments) orders, never full_payment. This is a data check on the LIVE function definition (CREATE OR REPLACE), not a new object — cannot go MISSING once applied and re-verified as APPLIED.')
 
 ) as report(migration_no, migration, status, note)
 order by migration_no;
