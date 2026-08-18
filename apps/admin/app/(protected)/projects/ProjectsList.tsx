@@ -51,8 +51,20 @@ function initialsFor(text: string) {
   return (words[0]?.[0] ?? "?").toUpperCase() + (words[1]?.[0] ?? "").toUpperCase();
 }
 
-export function ProjectsList({ projects }: { projects: ProjectRow[] }) {
-  const [query, setQuery] = React.useState("");
+export function ProjectsList({
+  projects,
+  initialQuery = "",
+}: {
+  projects: ProjectRow[];
+  // 18 Agustus 2026, Fase 13 click-test bugfix — pre-fills the search box
+  // when arriving from OrderDetailPanel's "Manage Production" link
+  // (page.tsx reads the `?q=` param and passes it through here), so admin
+  // doesn't land on an unfiltered list after clicking through from an
+  // order. Purely a starting value — the user can still clear/change it
+  // like any normal search input.
+  initialQuery?: string;
+}) {
+  const [query, setQuery] = React.useState(initialQuery);
   const [selected, setSelected] = React.useState<ProjectRow | null>(null);
 
   const filtered = React.useMemo(() => {

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Mail,
   MessageCircle,
@@ -888,17 +889,38 @@ export function OrderDetailPanel({
             </div>
           ) : null}
 
-          {/* Order-level download (16 Agustus 2026, Fase 2 Invoice
-              Architecture — narrowed from `order.status === "paid"` alone).
-              order.status flips to 'paid' the moment installment #1 clears
-              (handle_installment_paid, 0038, product decision #1), which
-              can be while #2/#3 are still unpaid — get_or_create_order_receipt
-              now REQUIRES an explicit installment for a multi-installment
-              order, so this generic link only makes sense for a
-              single-payment order (0 or 1 order_installments row: legacy,
-              or a full_payment order's one materialized row). A
-              multi-milestone order relies on the per-milestone "Receipt"
-              links inside Installment Schedule above instead. */}
+          {/* order.status === "paid" (18 Agustus 2026, Fase 13 click-test
+              bugfix — found by the user: an installment order with
+              milestone #1 verified flips orders.status to 'paid'
+              (handle_installment_paid, 0038, product decision #1) and
+              auto-creates its project row (orders_create_project_on_paid,
+              0029/0045), but this panel used to render NOTHING for that
+              state whenever the order had more than 1 order_installments
+              row — i.e. every installments/cicilan order, always, since
+              that plan always materializes 2-3 rows (materialize_order_
+              installments, 0038). The single condition below used to be
+              `order.status === "paid" && order.order_installments.length
+              <= 1`, which happened to gate BOTH the receipt link AND (by
+              being the only branch matching 'paid' at all) the admin's
+              only visible next step — leaving a completely blank action
+              area for cicilan orders, with no way to discover that
+              /projects already has this order's project ready to move to
+              in_production (the Projects page itself was never broken —
+              its status dropdown has always worked for both payment
+              methods identically, see ProjectDetail.tsx — this panel
+              just never linked to it). Split into two independent
+              conditions: the receipt link keeps its original single-
+              payment-only scope (a multi-milestone order's receipts are
+              per-installment, already available via the "Receipt" links
+              inside Installment Schedule above), while the "Manage
+              Production" link now always shows for ANY 'paid' order,
+              regardless of payment method or how many installments still
+              have money owed — matching operationalStatus.ts's own
+              explicit design (an installment order with production
+              running and a balance still owed is "Active"/"Awaiting Final
+              Payment", not a blocked state). The `?q=` param pre-fills
+              ProjectsList's search box with this order's client label so
+              admin doesn't have to hunt through an unfiltered list. */}
           {order.status === "paid" && order.order_installments.length <= 1 ? (
             <a
               href={`/api/orders/${order.id}/receipt`}
@@ -907,6 +929,16 @@ export function OrderDetailPanel({
               <Download className="h-4 w-4" aria-hidden="true" />
               Download Receipt (PDF)
             </a>
+          ) : null}
+
+          {order.status === "paid" ? (
+            <Link
+              href={`/projects?q=${encodeURIComponent(clientLabel)}`}
+              className="flex w-fit items-center gap-2 rounded-lg bg-[var(--nimia-crimson)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--nimia-crimson-hover)]"
+            >
+              <Milestone className="h-4 w-4" aria-hidden="true" />
+              Manage Production &rarr;
+            </Link>
           ) : null}
 
           {order.status === "rejected" ||

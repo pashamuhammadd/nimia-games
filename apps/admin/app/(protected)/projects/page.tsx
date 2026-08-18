@@ -10,7 +10,17 @@ export const metadata = { title: "Projects" };
 // one — see packages/db/migrations/0029_auto_create_project_on_paid.sql's
 // own comment for the gap and the fix (a trigger + one-time backfill for
 // orders already paid before this migration ran).
-export default async function ProjectsPage() {
+export default async function ProjectsPage({
+  searchParams,
+}: {
+  // `q` (18 Agustus 2026, Fase 13 click-test bugfix) — lets
+  // OrderDetailPanel's new "Manage Production" link pre-fill the search
+  // box with the order's client label, so admin lands directly on the
+  // right project instead of having to find it in an unfiltered list.
+  // See OrderDetailPanel.tsx's own comment on the button this supports.
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const supabase = createServerClient(await cookies());
 
   const { data } = await supabase
@@ -77,7 +87,7 @@ export default async function ProjectsPage() {
         </div>
       </div>
 
-      <ProjectsList projects={projects} />
+      <ProjectsList projects={projects} initialQuery={q ?? ""} />
     </div>
   );
 }
