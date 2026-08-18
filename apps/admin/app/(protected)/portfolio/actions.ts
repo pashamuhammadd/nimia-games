@@ -115,12 +115,24 @@ export async function deletePortfolioItemAction(id: string): Promise<PortfolioAc
 // ------------------------------------------------------------------
 // Sync from Cloudinary — manual bulk backfill (spec §15), complementing
 // apps/portfolio's real-time webhook. Lists every asset under
-// CLOUDINARY_PORTFOLIO_ROOT_FOLDER via the Cloudinary Admin API and
-// upserts each one, using the exact same mapping rules as the webhook
-// (see mapCloudinaryAssetToPortfolioFields's shared logic). Safe to
-// re-run any time — every write is an upsert keyed on
-// cloudinary_public_id, and editorial fields on a previously
-// hand-edited row are left untouched (same rule as the webhook).
+// CLOUDINARY_PORTFOLIO_ROOT_FOLDER and upserts each one, using the exact
+// same mapping rules as the webhook (see
+// mapCloudinaryAssetToPortfolioFields's shared logic). Safe to re-run
+// any time — every write is an upsert keyed on cloudinary_public_id,
+// and editorial fields on a previously hand-edited row are left
+// untouched (same rule as the webhook).
+//
+// Uses the Search API (cloudinary.search), NOT cloudinary.api.resources
+// with a `prefix` filter (added 18 Agustus 2026, fixed a real "0
+// scanned" bug). `prefix` matches against the asset's public_id, which
+// only lines up with its visible folder path under Cloudinary's legacy
+// "Fixed Folder Mode". Accounts on the newer "Dynamic Asset Folders"
+// mode (the default for accounts created after Cloudinary's ~2023
+// folder revamp — this account included) decouple the folder shown in
+// Media Library from the public_id, so a prefix search silently finds
+// nothing even when the folder clearly has assets in it. The Search
+// API's `folder:` expression matches the asset's actual folder
+// location and works correctly under both modes.
 //
 // Known limitation: this runs inside a single server action invocation,
 // so a truly huge library (many thousands of assets) could hit a
@@ -142,27 +154,30 @@ interface CloudinaryResource {
 }
 
 const ROOT_FOLDER = process.env.CLOUDINARY_PORTFOLIO_ROOT_FOLDER || "nimia-studio";
-const MAX_PAGES_PER_RESOURCE_TYPE = 10; // 500/page -> up to 5,000 assets per type per click
+const MAX_SEARCH_PAGES = 20; // 500/page -> up to 10,000 assets per click
 const SYNC_CONCURRENCY = 8;
 
-async function listAllCloudinaryResources(resourceType: "image" | "video"): Promise<CloudinaryResource[]> {
+async function listAllCloudinaryResources(): Promise<CloudinaryResource[]> {
   const all: CloudinaryResource[] = [];
+  // Matches assets placed directly in the root folder AND anything
+  // nested under it (any depth) — covers both "loose" uploads and the
+  // 1x1 / 16:9 / <client-name> subfolder layout this studio actually
+  // uses.
+  const expression = `folder:${ROOT_FOLDER} OR folder:${ROOT_FOLDER}/*`;
   let cursor: string | undefined;
   let pages = 0;
   do {
-    const response = await cloudinary.api.resources({
-      type: "upload",
-      resource_type: resourceType,
-      prefix: ROOT_FOLDER,
-      context: true,
-      tags: true,
-      max_results: 500,
-      next_cursor: cursor,
-    });
+    let query = cloudinary.search
+      .expression(expression)
+      .with_field("context")
+      .with_field("tags")
+      .max_results(500);
+    if (cursor) query = query.next_cursor(cursor);
+    const response = await query.execute();
     all.push(...(response.resources ?? []));
     cursor = response.next_cursor;
     pages += 1;
-  } while (cursor && pages < MAX_PAGES_PER_RESOURCE_TYPE);
+  } while (cursor && pages < MAX_SEARCH_PAGES);
   return all;
 }
 
@@ -193,11 +208,7 @@ export async function syncFromCloudinaryAction(): Promise<SyncResult> {
 
   let resources: CloudinaryResource[];
   try {
-    const [images, videos] = await Promise.all([
-      listAllCloudinaryResources("image"),
-      listAllCloudinaryResources("video"),
-    ]);
-    resources = [...images, ...videos];
+    resources = await listAllCloudinaryResources();
   } catch {
     return { success: false, error: "Couldn't reach Cloudinary. Please try again." };
   }
