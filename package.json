@@ -13,11 +13,13 @@
     "dev:studio": "turbo run dev --filter=studio",
     "dev:app": "turbo run dev --filter=app",
     "dev:admin": "turbo run dev --filter=admin",
+    "dev:portfolio": "turbo run dev --filter=portfolio",
     "build": "turbo run build",
     "build:www": "turbo run build --filter=www",
     "build:studio": "turbo run build --filter=studio",
     "build:app": "turbo run build --filter=app",
     "build:admin": "turbo run build --filter=admin",
+    "build:portfolio": "turbo run build --filter=portfolio",
     "lint": "turbo run lint",
     "test": "turbo run test"
   },

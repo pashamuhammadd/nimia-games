@@ -16,6 +16,7 @@ import {
   LifeBuoy,
   Handshake,
   Bot,
+  Clapperboard,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@nimia/ui";
@@ -33,6 +34,12 @@ export const ADMIN_NAV_ITEMS: { href: string; label: string; icon: LucideIcon; f
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/invoices", label: "Invoices", icon: Receipt },
   { href: "/services", label: "Services", icon: Boxes },
+  // Animation Portfolio curation (18 Agustus 2026) — publish/feature/
+  // reorder/edit items for portfolio.nimiastudio.com and manually
+  // backfill from Cloudinary. Same is_admin()-only visibility as
+  // Services/Vouchers/Quests above, not founderOnly (content curation,
+  // not a money-moving action). See apps/admin/app/(protected)/portfolio/.
+  { href: "/portfolio", label: "Portfolio", icon: Clapperboard },
   // Vouchers/Quests (4 Agustus 2026, P1) — not founderOnly, staff manages
   // these same as Orders/Clients/Projects.
   { href: "/vouchers", label: "Vouchers", icon: Ticket },

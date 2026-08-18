@@ -1,0 +1,154 @@
+@import "tailwindcss";
+
+/* Same reason as apps/studio/app/globals.css's identical line: Tailwind
+   v4's automatic content detection excludes node_modules, and @nimia/ui is
+   resolved here through a workspace symlink — without this, classes that
+   only ever appear inside packages/ui/src/components/*.tsx (Button's
+   "primary" variant, etc.) can silently fail to generate. Path is relative
+   to this file: app/ -> portfolio/ -> apps/ -> repo root. */
+@source "../../../packages/ui/src";
+
+/*
+ * Design tokens — this app is dark EVERYWHERE (no dashboard, no light
+ * mode; it's a public cinematic gallery, spec §35 explicitly rules out a
+ * light/SaaS look), so unlike apps/studio's globals.css (which scopes dark
+ * mode to a ".nimia-dark" class layered over a light-by-default :root),
+ * these are just set directly on :root. Same variable NAMES and VALUES as
+ * apps/studio's ".nimia-dark" block, so @nimia/ui's Button/Card/Modal/etc.
+ * re-theme automatically with zero per-component changes, and the two
+ * subdomains read as one brand.
+ */
+:root {
+  --background: #0a0407;
+  --foreground: #ffffff;
+
+  --nimia-maroon: #2b0a1a;
+  --nimia-crimson: #c1124d;
+  --nimia-crimson-hover: #a30f42;
+  --nimia-pink: #ff4d8d;
+
+  --nimia-border: rgba(255, 255, 255, 0.09);
+  --nimia-surface: rgba(255, 255, 255, 0.04);
+  --nimia-surface-hover: rgba(255, 255, 255, 0.08);
+  --nimia-muted: #b3a2aa;
+  --nimia-popover: rgba(23, 6, 15, 0.97);
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sora), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+::selection {
+  background: rgba(193, 18, 77, 0.25);
+  color: var(--foreground);
+}
+
+/* Same cascade-layer reasoning as apps/studio/app/globals.css: Tailwind v4
+   emits its own utilities inside named layers, and an unlayered `a { }`
+   rule always beats a layered utility regardless of source order/
+   specificity — wrapping this in @layer base lets Tailwind text-color
+   utilities on <Link>/<a> win as expected. */
+@layer base {
+  a {
+    color: var(--nimia-crimson);
+  }
+}
+
+.nimia-font-display {
+  font-family: var(--font-rajdhani), var(--font-sora), Arial, sans-serif;
+}
+
+.nimia-gradient-text {
+  background: linear-gradient(135deg, var(--nimia-crimson), var(--nimia-pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Card hover — premium, restrained (spec §10: 1.015–1.03 scale, 200–350ms,
+   no bounce). motion-safe: only, so prefers-reduced-motion visitors just
+   get the brightness/metadata change with no transform at all. */
+.nimia-card-hover {
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1), border-color 280ms ease-out;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .nimia-card-hover:hover,
+  .nimia-card-hover:focus-visible {
+    transform: scale(1.02);
+  }
+}
+
+.nimia-card-hover:hover,
+.nimia-card-hover:focus-visible {
+  border-color: rgba(255, 77, 141, 0.35);
+}
+
+/* Skeleton shimmer for PortfolioSkeleton (spec §30: "loading skeletons
+   that match the actual gallery shape"). */
+@keyframes nimia-shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.nimia-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.08) 37%,
+    rgba(255, 255, 255, 0.04) 63%
+  );
+  background-size: 800px 100%;
+  animation: nimia-shimmer 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nimia-skeleton {
+    animation: none;
+  }
+}
+
+/* Hides the scrollbar chrome on the horizontally-scrolling mobile category
+   nav (spec §6/§22) while staying fully swipe/drag scrollable. */
+.nimia-no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.nimia-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Modal entrance/exit (spec §12/§27 — 200–600ms range). Applied via
+   Framer Motion's AnimatePresence in PortfolioModal.tsx normally; this
+   class is the CSS-only fallback marker kept here for any non-JS entry
+   point (none currently), documented for consistency with the rest of
+   this file's motion classes. */
+@keyframes nimia-modal-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.nimia-modal-in {
+  animation: nimia-modal-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nimia-modal-in {
+    animation: none;
+  }
+}
