@@ -10,6 +10,7 @@ export type NotificationType =
   | "order_new"
   | "order_negotiation_offer"
   | "order_payment_submitted"
+  | "order_installment_submitted"
   | "support_ticket_new"
   | "partner_withdrawal_requested"
   | (string & {});
@@ -18,6 +19,12 @@ export const NOTIFICATION_TYPE_META: Record<string, { icon: LucideIcon; accentCl
   order_new: { icon: Package, accentClass: "bg-sky-500/15 text-sky-400" },
   order_negotiation_offer: { icon: MessageSquare, accentClass: "bg-amber-500/15 text-amber-400" },
   order_payment_submitted: { icon: Wallet, accentClass: "bg-sky-500/15 text-sky-400" },
+  // Installment coverage (16 Agustus 2026, Fase 10 — see
+  // packages/db/migrations/0048_installment_notifications.sql). Same icon/
+  // accent as the whole-order equivalent above — same kind of event
+  // ("a payment is waiting on staff to verify"), just scoped to one
+  // milestone instead of the whole order.
+  order_installment_submitted: { icon: Wallet, accentClass: "bg-sky-500/15 text-sky-400" },
   support_ticket_new: { icon: LifeBuoy, accentClass: "bg-emerald-500/15 text-emerald-400" },
   referral_signup: { icon: Handshake, accentClass: "bg-pink-500/15 text-[var(--nimia-pink)]" },
   // Withdrawal system (11 Agustus 2026, migration 0033) — fired when a

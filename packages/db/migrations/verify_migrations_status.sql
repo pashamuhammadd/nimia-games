@@ -203,7 +203,16 @@ from (
         select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
         where t.typname = 'order_flow_type' and e.enumlabel = 'creative_agent'
       ) then 'APPLIED' else 'MISSING' end,
-      'Adds ''creative_agent'' to the order_flow_type enum — lets Creative Agent orders (apps/studio) be told apart from real Custom Order Builder submissions, which both used to write ''custom''.')
+      'Adds ''creative_agent'' to the order_flow_type enum — lets Creative Agent orders (apps/studio) be told apart from real Custom Order Builder submissions, which both used to write ''custom''.'),
+
+    -- ------------------------------------------------------------------
+    -- Fase 10 (Notification) of the 16 Agustus 2026 refactor.
+    -- ------------------------------------------------------------------
+    (48, '0048_installment_notifications',
+      case when exists (
+        select 1 from pg_trigger where tgname = 'order_installments_notify_after_status_change'
+      ) then 'APPLIED' else 'MISSING' end,
+      'Adds in-app bell coverage for order_installments: staff notified when a milestone payment is submitted, client notified when their milestone is verified or flagged as underpaid. Purely additive trigger, no schema change.')
 
 ) as report(migration_no, migration, status, note)
 order by migration_no;

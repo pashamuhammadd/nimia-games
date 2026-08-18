@@ -30,6 +30,9 @@ export type NotificationType =
   | "referral_signup"
   | "partner_withdrawal_sent"
   | "partner_withdrawal_rejected"
+  | "order_installment_due"
+  | "order_installment_verified"
+  | "order_installment_flagged"
   | (string & {});
 
 export const NOTIFICATION_TYPE_META: Record<string, { icon: LucideIcon; accentClass: string }> = {
@@ -44,6 +47,16 @@ export const NOTIFICATION_TYPE_META: Record<string, { icon: LucideIcon; accentCl
   // founder approves/rejects a partner's withdrawal request.
   partner_withdrawal_sent: { icon: Wallet, accentClass: "bg-emerald-500/15 text-emerald-400" },
   partner_withdrawal_rejected: { icon: Wallet, accentClass: "bg-red-500/15 text-red-400" },
+  // Installment coverage (16 Agustus 2026, Fase 10 — see
+  // packages/db/migrations/0048_installment_notifications.sql).
+  // order_installment_due itself was ALREADY being written by
+  // handle_installment_paid since 0038 (12 Agustus 2026) — it just never
+  // got an entry here, so it silently fell back to the generic Bell icon
+  // this whole time. Backfilled in the same pass as the two genuinely new
+  // types below since it's the same class of gap.
+  order_installment_due: { icon: Wallet, accentClass: "bg-sky-500/15 text-sky-400" },
+  order_installment_verified: { icon: Wallet, accentClass: "bg-emerald-500/15 text-emerald-400" },
+  order_installment_flagged: { icon: Wallet, accentClass: "bg-red-500/15 text-red-400" },
 };
 
 export function notificationTypeMeta(type: string) {
