@@ -1,9 +1,17 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { PartyPopper } from "lucide-react";
+import { PartyPopper, MessageCircle } from "lucide-react";
 import { Button, buttonVariants, cn } from "@nimia/ui";
+// Reuses the exact same server action the /dashboard/support ticket form
+// calls (see app/dashboard/support/actions.ts) — a client who just
+// submitted an order is always authenticated (submit() redirects to
+// /login otherwise, see use-order-wizard.ts), so it's safe to fire this
+// straight from the confirmation screen below instead of routing them to
+// a second form to retype what they just wrote in their brief.
+import { createSupportTicketAction } from "@/app/dashboard/support/actions";
 import { useOrderWizard } from "../state/use-order-wizard";
 import { BUNDLE_PACKAGES } from "../data/bundle-packages";
 import { OrderHeader } from "./order-header";
@@ -86,6 +94,55 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
 
   const selectedPackage = wizard.service?.packages?.find((pkg) => pkg.id === wizard.state.packageId) ?? null;
 
+  // "Discuss on Discord" button (18 Agustus 2026, per user request) — lets
+  // a client jump straight from the confirmation screen into a Discord
+  // ticket about the brief they just submitted, instead of navigating to
+  // /dashboard/support and retyping it. Local to this component (not part
+  // of useOrderWizard) since it's pure UI feedback for one button, not
+  // order-wizard state anything else needs.
+  const [discordTicketStatus, setDiscordTicketStatus] = React.useState<"idle" | "pending" | "success" | "error">(
+    "idle",
+  );
+  const [discordTicketError, setDiscordTicketError] = React.useState<string | null>(null);
+
+  const handleOpenDiscordTicket = React.useCallback(() => {
+    if (discordTicketStatus === "pending" || discordTicketStatus === "success") return;
+    setDiscordTicketStatus("pending");
+    setDiscordTicketError(null);
+
+    const projectTitle = wizard.state.brief.projectTitle.trim();
+    const projectDescription = wizard.state.brief.projectDescription.trim();
+    // Same ORD-XXXXXXXX short form submitOrderAction/submitCustomOrderAction
+    // already use for their own success messages — re-derived here from the
+    // raw uuid wizard.submittedOrderId holds, rather than adding a new
+    // order_id column to support_tickets (0027) just for this.
+    const orderRef = wizard.submittedOrderId ? `ORD-${wizard.submittedOrderId.slice(0, 8).toUpperCase()}` : null;
+
+    const subject = `Let's discuss my brief${projectTitle ? ` — ${projectTitle}` : ""}`.slice(0, 120);
+    const message = [
+      orderRef
+        ? `I just submitted order ${orderRef} and would like to go over the brief in more detail.`
+        : "I just submitted a project and would like to go over the brief in more detail.",
+      projectDescription,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    createSupportTicketAction(subject, message)
+      .then((result) => {
+        if (!result.success) {
+          setDiscordTicketStatus("error");
+          setDiscordTicketError(result.error);
+          return;
+        }
+        setDiscordTicketStatus("success");
+      })
+      .catch(() => {
+        setDiscordTicketStatus("error");
+        setDiscordTicketError("Something went wrong opening the ticket. Please try again.");
+      });
+  }, [discordTicketStatus, wizard.state.brief.projectTitle, wizard.state.brief.projectDescription, wizard.submittedOrderId]);
+
   if (wizard.submitted) {
     return (
       <div className="nimia-dark min-h-screen">
@@ -102,7 +159,7 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
               ? "Thanks for configuring your project with Nimia Studio. Our team will review your offer and either approve it or send a counter offer. You can follow the negotiation from your dashboard."
               : "Thanks for configuring your project with Nimia Studio. Our team will review it and follow up with a final quotation shortly."}
           </p>
-          <div className="mt-8 flex gap-3">
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Button onClick={() => wizard.startOver()} variant="outline">
               Start a new project
             </Button>
@@ -115,7 +172,28 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
             >
               Go to dashboard
             </Link>
+            <Button
+              onClick={handleOpenDiscordTicket}
+              variant="outline"
+              isLoading={discordTicketStatus === "pending"}
+              disabled={discordTicketStatus === "success"}
+              className={
+                discordTicketStatus === "success"
+                  ? "border-emerald-500/40 text-emerald-400"
+                  : "border-[#5865F2]/40 text-[#8993f7] hover:bg-[#5865F2]/10"
+              }
+            >
+              <MessageCircle className="h-4 w-4" aria-hidden="true" />
+              {discordTicketStatus === "success" ? "Ticket opened" : "Discuss this brief on Discord"}
+            </Button>
           </div>
+          <p className="mt-3 max-w-sm text-xs text-white/40">
+            {discordTicketStatus === "success"
+              ? "We opened a ticket for your team to follow up — check Discord (if connected) or your dashboard's Support page."
+              : discordTicketStatus === "error" && discordTicketError
+                ? discordTicketError
+                : "Want to talk through the brief before we quote it? Open a ticket and our team will jump in."}
+          </p>
         </main>
       </div>
     );

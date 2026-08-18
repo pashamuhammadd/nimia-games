@@ -219,6 +219,14 @@ export interface UseOrderWizardResult {
   submitError: string | null;
   submitted: boolean;
   submittedIntent: SubmitIntent | null;
+  /** The just-created order's raw id (added 18 Agustus 2026, for the
+   * "Discuss on Discord" button on the submitted screen — see
+   * order-wizard.tsx). Null until a submission succeeds, cleared again by
+   * startOver(). Kept as the raw uuid (not the ORD-XXXXXXXX display id
+   * submitOrderAction/submitCustomOrderAction hand back in their success
+   * toasts) since the Discord ticket message re-derives the short display
+   * form itself, the same way createSupportTicketAction does for tickets. */
+  submittedOrderId: string | null;
   /** Step 0's answer (added 3 Agustus 2026, per user request) — null until
    * chosen, see OrderTypeSelector/order-wizard.tsx's render branch. */
   orderType: OrderType | null;
@@ -294,6 +302,7 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [submitted, setSubmitted] = React.useState(false);
   const [submittedIntent, setSubmittedIntent] = React.useState<SubmitIntent | null>(null);
+  const [submittedOrderId, setSubmittedOrderId] = React.useState<string | null>(null);
   // Tiered installment fees (18 Agustus 2026) — defaults match
   // installment_settings' own DB defaults (0051) so the Payment Method
   // step never shows "+0%" during the brief window before the real values
@@ -910,6 +919,7 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
             }
             setSubmitted(true);
             setSubmittedIntent(intent);
+            setSubmittedOrderId(result.orderId);
             clearOrderState();
           })
           .catch(() => {
@@ -949,6 +959,7 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     setCharacterFileBlobs({});
     setSubmitted(false);
     setSubmittedIntent(null);
+    setSubmittedOrderId(null);
     setSubmitError(null);
     setState(INITIAL_ORDER_STATE);
   }, []);
@@ -971,6 +982,7 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     submitError,
     submitted,
     submittedIntent,
+    submittedOrderId,
     orderType: state.orderType,
     selectOrderType,
     resetOrderType,
