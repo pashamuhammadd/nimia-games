@@ -32,7 +32,6 @@ import {
   rejectNegotiationAction,
   verifyPaymentAction,
   flagUnderpaidPaymentAction,
-  setOrderPaymentPlanAction,
   verifyInstallmentPaymentAction,
   flagUnderpaidInstallmentAction,
   type OrderActionResult,
@@ -69,28 +68,6 @@ export function OrderDetailPanel({
   const [actionTaken, setActionTaken] = React.useState<string | null>(null);
   const [counterOffer, setCounterOffer] = React.useState("");
   const [underpaidNote, setUnderpaidNote] = React.useState("");
-  // Payment Plan picker (15 Agustus 2026, generalized same day from Custom
-  // Order only to every order flow — see setOrderPaymentPlanAction's
-  // comment in ./actions.ts for why this has to be set/confirmed before
-  // the order moves to Awaiting Payment). Defaults to whatever the CLIENT
-  // already picked at submission (every order carries a payment_method
-  // from the wizard now, not just Custom Order — see
-  // apps/app/modules/order/state/submit-order-action.ts) rather than
-  // always "full_payment" — Admin is refining/confirming the client's own
-  // choice here, not starting from a blank slate that happens to silently
-  // default to the wrong lane. Falls back to "full_payment" only for a
-  // legacy order that predates the client wizard carrying this field at
-  // all. Safe to read directly off `order` in useState's initializer
-  // because OrderDetailPanel now remounts per order id (see OrdersList.tsx's
-  // `key={selected.id}`) — this only ever runs once per actual order shown.
-  const [paymentMethodChoice, setPaymentMethodChoice] = React.useState<"full_payment" | "installments">(
-    order.payment_method ?? "full_payment",
-  );
-  const [planChoice, setPlanChoice] = React.useState<"two_milestones" | "three_milestones" | "custom">(
-    "two_milestones",
-  );
-  const [customPercentagesText, setCustomPercentagesText] = React.useState("");
-  const [customLabelsText, setCustomLabelsText] = React.useState("");
   // Per-installment note/result state (15 Agustus 2026, admin installment
   // UI) — keyed by installment id rather than the single `underpaidNote`/
   // `actionTaken` above, since an order can have 2-3 installments and
@@ -98,7 +75,6 @@ export function OrderDetailPanel({
   // others the moment one is handled.
   const [installmentNotes, setInstallmentNotes] = React.useState<Record<string, string>>({});
   const [installmentActionTaken, setInstallmentActionTaken] = React.useState<Record<string, string>>({});
-  const [planSavedMessage, setPlanSavedMessage] = React.useState<string | null>(null);
   // Prefilled with the client's own price-calculator estimate, if any (5
   // Agustus 2026, bug fix — see sendQuotationForPaymentAction's comment in
   // ./actions.ts for why this field exists at all: a plain "Submit Order"
@@ -151,24 +127,6 @@ export function OrderDetailPanel({
         return;
       }
       setInstallmentActionTaken((prev) => ({ ...prev, [installmentId]: doneMessage }));
-      router.refresh();
-    });
-  }
-
-  // Same shape as `run`, but deliberately does NOT set the panel-wide
-  // `actionTaken` — saving a payment plan is a configuration step, not a
-  // terminal action, and the admin still needs Approve & Send
-  // Quotation/Accept Offer etc. below to stay visible afterward.
-  function runPlanSave(action: () => Promise<OrderActionResult>, doneMessage: string) {
-    setError(null);
-    setPlanSavedMessage(null);
-    startTransition(async () => {
-      const result = await action();
-      if (!result.success) {
-        setError(result.error);
-        return;
-      }
-      setPlanSavedMessage(doneMessage);
       router.refresh();
     });
   }
@@ -269,165 +227,36 @@ export function OrderDetailPanel({
         <p className="mt-1 text-sm text-white/80">{order.services?.name ?? order.package_name ?? "Custom Project"}</p>
       </div>
 
-      {/* Payment Plan picker (15 Agustus 2026, generalized same day from
-          Custom Order only to EVERY order — see setOrderPaymentPlanAction's
-          own comment in ./actions.ts for why this is safe: the underlying
-          trigger, materialize_order_installments (0038), was never actually
-          order_flow_type-specific, only payment_method-specific).
-
-          Gated on STATUS alone now, not "payment_method is still null" —
-          that used to effectively make this picker dead code: every order
-          (Custom included, since 12 Agustus 2026) already carries a
-          client-chosen payment_method from the wizard by the time Admin
-          ever sees it (see submit-order-action.ts), so `!order.payment_method`
-          was almost never true and Admin had no real way to act on the
-          spec's own product decision #4 — "which milestone schedule (2 vs 3
-          vs custom split) applies is chosen by Admin during review" (0038's
-          comment) — because this section simply never rendered to let them
-          choose it. Now it stays visible through every pre-payment status
-          so Admin can either confirm the client's own choice (pre-filled,
-          see paymentMethodChoice's useState initializer above) and pick the
-          milestone split, or override the method entirely (e.g. the price
-          got renegotiated down enough that installments no longer make
-          sense) — right up until the order actually reaches Awaiting
-          Payment, exactly like setOrderPaymentPlanAction's own comment
-          says. */}
-      {["pending_review", "negotiating", "quotation_sent"].includes(order.status) ? (
-        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
-          <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/35">
-            <CreditCard className="h-3.5 w-3.5" aria-hidden="true" />
-            Payment Plan
-          </span>
-          <p className="mt-1 text-xs text-white/45">
-            {order.payment_method
-              ? `The client chose ${order.payment_method === "installments" ? "Installments" : "Full Payment"} at checkout — confirm it below, pick the milestone split if applicable, or override it. Locks in once this order moves to Awaiting Payment.`
-              : "Choose how this client will pay before sending/accepting a price — this can't be changed once the order moves to Awaiting Payment."}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setPaymentMethodChoice("full_payment")}
-              className={cn(
-                "rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
-                paymentMethodChoice === "full_payment"
-                  ? "border-[var(--nimia-crimson)]/50 bg-[var(--nimia-crimson)]/15 text-white"
-                  : "border-white/10 text-white/60 hover:bg-white/[0.06]",
-              )}
-            >
-              Full Payment
-            </button>
-            <button
-              type="button"
-              onClick={() => setPaymentMethodChoice("installments")}
-              className={cn(
-                "rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
-                paymentMethodChoice === "installments"
-                  ? "border-[var(--nimia-crimson)]/50 bg-[var(--nimia-crimson)]/15 text-white"
-                  : "border-white/10 text-white/60 hover:bg-white/[0.06]",
-              )}
-            >
-              Installments (+fee)
-            </button>
-          </div>
-
-          {paymentMethodChoice === "installments" ? (
-            <div className="mt-3 flex flex-col gap-2.5">
-              <div className="flex flex-wrap gap-2">
-                {(
-                  [
-                    ["two_milestones", "Two Milestones (50/50)"],
-                    ["three_milestones", "Three Milestones (30/30/40)"],
-                    ["custom", "Custom Split"],
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setPlanChoice(value)}
-                    className={cn(
-                      "rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
-                      planChoice === value
-                        ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
-                        : "border-white/10 text-white/60 hover:bg-white/[0.06]",
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              {planChoice === "custom" ? (
-                <div className="flex flex-col gap-2">
-                  <input
-                    type="text"
-                    placeholder="Percentages, comma-separated, must total 100 (e.g. 40,30,30)"
-                    value={customPercentagesText}
-                    onChange={(event) => setCustomPercentagesText(event.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white placeholder:text-white/30 focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Labels, comma-separated, optional (e.g. Kickoff,Midpoint,Delivery)"
-                    value={customLabelsText}
-                    onChange={(event) => setCustomLabelsText(event.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white placeholder:text-white/30 focus:outline-none"
-                  />
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={() => {
-              const percentages = customPercentagesText
-                .split(",")
-                .map((v) => Number(v.trim()))
-                .filter((v) => Number.isFinite(v) && v > 0);
-              const labels = customLabelsText
-                .split(",")
-                .map((v) => v.trim())
-                .filter(Boolean);
-              if (paymentMethodChoice === "installments" && planChoice === "custom" && percentages.length < 2) {
-                setError("Enter at least 2 milestone percentages that add up to 100.");
-                return;
-              }
-              runPlanSave(
-                () =>
-                  setOrderPaymentPlanAction(
-                    order.id,
-                    paymentMethodChoice,
-                    planChoice,
-                    planChoice === "custom" ? percentages : undefined,
-                    planChoice === "custom" ? labels : undefined,
-                  ),
-                paymentMethodChoice === "installments"
-                  ? `Payment plan set to Installments (${planChoice.replace("_", " ")}).`
-                  : "Payment plan set to Full Payment.",
-              );
-            }}
-            className="mt-3 rounded-lg bg-white/10 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:opacity-40"
-          >
-            Save Payment Plan
-          </button>
-          {planSavedMessage ? <p className="mt-2 text-xs text-emerald-400">{planSavedMessage}</p> : null}
-        </div>
-      ) : null}
-
-      {/* Read-only Payment Plan summary — generalized alongside the picker
-          above (15 Agustus 2026), and now the two are properly mutually
-          exclusive by STATUS (not by whether payment_method happens to be
-          set, which is true almost immediately for every order): this
-          shows once the plan is actually locked in (order has left every
-          pre-payment status the picker above covers), the picker shows
-          while it's still changeable. */}
-      {order.payment_method && !["pending_review", "negotiating", "quotation_sent"].includes(order.status) ? (
+      {/* Payment Plan — READ-ONLY (18 Agustus 2026, per user request:
+          "Admin tidak lagi menentukan rencana cicilan/harga — tugas Admin
+          hanya memverifikasi pembayaran yang di-submit"). This used to be
+          an editable picker letting Admin choose Full Payment vs
+          Installments and, for Installments, the 2/3-milestone split or a
+          fully custom percentage breakdown (0038's original product
+          decision #4). That's reversed now: the CLIENT picks the payment
+          method AND the milestone plan itself at submission time (see
+          apps/app/modules/order/components/payment-method-step.tsx and
+          submit-order-action.ts/submit-custom-order-action.ts, which write
+          `payment_method`/`payment_plan` straight from the client's own
+          wizard choice), with a tiered fee baked in server-side (2
+          installments cost less than 3 — see migration
+          0051_tiered_installment_plans.sql's get_installment_fee_percentage).
+          setOrderPaymentPlanAction still exists in ./actions.ts (kept for
+          any legacy/edge-case order that predates this change and never
+          got a plan set), but the primary admin UI no longer calls it —
+          Admin's only remaining job on the payment side is verifying/
+          flagging submitted payments below (verifyPaymentAction/
+          flagUnderpaidPaymentAction/verifyInstallmentPaymentAction/
+          flagUnderpaidInstallmentAction), exactly per the user's request.
+          Shown for every order that has a payment_method at all, at any
+          status — there's no "picker vs summary" status split to maintain
+          anymore, just one plain display of what the client chose. */}
+      {order.payment_method ? (
         <div className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-white/60">
           <CreditCard className="h-3.5 w-3.5 shrink-0 text-white/35" aria-hidden="true" />
           {order.payment_method === "full_payment"
             ? "Full Payment"
-            : `Installments — ${order.payment_plan.replace("_", " ")}`}
+            : `Installments — ${order.payment_plan.replace("_", " ")} (client's choice)`}
           {order.normal_price_usd != null ? (
             <span className="text-white/35">· normal price ${order.normal_price_usd.toLocaleString("en-US")}</span>
           ) : null}

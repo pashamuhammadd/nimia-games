@@ -5,7 +5,6 @@ import {
   Layers,
   SlidersHorizontal,
   FileText,
-  Upload,
   ClipboardCheck,
   Wallet,
 } from "lucide-react";
@@ -17,8 +16,12 @@ export const STEP_META: Record<StepId, { label: string; shortLabel: string; icon
   service: { label: "Service", shortLabel: "Service", icon: Layers },
   package: { label: "Package", shortLabel: "Package", icon: Package },
   configure: { label: "Configure Project", shortLabel: "Configure", icon: SlidersHorizontal },
-  brief: { label: "Project Brief", shortLabel: "Brief", icon: FileText },
-  upload: { label: "Upload Files", shortLabel: "Files", icon: Upload },
+  // "Files" removed from the label (18 Agustus 2026, per user request) now
+  // that Upload Files is merged into this same step instead of its own —
+  // see ORDER_STEPS/BUNDLE_STEPS/CUSTOM_ORDER_STEPS's own comment in
+  // ../types/order-state.ts for why "upload" is no longer a separate
+  // StepId at all.
+  brief: { label: "Project Brief & Files", shortLabel: "Brief", icon: FileText },
   review: { label: "Review Order", shortLabel: "Review", icon: ClipboardCheck },
   // Package/Bundle system (10 Agustus 2026) — reuses the same Package/
   // SlidersHorizontal icons Project Builder already uses elsewhere instead
@@ -28,7 +31,7 @@ export const STEP_META: Record<StepId, { label: string; shortLabel: string; icon
   "package-detail": { label: "Package Details", shortLabel: "Customize", icon: SlidersHorizontal },
   // Custom Order Builder (12 Agustus 2026) — see CUSTOM_ORDER_STEPS'
   // own comment in types/order-state.ts for why only 2 new ids were
-  // needed here (brief/upload/review are reused verbatim).
+  // needed here (brief/review are reused verbatim).
   "custom-services": { label: "Select Services", shortLabel: "Services", icon: Layers },
   "custom-configure": { label: "Configure Services", shortLabel: "Configure", icon: SlidersHorizontal },
   "custom-payment": { label: "Payment Method", shortLabel: "Payment", icon: Wallet },
@@ -54,15 +57,16 @@ export function getStepsForService(service: ServiceDefinition | null): StepId[] 
   if (includePackageStep) steps.push("package");
   // "payment" (15 Agustus 2026) placed right before "review", same spot
   // Custom Order's own "custom-payment" occupies — see ORDER_STEPS' own
-  // comment in types/order-state.ts.
-  steps.push("configure", "brief", "upload", "payment", "review");
+  // comment in types/order-state.ts. "upload" merged into "brief" (18
+  // Agustus 2026) — see that same file's comment.
+  steps.push("configure", "brief", "payment", "review");
   return steps;
 }
 
 /** Package/Bundle system's step sequence (10 Agustus 2026) — a fixed
  * sequence (no service-dependent branching, unlike getStepsForService)
  * since every bundle package goes through the same Browse -> Package Detail
- * -> Brief -> Upload -> Review flow. */
+ * -> Brief -> Review flow. */
 export function getStepsForBundle(): StepId[] {
   return [...BUNDLE_STEPS];
 }
@@ -70,8 +74,8 @@ export function getStepsForBundle(): StepId[] {
 /** Custom Order Builder's step sequence (12 Agustus 2026) — same "fixed
  * sequence" shape as getStepsForBundle above (no service-dependent
  * branching): every Custom Order goes through Select Services -> Configure
- * Services -> Brief -> Upload -> Payment Method -> Review, regardless of
- * which/how many services were picked. */
+ * Services -> Brief -> Payment Method -> Review, regardless of which/how
+ * many services were picked. */
 export function getStepsForCustomOrder(): StepId[] {
   return [...CUSTOM_ORDER_STEPS];
 }

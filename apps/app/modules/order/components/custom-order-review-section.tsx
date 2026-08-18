@@ -3,7 +3,15 @@
 import { Check, FileText } from "lucide-react";
 import { cn } from "@nimia/ui";
 import type { CustomOrderEstimate } from "../pricing";
-import type { CustomServiceSelection, CustomOrderPaymentMethod, ProjectBrief, StepId, UploadedFileMeta } from "../types";
+import { INSTALLMENT_PLANS, splitAmountForPlan } from "../pricing/installment-plans";
+import type {
+  CustomServiceSelection,
+  CustomOrderPaymentMethod,
+  CustomOrderInstallmentPlan,
+  ProjectBrief,
+  StepId,
+  UploadedFileMeta,
+} from "../types";
 import { SummaryCard } from "./summary-card";
 
 // Same fallback pattern as review-section.tsx (the Terms of Service page
@@ -13,9 +21,19 @@ const WWW_URL = process.env.NEXT_PUBLIC_WWW_URL ?? "https://nimiagames.com";
 export interface CustomOrderReviewSectionProps {
   selections: CustomServiceSelection[];
   paymentMethod: CustomOrderPaymentMethod | null;
+  /** 18 Agustus 2026, per user request — which milestone plan the client
+   * chose (see ../types/custom-order.ts). Null unless paymentMethod is
+   * "installments". Drives the real per-milestone breakdown shown in the
+   * Estimate & Payment card below, replacing the old generic
+   * "Installments" text. */
+  installmentPlan: CustomOrderInstallmentPlan | null;
   estimate: CustomOrderEstimate;
   brief: ProjectBrief;
   files: UploadedFileMeta[];
+  /** Auto-computed delivery date (18 Agustus 2026, per user request —
+   * replaces the old client-typed Deadline field). See
+   * review-section.tsx's identical prop. */
+  estimatedDeliveryDate: string | null;
   agreedToTerms: boolean;
   onAgreedToTermsChange: (agreed: boolean) => void;
   onEditStep: (step: StepId) => void;
@@ -45,9 +63,11 @@ function formatBytes(bytes: number): string {
 export function CustomOrderReviewSection({
   selections,
   paymentMethod,
+  installmentPlan,
   estimate,
   brief,
   files,
+  estimatedDeliveryDate,
   agreedToTerms,
   onAgreedToTermsChange,
   onEditStep,
@@ -64,11 +84,13 @@ export function CustomOrderReviewSection({
     value: `$${line.lineTotal}`,
   }));
 
+  // "Deadline" row removed (18 Agustus 2026, per user request) — see
+  // review-section.tsx's identical comment; the real, auto-computed date
+  // now shows in the estimateRows "Estimated Delivery" row below instead.
   const briefRows = [
     { label: "Title", value: brief.projectTitle || "-" },
     { label: "Description", value: brief.projectDescription || "-" },
     { label: "Target Platform", value: brief.targetPlatform || "-" },
-    { label: "Deadline", value: brief.deadline || "-" },
     // Animation Validation (16 Agustus 2026, Fase 5) — see
     // review-section.tsx's identical branch.
     ...(isAnimationOrder ? [{ label: "Script / Story", value: brief.script || "-" }] : []),
@@ -76,17 +98,41 @@ export function CustomOrderReviewSection({
     { label: "Additional Notes", value: brief.additionalNotes || "-" },
   ];
 
+  // Payment Method row (18 Agustus 2026) — now names the exact plan the
+  // client picked (e.g. "Installments — 3 Installments") with a real
+  // per-milestone breakdown row underneath, instead of the old generic
+  // "Installments" with no schedule detail (that used to be Admin's to
+  // decide later — see ../types/custom-order.ts's own history note).
+  const plan = installmentPlan ? INSTALLMENT_PLANS[installmentPlan] : null;
+  const milestoneAmounts = installmentPlan ? splitAmountForPlan(installmentPlan, estimate.total) : [];
+
   const estimateRows = [
     { label: "Subtotal", value: `$${estimate.subtotal}` },
     ...(paymentMethod === "installments"
       ? [{ label: `Installment Fee (${estimate.installmentFeePercentage}%)`, value: `$${estimate.installmentFeeAmount}` }]
       : []),
     { label: "Estimated Total", value: `$${estimate.total}` },
-    { label: "Estimated Delivery", value: `${estimate.totalDeliveryDays} Days` },
+    {
+      label: "Estimated Delivery",
+      value: estimatedDeliveryDate ?? `${estimate.totalDeliveryDays} Days`,
+    },
     {
       label: "Payment Method",
-      value: paymentMethod === "installments" ? "Installments" : paymentMethod === "full_payment" ? "Full Payment" : "-",
+      value:
+        paymentMethod === "installments" && plan
+          ? plan.label
+          : paymentMethod === "full_payment"
+            ? "Full Payment"
+            : "-",
     },
+    ...(paymentMethod === "installments" && plan
+      ? [
+          {
+            label: "Milestone Schedule",
+            value: plan.milestoneLabels.map((label, index) => `$${milestoneAmounts[index]} (${label})`).join(" · "),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -124,7 +170,7 @@ export function CustomOrderReviewSection({
           <SummaryCard title="Project Brief" onEdit={() => onEditStep("brief")} rows={briefRows} />
           <SummaryCard
             title="Files"
-            onEdit={() => onEditStep("upload")}
+            onEdit={() => onEditStep("brief")}
             rows={
               files.length > 0
                 ? files.map((file) => ({ label: file.name, value: formatBytes(file.size) }))
@@ -136,7 +182,7 @@ export function CustomOrderReviewSection({
           {isAnimationOrder ? (
             <SummaryCard
               title="Character Reference Images"
-              onEdit={() => onEditStep("upload")}
+              onEdit={() => onEditStep("brief")}
               rows={
                 characterReferenceFiles.length > 0
                   ? characterReferenceFiles.map((file) => ({ label: file.name, value: formatBytes(file.size) }))

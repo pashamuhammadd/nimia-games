@@ -81,7 +81,7 @@ describe("simulation 1 — client orders (any flow type) with installments", () 
     const installments = materializeInstallments({
       finalPriceUsd: order.finalPriceUsd,
       paymentMethod: order.paymentMethod,
-      paymentPlan: "none", // Admin hasn't overridden it — defaults to Two Milestones
+      paymentPlan: "none", // client didn't set a plan (legacy path) — defaults to Two Milestones
     });
     expect(installments).toHaveLength(2);
     expect(installments.reduce((s, r) => s + r.amountUsd, 0)).toBe(1040);
@@ -89,14 +89,19 @@ describe("simulation 1 — client orders (any flow type) with installments", () 
     expect(installments[1].status).toBe("scheduled");
   });
 
-  it("Admin can override the milestone plan to Three Milestones for any flow type before confirming price", () => {
+  it("the client's Three Milestones choice materializes correctly for any flow type", () => {
+    // 18 Agustus 2026, per user request — the CLIENT picks two_milestones
+    // vs three_milestones at submission (see payment-method-step.tsx),
+    // Admin no longer overrides this during review. The trigger itself
+    // (materialize_order_installments, 0051) never reads order_flow_type
+    // either way, so this still holds across every flow type.
     for (const flowType of ORDER_FLOW_TYPES) {
       const installments = materializeInstallments({
         finalPriceUsd: 1500,
         paymentMethod: "installments",
         paymentPlan: "three_milestones",
       });
-      expect(installments.map((r) => r.percentage)).toEqual([30, 30, 40]);
+      expect(installments.map((r) => r.percentage)).toEqual([40, 30, 30]);
       expect(installments.reduce((s, r) => s + r.amountUsd, 0)).toBe(1500);
       void flowType; // same result regardless of flow type — the trigger never reads it
     }
@@ -154,12 +159,15 @@ describe("simulation 3 — Admin manages a mixed batch of orders across every fl
     return orders.filter((o) => o.paymentMethod === lane);
   }
 
-  /** Mirrors OrderDetailPanel.tsx's Payment Plan picker visibility gate
-   * AFTER this session's fix (status-gated only — no longer
-   * order_flow_type==='custom' AND no longer effectively-dead-code gated
-   * on `!order.payment_method`). */
-  function canConfigurePaymentPlan(order: SimOrder): boolean {
-    return ["pending_review", "negotiating", "quotation_sent"].includes(order.status);
+  /** Mirrors OrderDetailPanel.tsx's Payment Plan display gate AFTER 18
+   * Agustus 2026's reversal — Admin no longer gets an editable picker at
+   * any status (see this session's request #3: "Admin tidak lagi
+   * menentukan rencana cicilan/harga"). It's a plain read-only summary of
+   * whatever the CLIENT chose at submission, shown at every status once a
+   * payment_method exists — no more "picker while reviewable, summary once
+   * locked" status split to model. */
+  function canViewPaymentPlan(order: SimOrder): boolean {
+    return order.paymentMethod != null;
   }
 
   it("every flow type appears in the Installments lane and the Full Payment lane — neither lane silently drops a flow type", () => {
@@ -175,19 +183,22 @@ describe("simulation 3 — Admin manages a mixed batch of orders across every fl
     expect(filterByPaymentLane(ORDERS, "all")).toHaveLength(6);
   });
 
-  it("Admin can configure the payment plan for EVERY flow type, not just custom — this was the bug this session fixed", () => {
-    // Before this session: canConfigurePaymentPlan effectively required
-    // order_flow_type === 'custom'. After: it's flow-type-agnostic,
-    // matching the trigger it configures (which never reads order_flow_type
-    // either — see materializeInstallments/installment-oracle.ts).
+  it("Admin can VIEW the client's payment plan for EVERY flow type, not just custom — flow-type-agnostic just like the trigger it displays", () => {
+    // Mirrors materializeInstallments/installment-oracle.ts, which never
+    // reads order_flow_type either.
     for (const order of ORDERS) {
-      expect(canConfigurePaymentPlan(order)).toBe(true);
+      expect(canViewPaymentPlan(order)).toBe(true);
     }
   });
 
-  it("once an order leaves the reviewable statuses, the picker locks — prevents Admin from changing a plan after installments already materialized", () => {
+  it("the plan stays visible at every status, including after it's already locked in at awaiting_payment — there's nothing left for Admin to change, only to see", () => {
     const lockedOrder: SimOrder = { id: "locked", orderFlowType: "project_builder", paymentMethod: "installments", status: "awaiting_payment" };
-    expect(canConfigurePaymentPlan(lockedOrder)).toBe(false);
+    expect(canViewPaymentPlan(lockedOrder)).toBe(true);
+  });
+
+  it("an order with no payment_method yet (shouldn't normally happen — the wizard requires it) shows nothing rather than a fabricated plan", () => {
+    const bareOrder: SimOrder = { id: "bare", orderFlowType: "project_builder", paymentMethod: null, status: "pending_review" };
+    expect(canViewPaymentPlan(bareOrder)).toBe(false);
   });
 });
 
@@ -199,7 +210,8 @@ describe("simulation 4 — full happy-path lifecycle: three_milestones installme
       paymentMethod: "installments",
       paymentPlan: "three_milestones",
     });
-    expect(installments.map((r) => r.amountUsd)).toEqual([900, 900, 1200]);
+    // 40/30/30 split (18 Agustus 2026, per user request — was 30/30/40).
+    expect(installments.map((r) => r.amountUsd)).toEqual([1200, 900, 900]);
     expect(installments.map((r) => r.status)).toEqual(["pending_payment", "scheduled", "scheduled"]);
 
     // Admin verifies installment #1 (client submitted a tx hash, matched a

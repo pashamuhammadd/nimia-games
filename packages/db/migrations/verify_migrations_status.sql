@@ -230,7 +230,22 @@ from (
         ) then 'APPLIED'
         else 'MISSING — still the buggy 0038 version (installment_status cast missing), Send for Payment on any installments/cicilan order will fail with "column status is of type installment_status but expression is of type text"'
       end,
-      'Fixes materialize_order_installments(): the 2-3-milestone CASE expression building the status value resolved to plain text, which Postgres cannot implicitly cast to the installment_status enum. Only affected cicilan (installments) orders, never full_payment. This is a data check on the LIVE function definition (CREATE OR REPLACE), not a new object — cannot go MISSING once applied and re-verified as APPLIED.')
+      'Fixes materialize_order_installments(): the 2-3-milestone CASE expression building the status value resolved to plain text, which Postgres cannot implicitly cast to the installment_status enum. Only affected cicilan (installments) orders, never full_payment. This is a data check on the LIVE function definition (CREATE OR REPLACE), not a new object — cannot go MISSING once applied and re-verified as APPLIED.'),
+
+    (50, '0050_fix_get_or_create_order_receipt_ambiguous_installment_id',
+      case
+        when not exists (
+          select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public' and p.proname = 'get_or_create_order_receipt'
+        ) then 'MISSING — function not found at all (0044 not applied?)'
+        when (
+          select pg_get_functiondef(p.oid) ilike '%on conflict on constraint order_receipts_installment_id_key%'
+          from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public' and p.proname = 'get_or_create_order_receipt'
+        ) then 'APPLIED'
+        else 'MISSING — still the buggy 0044 version ("on conflict (installment_id)" ambiguous against the function''s own installment_id OUT column), clicking Receipt on any paid installment will fail with "column reference \"installment_id\" is ambiguous"'
+      end,
+      'Fixes get_or_create_order_receipt(): two ON CONFLICT clauses referenced the bare column installment_id, which is ambiguous against the function''s own returns-table OUT variable of the same name. Fixed by targeting the named constraint (installment branch) and qualifying the predicate with a table alias (legacy branch). No schema/signature change.')
 
 ) as report(migration_no, migration, status, note)
 order by migration_no;

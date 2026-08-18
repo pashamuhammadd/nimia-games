@@ -7,9 +7,10 @@ import { findBundlePackageById } from "../data/bundle-packages";
 import { calculateEstimate } from "../pricing/calculate-estimate";
 import { calculateBundleEstimate } from "../pricing/calculate-bundle-estimate";
 import { summarizeSelections } from "../pricing/summarize-selections";
+import { computeEstimatedDeadline, parseBundleDeliveryDaysUpperBound } from "../pricing/estimate-deadline";
 import type { ConfigSelections, ProjectBrief } from "../types/order-state";
 import type { BundlePackage, BundleCreativeOption } from "../types/bundle";
-import type { CustomOrderPaymentMethod } from "../types/custom-order";
+import type { CustomOrderPaymentMethod, CustomOrderInstallmentPlan } from "../types/custom-order";
 import type { SubmitIntent } from "./use-order-wizard";
 import { sendOrderReceivedEmail } from "../../../lib/email";
 import { notifyNewOrder } from "@nimia/discord";
@@ -37,6 +38,17 @@ export interface SubmitOrderActionInput {
    * proposed_price_usd — Admin can still change it during review (see
    * apps/admin's setOrderPaymentPlanAction). */
   paymentMethod: CustomOrderPaymentMethod | null;
+  /** Which milestone plan the client chose (18 Agustus 2026, per user
+   * request — reverses the previous design where Admin picked this during
+   * review; see ../types/custom-order.ts's CustomOrderInstallmentPlan and
+   * ../pricing/installment-plans.ts). Null unless paymentMethod is
+   * "installments" — see useOrderWizard#canGoNext, which already blocks
+   * reaching submit() without a plan chosen in that case. Re-validated
+   * below regardless, same defense-in-depth posture as every other field
+   * on this input. Drives both the tiered fee percentage AND the
+   * `orders.payment_plan` value written below — this, not Admin, is now
+   * the authoritative source for which plan an order gets. */
+  installmentPlan: CustomOrderInstallmentPlan | null;
   brief: ProjectBrief;
   negotiationOffer: string;
   /** Added 4 Agustus 2026 (P0.3) — already-uploaded Cloudinary URLs, one
@@ -67,17 +79,6 @@ export interface SubmitOrderActionInput {
 }
 
 export type SubmitOrderResult = { ok: true; orderId: string } | { ok: false; error: string };
-
-/** ProjectBriefForm's deadline field is a native `<input type="date">` (see
- * project-brief-form.tsx), so it already arrives as a well-formed
- * "YYYY-MM-DD" string or an empty string — this just normalizes the empty
- * case to null for the `date` column, and falls back to null instead of
- * throwing if it's ever anything else. */
-function parseDeadline(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  return Number.isNaN(new Date(trimmed).getTime()) ? null : trimmed;
-}
 
 /** Builds the `orders.description` text. The /order configurator's Step 4
  * config selections and Step 3 package tier have no dedicated columns on
@@ -177,6 +178,13 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
   if (!input.paymentMethod) {
     return { ok: false, error: "Choose a payment method before submitting." };
   }
+  // 18 Agustus 2026, per user request — the client now picks the milestone
+  // plan itself (Admin no longer decides it during review), so this is
+  // required exactly like paymentMethod above whenever Installments was
+  // chosen. Mirrors useOrderWizard#canGoNext's identical client-side gate.
+  if (input.paymentMethod === "installments" && !input.installmentPlan) {
+    return { ok: false, error: "Choose 2 or 3 installments before submitting." };
+  }
 
   const isBundleOrder = Boolean(input.bundlePackageId);
 
@@ -211,9 +219,6 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
   if (isAnimationOrder) {
     if (!input.brief.script.trim()) {
       return { ok: false, error: "Add a script or story before submitting an Animation project." };
-    }
-    if (!parseDeadline(input.brief.deadline)) {
-      return { ok: false, error: "Add a deadline before submitting an Animation project." };
     }
     if (!input.uploadedFiles.some((file) => file.isCharacterReference)) {
       return {
@@ -256,14 +261,27 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
   const [{ data: profile }, { data: client, error: clientError }, { data: feeSettings }] = await Promise.all([
     supabase.from("users").select("full_name").eq("id", user.id).single(),
     supabase.from("clients").select("id, company_name, whatsapp, country").eq("user_id", user.id).single(),
-    supabase.from("installment_settings").select("fee_percentage").eq("id", true).single(),
+    supabase
+      .from("installment_settings")
+      .select("fee_percentage_two_milestones, fee_percentage_three_milestones")
+      .eq("id", true)
+      .single(),
   ]);
 
   if (clientError || !client) {
     return { ok: false, error: "Couldn't find your client profile. Please try signing in again." };
   }
 
-  const feePercentage = Number(feeSettings?.fee_percentage ?? 30);
+  // Plan-aware fee resolution (18 Agustus 2026) — mirrors
+  // useOrderWizard's activeInstallmentFeePercentage and
+  // get_installment_fee_percentage(plan) in migration 0051 exactly.
+  // Defaults to the two-milestone plan/fee whenever installmentPlan is
+  // somehow still null despite the guard above (paymentMethod !==
+  // "installments", so this value is never actually used in that case).
+  const feePercentage =
+    input.installmentPlan === "three_milestones"
+      ? Number(feeSettings?.fee_percentage_three_milestones ?? 30)
+      : Number(feeSettings?.fee_percentage_two_milestones ?? 20);
 
   let description: string;
   /** The base price BEFORE any installment fee — same meaning
@@ -274,6 +292,11 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
   let estimateTotalPrice: number;
   let serviceNameForNotifications: string;
   let selectedBundleOptions: BundleCreativeOption[] = [];
+  /** Auto-computed deadline basis (18 Agustus 2026, per user request) — the
+   * number of calendar days out `orders.deadline` gets set to below. Set
+   * in each branch from that flow's own server-recomputed delivery
+   * estimate, never from anything the client sent. */
+  let deliveryDaysForDeadline: number;
 
   if (isBundleOrder && bundlePkg) {
     selectedBundleOptions = bundlePkg.creativeOptions.filter((option) =>
@@ -281,6 +304,11 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
     );
     const bundleEstimate = calculateBundleEstimate(bundlePkg);
     estimateTotalPrice = bundleEstimate.totalPrice;
+    // Bundle orders only carry a human range label ("7–10 business days"),
+    // not a single day count — see parseBundleDeliveryDaysUpperBound's own
+    // comment for why the upper bound is used and why it's treated as
+    // calendar days (the user's explicit calendar-day-basis choice).
+    deliveryDaysForDeadline = parseBundleDeliveryDaysUpperBound(bundleEstimate.deliveryLabel);
     description = buildBundleDescription({
       pkg: bundlePkg,
       selectedOptions: selectedBundleOptions,
@@ -295,6 +323,7 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
     const estimate = calculateEstimate(service, input.packageId, input.configSelections);
     const selections = summarizeSelections(service, input.configSelections);
     estimateTotalPrice = estimate.totalPrice;
+    deliveryDaysForDeadline = estimate.totalDeliveryDays;
     description = buildDescription({
       categoryName: category.name,
       serviceName: service.name,
@@ -358,12 +387,22 @@ export async function submitOrderAction(input: SubmitOrderActionInput): Promise<
       // already does: it's the client's stated intent, not authoritative,
       // and Admin can still change it during review.
       payment_method: input.paymentMethod,
+      // Which milestone plan (18 Agustus 2026, per user request) — the
+      // client's own choice is now authoritative; Admin no longer sets
+      // this (see apps/admin's OrderDetailPanel, now read-only for this
+      // field). 'none' for Full Payment orders, exactly matching
+      // migration 0038's original column default/meaning.
+      payment_plan: input.paymentMethod === "installments" ? (input.installmentPlan ?? "two_milestones") : "none",
       full_name: clientName,
       company_name: client.company_name,
       email: user.email ?? "",
       whatsapp: client.whatsapp,
       country: client.country,
-      deadline: parseDeadline(input.brief.deadline),
+      // Auto-computed (18 Agustus 2026, per user request) — see
+      // ../pricing/estimate-deadline.ts's own header comment for the full
+      // rationale. Calendar-day basis, from THIS order's own
+      // server-recomputed delivery estimate, never from client input.
+      deadline: computeEstimatedDeadline(deliveryDaysForDeadline),
       description,
       reference_link: input.brief.referenceLink.trim() || null,
       status: input.intent === "negotiate" ? "negotiating" : "pending_review",

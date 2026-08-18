@@ -46,6 +46,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.7,
     },
+    // SEO fix, 18 Agustus 2026 — /creative-agent existed as a real,
+    // crawlable page (app/creative-agent/page.tsx) but was missing from
+    // this list ever since it was added, same "audit found the gap"
+    // pattern as the rest of this file's history.
+    {
+      url: `${baseUrl}/creative-agent`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
     {
       url: `${baseUrl}/order`,
       lastModified: new Date(),

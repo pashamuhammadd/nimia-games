@@ -12,7 +12,10 @@ export {
   type SubmitCustomOrderActionInput,
   type SubmitCustomOrderResult,
 } from "./submit-custom-order-action";
-export { getInstallmentFeePercentageAction } from "./get-installment-fee-action";
+export {
+  getInstallmentFeePercentagesAction,
+  type InstallmentFeePercentages,
+} from "./get-installment-fee-action";
 export {
   getUploadSignatureAction,
   type UploadSignatureResult,

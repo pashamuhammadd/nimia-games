@@ -9,19 +9,25 @@ export interface ProjectBriefFormProps {
   /** Animation Validation (16 Agustus 2026, Fase 5 — see
    * FASE0-AUDIT.md section E). When true (the order resolves to the
    * "animation" category, see useOrderWizard's isAnimationOrder), this
-   * form additionally renders a required Script/Story textarea and marks
-   * Deadline as required — both were previously either missing entirely
-   * (Script) or optional for every category including Animation
-   * (Deadline). Defaults to false so every other category's brief step is
-   * unchanged. */
+   * form additionally renders a required Script/Story textarea. Defaults
+   * to false so every other category's brief step is unchanged. */
   isAnimationOrder?: boolean;
 }
 
-// STEP 5 — plain, consistent form fields (reusing @nimia/ui's Input/
+// STEP — plain, consistent form fields (reusing @nimia/ui's Input/
 // Textarea/Label, same as every other form in the app) rather than
 // anything configurator-specific — this step is closer to a normal form
-// than Steps 1–4, which is fine, it's the brief's own content, not a
-// choice to visualize as cards.
+// than the catalog steps, which is fine, it's the brief's own content,
+// not a choice to visualize as cards.
+//
+// Deadline field REMOVED (18 Agustus 2026, per user request) — the
+// client no longer types a delivery date by hand; it's auto-computed from
+// the order's own delivery estimate (see useOrderWizard's
+// estimatedDeliveryDate and ../pricing/estimate-deadline.ts) and shown
+// read-only on the Review step instead. One fewer required field here, on
+// top of Upload Files now rendering alongside this form under the same
+// "brief" step (see components/order-wizard.tsx) instead of its own
+// separate step.
 export function ProjectBriefForm({ brief, onChange, isAnimationOrder = false }: ProjectBriefFormProps) {
   return (
     <div>
@@ -54,31 +60,14 @@ export function ProjectBriefForm({ brief, onChange, isAnimationOrder = false }: 
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="targetPlatform">Target Platform</Label>
-            <Input
-              id="targetPlatform"
-              value={brief.targetPlatform}
-              onChange={(e) => onChange({ targetPlatform: e.target.value })}
-              placeholder="e.g. iOS, Steam, Instagram"
-            />
-          </div>
-          <div>
-            <Label htmlFor="deadline">
-              Deadline{isAnimationOrder ? " *" : ""}
-            </Label>
-            <Input
-              id="deadline"
-              type="date"
-              value={brief.deadline}
-              onChange={(e) => onChange({ deadline: e.target.value })}
-              required={isAnimationOrder}
-            />
-            {isAnimationOrder ? (
-              <p className="mt-1.5 text-xs text-white/40">Required for Animation projects.</p>
-            ) : null}
-          </div>
+        <div>
+          <Label htmlFor="targetPlatform">Target Platform</Label>
+          <Input
+            id="targetPlatform"
+            value={brief.targetPlatform}
+            onChange={(e) => onChange({ targetPlatform: e.target.value })}
+            placeholder="e.g. iOS, Steam, Instagram"
+          />
         </div>
 
         {isAnimationOrder ? (

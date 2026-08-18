@@ -73,10 +73,17 @@ export function materializeInstallments(input: MaterializeInput): MaterializedIn
   let labels: string[];
 
   if (plan === "two_milestones") {
-    pct = [50, 50];
+    // 18 Agustus 2026, per user request ("2x: 60/40") — reverses the
+    // original 50/50 split from 0038. See migration
+    // 0051_tiered_installment_plans.sql's materialize_order_installments()
+    // v_pct array for this plan (the actual source of truth this mirrors).
+    pct = [60, 40];
     labels = ["Project Start", "Before Final Delivery"];
   } else if (plan === "three_milestones") {
-    pct = [30, 30, 40];
+    // 18 Agustus 2026, per user request ("3x: 40/30/30") — reverses the
+    // original 30/30/40 split from 0038. See 0051's v_pct array for this
+    // plan.
+    pct = [40, 30, 30];
     labels = ["Project Start", "Project Milestone", "Final Delivery"];
   } else {
     // custom

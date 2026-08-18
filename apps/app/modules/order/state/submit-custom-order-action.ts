@@ -5,7 +5,8 @@ import { createServerClient } from "@nimia/db";
 import { getCategory, findServiceById } from "../data/catalog";
 import { calculateEstimate } from "../pricing/calculate-estimate";
 import { summarizeSelections } from "../pricing/summarize-selections";
-import type { CustomServiceSelection, CustomOrderPaymentMethod } from "../types/custom-order";
+import { computeEstimatedDeadline } from "../pricing/estimate-deadline";
+import type { CustomServiceSelection, CustomOrderPaymentMethod, CustomOrderInstallmentPlan } from "../types/custom-order";
 import type { ProjectBrief } from "../types/order-state";
 import type { SubmitIntent } from "./use-order-wizard";
 import { sendOrderReceivedEmail } from "../../../lib/email";
@@ -16,6 +17,10 @@ export interface SubmitCustomOrderActionInput {
   intent: SubmitIntent;
   selections: CustomServiceSelection[];
   paymentMethod: CustomOrderPaymentMethod | null;
+  /** Which milestone plan the client chose (18 Agustus 2026, per user
+   * request) — see submit-order-action.ts's identical field for the full
+   * rationale; both actions now share this trust posture. */
+  installmentPlan: CustomOrderInstallmentPlan | null;
   brief: ProjectBrief;
   negotiationOffer: string;
   /** `isCharacterReference` added 16 Agustus 2026 (Animation Validation,
@@ -26,12 +31,6 @@ export interface SubmitCustomOrderActionInput {
 }
 
 export type SubmitCustomOrderResult = { ok: true; orderId: string } | { ok: false; error: string };
-
-function parseDeadline(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  return Number.isNaN(new Date(trimmed).getTime()) ? null : trimmed;
-}
 
 /** Builds `orders.description` — same "fold everything into this one
  * free-text field" pattern as submit-order-action.ts's buildDescription/
@@ -98,6 +97,11 @@ export async function submitCustomOrderAction(
   if (!input.paymentMethod) {
     return { ok: false, error: "Choose a payment method before submitting." };
   }
+  // 18 Agustus 2026, per user request — see submit-order-action.ts's
+  // identical check for the full rationale.
+  if (input.paymentMethod === "installments" && !input.installmentPlan) {
+    return { ok: false, error: "Choose 2 or 3 installments before submitting." };
+  }
   if (!input.brief.projectTitle.trim() || !input.brief.projectDescription.trim()) {
     return { ok: false, error: "Add a project title and description before submitting." };
   }
@@ -122,14 +126,23 @@ export async function submitCustomOrderAction(
   const [{ data: profile }, { data: client, error: clientError }, { data: feeSettings }] = await Promise.all([
     supabase.from("users").select("full_name").eq("id", user.id).single(),
     supabase.from("clients").select("id, company_name, whatsapp, country").eq("user_id", user.id).single(),
-    supabase.from("installment_settings").select("fee_percentage").eq("id", true).single(),
+    supabase
+      .from("installment_settings")
+      .select("fee_percentage_two_milestones, fee_percentage_three_milestones")
+      .eq("id", true)
+      .single(),
   ]);
 
   if (clientError || !client) {
     return { ok: false, error: "Couldn't find your client profile. Please try signing in again." };
   }
 
-  const feePercentage = Number(feeSettings?.fee_percentage ?? 30);
+  // Plan-aware fee resolution (18 Agustus 2026) — see
+  // submit-order-action.ts's identical resolution for the full rationale.
+  const feePercentage =
+    input.installmentPlan === "three_milestones"
+      ? Number(feeSettings?.fee_percentage_three_milestones ?? 30)
+      : Number(feeSettings?.fee_percentage_two_milestones ?? 20);
 
   // Server-side recompute — the ONLY numbers that ever reach `orders`,
   // order_service_selections, and order_price_breakdown below. Any
@@ -191,9 +204,6 @@ export async function submitCustomOrderAction(
     if (!input.brief.script.trim()) {
       return { ok: false, error: "Add a script or story before submitting an Animation project." };
     }
-    if (!parseDeadline(input.brief.deadline)) {
-      return { ok: false, error: "Add a deadline before submitting an Animation project." };
-    }
     if (!input.uploadedFiles.some((file) => file.isCharacterReference)) {
       return {
         ok: false,
@@ -203,6 +213,11 @@ export async function submitCustomOrderAction(
   }
 
   const subtotal = resolvedLines.reduce((sum, line) => sum + line.linePrice, 0);
+  // Auto-computed deadline basis (18 Agustus 2026, per user request) —
+  // longest single resolved service's delivery estimate, not a sum,
+  // mirroring calculate-custom-order-estimate.ts's own totalDeliveryDays
+  // (every selected service is worked on in parallel, not sequentially).
+  const deliveryDaysForDeadline = resolvedLines.reduce((max, line) => Math.max(max, line.deliveryDays), 0);
   const installmentFeeAmount =
     input.paymentMethod === "installments" ? Math.round(((subtotal * feePercentage) / 100) * 100) / 100 : 0;
   const total = Math.round((subtotal + installmentFeeAmount) * 100) / 100;
@@ -226,13 +241,18 @@ export async function submitCustomOrderAction(
       service_id: null,
       order_flow_type: "custom",
       payment_method: input.paymentMethod,
+      // Which milestone plan (18 Agustus 2026, per user request) — see
+      // submit-order-action.ts's identical field for the full rationale.
+      payment_plan: input.paymentMethod === "installments" ? (input.installmentPlan ?? "two_milestones") : "none",
       package_name: packageNameLabel,
       full_name: clientName,
       company_name: client.company_name,
       email: user.email ?? "",
       whatsapp: client.whatsapp,
       country: client.country,
-      deadline: parseDeadline(input.brief.deadline),
+      // Auto-computed (18 Agustus 2026, per user request) — see
+      // ../pricing/estimate-deadline.ts's own header comment.
+      deadline: computeEstimatedDeadline(deliveryDaysForDeadline),
       description,
       reference_link: input.brief.referenceLink.trim() || null,
       status: input.intent === "negotiate" ? "negotiating" : "pending_review",

@@ -31,11 +31,28 @@ export interface CustomServiceSelection {
   configSelections: ConfigSelections;
 }
 
-/** Spec section 10 — chosen at Step 5, after every service/configuration
- * decision is made, never before. `full_payment` keeps the estimate as-is;
- * `installments` adds the admin-configurable flexibility fee (default 30%,
- * see get_installment_fee_percentage() in packages/db/migrations/0038) on
- * top. Milestone COUNT (2 vs 3) is deliberately NOT a client-facing choice
- * — per the 12 Agustus 2026 product decision, Admin picks that during order
- * review, not the client here. */
+/** Spec section 10 — chosen at Step 5 (Custom Order) / "payment" step
+ * (Project Builder/Package, generalized 15 Agustus 2026), after every
+ * service/configuration decision is made, never before. `full_payment`
+ * keeps the estimate as-is; `installments` adds a flexibility fee on top
+ * — how much depends on which plan the client also picks, see
+ * CustomOrderInstallmentPlan below. */
 export type CustomOrderPaymentMethod = "full_payment" | "installments";
+
+/** Which milestone schedule an `installments` order uses (18 Agustus
+ * 2026, per user request — REVERSES the 12 Agustus 2026 product decision
+ * that this was Admin's call during review, not the client's). Chosen by
+ * the client in the SAME Payment Method step as `paymentMethod` above —
+ * see payment-method-step.tsx's three-card layout (Full Payment / 2
+ * Installments / 3 Installments). Null whenever paymentMethod isn't
+ * "installments" (mirrors paymentMethod's own null-until-chosen shape).
+ *
+ * `custom` (a bespoke, Admin-hand-set split for large projects — 0038's
+ * product decision #4) deliberately has NO client-facing equivalent here:
+ * it is not a value this type can hold. Admin can still set
+ * `orders.payment_plan = 'custom'` directly for those rare cases; the
+ * client wizard never offers it as a choice. See ../pricing/
+ * installment-plans.ts for the two plans' actual fee/split numbers,
+ * mirrored from packages/db/migrations/
+ * 0051_tiered_installment_plans.sql. */
+export type CustomOrderInstallmentPlan = "two_milestones" | "three_milestones";

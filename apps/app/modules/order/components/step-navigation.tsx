@@ -18,28 +18,33 @@ export interface StepNavigationProps {
 // Category/Service/Package/Browse steps auto-advance on selection (see
 // useOrderWizard#selectCategory/selectService/selectPackage/
 // selectBundlePackage) and render no "Continue" button here —
-// Configure/Package Detail/Brief/Upload need an explicit confirmation since
-// they involve reading multiple fields or validating a selection (Package
-// Detail added 10 Agustus 2026 — Package/Bundle system's slot-selection
-// step, gated by useOrderWizard's canGoNext until every creative-content
-// slot is filled), and Review ends in two buttons instead of Continue:
-// Submit Order (accept the estimate as-is) and Negotiate Price (3 Agustus
-// 2026, per user request — attaches the offer typed into ReviewSection's
-// negotiation field instead). Custom Order Builder (12 Agustus 2026) adds
-// three more explicit-Continue steps of its own: "custom-services" (needs
-// at least one service picked), "custom-configure" (nothing to validate
-// here beyond having selections, which the previous step already
-// guarantees — still an explicit Continue since it's a multi-service page,
-// not an auto-advancing single choice), and "custom-payment" (needs a
-// payment method chosen — see useOrderWizard#canGoNext). "payment" (15
-// Agustus 2026) is Project Builder/Package's own copy of that same
-// Continue-gated step, added here alongside "custom-payment" — MUST stay
-// in this list, not just in useOrderWizard#canGoNext's validation: without
-// a matching entry here, a client who reached the Payment Method step on a
-// Project Builder or Package order would see NO Continue button at all
-// (showContinue/showSubmit/canGoBack all false on a step with canGoBack
-// already true mid-wizard would still render the Back button, but never a
-// way forward) and be stuck.
+// Configure/Package Detail/Brief/Payment need an explicit confirmation
+// since they involve reading multiple fields or validating a selection
+// (Package Detail added 10 Agustus 2026 — Package/Bundle system's
+// slot-selection step, gated by useOrderWizard's canGoNext until every
+// creative-content slot is filled), and Review ends in two buttons
+// instead of Continue: Submit Order (accept the estimate as-is) and
+// Negotiate Price (3 Agustus 2026, per user request — attaches the offer
+// typed into ReviewSection's negotiation field instead). "brief" (18
+// Agustus 2026) now also covers Upload Files, merged into the same step —
+// see ../types/order-state.ts's own comment; "upload" is no longer a
+// separate StepId at all, so it no longer needs its own entry here.
+// Custom Order Builder (12 Agustus 2026) adds three more explicit-Continue
+// steps of its own: "custom-services" (needs at least one service
+// picked), "custom-configure" (nothing to validate here beyond having
+// selections, which the previous step already guarantees — still an
+// explicit Continue since it's a multi-service page, not an
+// auto-advancing single choice), and "custom-payment" (needs a payment
+// method chosen, and if Installments, which plan — see
+// useOrderWizard#canGoNext). "payment" (15 Agustus 2026) is Project
+// Builder/Package's own copy of that same Continue-gated step, added here
+// alongside "custom-payment" — MUST stay in this list, not just in
+// useOrderWizard#canGoNext's validation: without a matching entry here, a
+// client who reached the Payment Method step on a Project Builder or
+// Package order would see NO Continue button at all (showContinue/
+// showSubmit/canGoBack all false on a step with canGoBack already true
+// mid-wizard would still render the Back button, but never a way forward)
+// and be stuck.
 export function StepNavigation({
   step,
   canGoBack,
@@ -54,7 +59,6 @@ export function StepNavigation({
     step === "configure" ||
     step === "package-detail" ||
     step === "brief" ||
-    step === "upload" ||
     step === "custom-services" ||
     step === "custom-configure" ||
     step === "custom-payment" ||

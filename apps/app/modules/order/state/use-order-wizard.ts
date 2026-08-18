@@ -15,6 +15,7 @@ import {
   type BundlePackage,
   type CustomServiceSelection,
   type CustomOrderPaymentMethod,
+  type CustomOrderInstallmentPlan,
 } from "../types";
 import { getCategory, findServiceById } from "../data/catalog";
 import { findBundlePackageById } from "../data/bundle-packages";
@@ -24,6 +25,8 @@ import {
   calculateBundleEstimate,
   calculateCustomOrderEstimate,
   applyInstallmentFeePreview,
+  computeEstimatedDeadline,
+  parseBundleDeliveryDaysUpperBound,
   type Estimate,
   type CustomOrderEstimate,
 } from "../pricing";
@@ -32,7 +35,7 @@ import { getStepsForService, getStepsForBundle, getStepsForCustomOrder } from ".
 import { clearOrderState, loadOrderState, saveOrderState } from "./storage";
 import { submitOrderAction } from "./submit-order-action";
 import { submitCustomOrderAction } from "./submit-custom-order-action";
-import { getInstallmentFeePercentageAction } from "./get-installment-fee-action";
+import { getInstallmentFeePercentagesAction, type InstallmentFeePercentages } from "./get-installment-fee-action";
 import { getUploadSignatureAction } from "./get-upload-signature-action";
 import { uploadFileToCloudinary } from "./upload-to-cloudinary";
 
@@ -103,6 +106,16 @@ function sanitizeRestoredState(raw: unknown): OrderWizardState {
     characterReferenceFiles: [],
   };
 
+  // Step count trim (18 Agustus 2026, per user request) — "upload" is no
+  // longer a valid StepId (merged into "brief", see ORDER_STEPS/
+  // BUNDLE_STEPS/CUSTOM_ORDER_STEPS' own comment in ../types/order-state.ts).
+  // A session saved before this change can still have step: "upload" sitting
+  // in localStorage — land it on "brief" (where that content now lives)
+  // instead of falling through to an unrecognized step id.
+  if ((restored.step as string) === "upload") {
+    restored = { ...restored, step: "brief" };
+  }
+
   // Package/Bundle system (10 Agustus 2026) — same fallback pattern as the
   // service check above: if the saved bundlePackageId no longer exists in
   // the current BUNDLE_PACKAGES catalog, don't crash the page, just bounce
@@ -142,6 +155,13 @@ function sanitizeRestoredState(raw: unknown): OrderWizardState {
     restored = { ...restored, step: "category", maxStepIndexReached: 0 };
   }
 
+  // Installment plan (18 Agustus 2026) — same "don't trust a stale save"
+  // posture as everything else above: a restored paymentMethod that isn't
+  // "installments" can never carry a leftover installmentPlan.
+  if (restored.paymentMethod !== "installments") {
+    restored = { ...restored, installmentPlan: null };
+  }
+
   return restored;
 }
 
@@ -170,20 +190,28 @@ export interface UseOrderWizardResult {
    * the single-service Estimate type Project Builder/Packages already
    * share. */
   customEstimate: CustomOrderEstimate;
-  /** Admin-configurable installment fee percentage (default 30, see
-   * packages/db/migrations/0038), fetched once when orderType becomes
-   * "custom". Preview only — submitCustomOrderAction re-reads the real
-   * value server-side before ever computing a price that gets saved. */
-  installmentFeePercentage: number;
+  /** Both admin-configurable installment flexibility fee percentages (18
+   * Agustus 2026 — replaces the single flat `installmentFeePercentage`,
+   * see packages/db/migrations/0051_tiered_installment_plans.sql), fetched
+   * once when orderType becomes non-null. Preview only —
+   * submitOrderAction/submitCustomOrderAction re-read the real values
+   * server-side before ever computing a price that gets saved. */
+  installmentFeePercentages: InstallmentFeePercentages;
+  /** Estimated delivery, calendar-day basis (18 Agustus 2026, per user
+   * request — replaces the old manual Deadline date field). Null until
+   * there's enough of an order to estimate from (no service/bundle/custom
+   * selection yet). See ../pricing/estimate-deadline.ts. */
+  estimatedDeliveryDate: string | null;
   /** Animation Validation (16 Agustus 2026, Fase 5 — see
    * FASE0-AUDIT.md section E). True when the order resolves to the
    * "animation" category: project-builder checks state.categoryId,
    * custom order checks whether ANY selected service is Animation,
    * packages/bundle orders are always false (that flow uses an unrelated
    * category taxonomy, see data/category-requirements.ts's own comment).
-   * Drives the extra required Script field + Deadline requirement on
-   * ProjectBriefForm, the extra required "Character Reference Images"
-   * UploadSection instance, and canGoNext's brief/upload gating below. */
+   * Drives the extra required Script field on ProjectBriefForm and the
+   * extra required "Character Reference Images" UploadSection instance —
+   * both live under the single "brief" step since Brief+Upload merged (18
+   * Agustus 2026, see canGoNext's own comment below). */
   isAnimationOrder: boolean;
   isHydrated: boolean;
   canGoNext: boolean;
@@ -219,12 +247,17 @@ export interface UseOrderWizardResult {
   removeCustomService: (selectionId: string) => void;
   updateCustomServiceConfig: (selectionId: string, fieldId: string, value: string | boolean | string[]) => void;
   setCustomServicePackageTier: (selectionId: string, packageId: string) => void;
-  /** Pay in Full vs Pay in Installments (15 Agustus 2026, generalized from
-   * `setCustomPaymentMethod` — see OrderWizardState.paymentMethod's own
-   * comment in types/order-state.ts). Shared by all three order types now:
-   * Custom Order's "custom-payment" step and Project Builder/Package's new
-   * "payment" step both call this same setter. */
-  setPaymentMethod: (method: CustomOrderPaymentMethod) => void;
+  /** Pay in Full vs Pay in Installments, and — when Installments — which
+   * milestone plan (18 Agustus 2026, per user request: the client now
+   * picks 2 vs 3 installments themselves, right here, instead of Admin
+   * picking it during review). Replaces the old `setPaymentMethod` setter:
+   * `plan` is always null for "full_payment", always set for
+   * "installments" (the three-card Payment Method step never lets you
+   * pick "Installments" without also picking a card, see
+   * payment-method-step.tsx). Shared by all three order types — Custom
+   * Order's "custom-payment" step and Project Builder/Package's "payment"
+   * step both call this same setter. */
+  choosePaymentPlan: (method: CustomOrderPaymentMethod, plan: CustomOrderInstallmentPlan | null) => void;
   updateConfigValue: (fieldId: string, value: string | boolean | string[]) => void;
   updateBrief: (patch: Partial<ProjectBrief>) => void;
   updateNegotiationOffer: (value: string) => void;
@@ -261,11 +294,14 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [submitted, setSubmitted] = React.useState(false);
   const [submittedIntent, setSubmittedIntent] = React.useState<SubmitIntent | null>(null);
-  // Custom Order Builder (12 Agustus 2026) — default matches
-  // installment_settings.fee_percentage's own DB default (0038) so the
-  // Payment Method step never shows "+0%" during the brief window before
-  // the real value has loaded.
-  const [installmentFeePercentage, setInstallmentFeePercentage] = React.useState(30);
+  // Tiered installment fees (18 Agustus 2026) — defaults match
+  // installment_settings' own DB defaults (0051) so the Payment Method
+  // step never shows "+0%" during the brief window before the real values
+  // have loaded.
+  const [installmentFeePercentages, setInstallmentFeePercentages] = React.useState<InstallmentFeePercentages>({
+    twoMilestones: 20,
+    threeMilestones: 30,
+  });
 
   // Restore a previous session (including one interrupted by the login
   // redirect) exactly once, after mount — reading localStorage during
@@ -283,19 +319,14 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     saveOrderState(state);
   }, [state, isHydrated]);
 
-  // Fetch the real (admin-configurable) installment fee percentage once the
-  // visitor actually picks an order type, rather than on every /order page
-  // load regardless. Originally Custom-Order-only (gated on
-  // `state.orderType !== "custom"`); generalized 15 Agustus 2026 alongside
-  // the Payment Method step itself moving to Project Builder/Package too —
-  // get_installment_fee_percentage() (0038) was always a single global
-  // setting, never Custom-Order-specific, so there's nothing to branch on
-  // here anymore.
+  // Fetch the real (admin-configurable) installment fee percentages once
+  // the visitor actually picks an order type, rather than on every /order
+  // page load regardless.
   React.useEffect(() => {
     if (!state.orderType) return;
     let cancelled = false;
-    getInstallmentFeePercentageAction().then((pct) => {
-      if (!cancelled) setInstallmentFeePercentage(pct);
+    getInstallmentFeePercentagesAction().then((fees) => {
+      if (!cancelled) setInstallmentFeePercentages(fees);
     });
     return () => {
       cancelled = true;
@@ -320,6 +351,21 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
       ? getStepsForCustomOrder()
       : getStepsForService(service);
   const currentStepIndex = Math.max(0, steps.indexOf(state.step));
+
+  // Active installment fee percentage (18 Agustus 2026) — resolved from
+  // whichever plan the client has actually picked, 0 whenever there's no
+  // installments plan chosen yet (mirrors the old flat value's own "0 when
+  // not applicable" posture). Fed into applyInstallmentFeePreview/
+  // calculateCustomOrderEstimate exactly where the old single
+  // `installmentFeePercentage` used to go — neither of those functions
+  // needed to change, they've always just taken "the percentage to apply".
+  const activeInstallmentFeePercentage =
+    state.paymentMethod === "installments" && state.installmentPlan
+      ? state.installmentPlan === "three_milestones"
+        ? installmentFeePercentages.threeMilestones
+        : installmentFeePercentages.twoMilestones
+      : 0;
+
   const baseEstimate = isBundleOrder
     ? calculateBundleEstimate(bundlePackage)
     : calculateEstimate(isCustomOrder ? null : service, state.packageId, state.configSelections);
@@ -329,12 +375,31 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
   // and for every Full Payment order. See applyInstallmentFeePreview's own
   // comment above for why this wraps calculateEstimate/calculateBundleEstimate
   // rather than living inside them.
-  const estimate = applyInstallmentFeePreview(baseEstimate, state.paymentMethod, installmentFeePercentage);
+  const estimate = applyInstallmentFeePreview(baseEstimate, state.paymentMethod, activeInstallmentFeePercentage);
   const customEstimate = calculateCustomOrderEstimate(
     state.customServiceSelections,
     state.paymentMethod,
-    installmentFeePercentage,
+    activeInstallmentFeePercentage,
   );
+
+  // Estimated delivery (18 Agustus 2026, per user request — auto-computed,
+  // replaces the old manual Deadline date field). Uses whichever flow's own
+  // delivery-day number applies; bundle orders don't carry one (see
+  // calculate-bundle-estimate.ts's own comment), so this parses an upper
+  // bound out of the package's human-readable label instead.
+  const deliveryDaysForDeadline = isBundleOrder
+    ? bundlePackage
+      ? parseBundleDeliveryDaysUpperBound(bundlePackage.estimatedDeliveryLabel)
+      : null
+    : isCustomOrder
+      ? customEstimate.serviceLines.length > 0
+        ? customEstimate.totalDeliveryDays
+        : null
+      : service
+        ? baseEstimate.totalDeliveryDays
+        : null;
+  const estimatedDeliveryDate =
+    deliveryDaysForDeadline != null ? computeEstimatedDeadline(deliveryDaysForDeadline) : null;
 
   const selectOrderType = React.useCallback((type: OrderType) => {
     setState((prev) => ({
@@ -470,9 +535,17 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     }));
   }, []);
 
-  const setPaymentMethod = React.useCallback((method: CustomOrderPaymentMethod) => {
-    setState((prev) => ({ ...prev, paymentMethod: method }));
-  }, []);
+  // 18 Agustus 2026 (per user request) — replaces the old `setPaymentMethod`.
+  // `plan` must be null for "full_payment" and non-null for "installments"
+  // — payment-method-step.tsx's three cards each call this with the
+  // correct pairing, so this setter just writes through rather than
+  // re-validating that pairing itself.
+  const choosePaymentPlan = React.useCallback(
+    (method: CustomOrderPaymentMethod, plan: CustomOrderInstallmentPlan | null) => {
+      setState((prev) => ({ ...prev, paymentMethod: method, installmentPlan: plan }));
+    },
+    [],
+  );
 
   const updateConfigValue = React.useCallback(
     (fieldId: string, value: string | boolean | string[]) => {
@@ -596,26 +669,23 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
   }, [steps]);
 
   const canGoNext = React.useMemo(() => {
+    // Brief + Upload merged into one step (18 Agustus 2026, per user
+    // request to trim the wizard) — this gate now covers both what the old
+    // "brief" gate checked AND what the old "upload" gate checked
+    // (Character Reference Images for Animation orders). Deadline is no
+    // longer part of this check at all — it's auto-computed, never a
+    // client-typed field (see estimatedDeliveryDate above).
     if (state.step === "brief") {
       const baseValid =
         state.brief.projectTitle.trim().length > 0 && state.brief.projectDescription.trim().length > 0;
-      // Animation Validation (16 Agustus 2026, Fase 5) — Script and
-      // Deadline become required in addition to the base Title+Description
-      // check above, only when the order resolves to Animation (see
-      // isAnimationOrder's own comment). Every other category's brief gate
-      // is unchanged.
       if (isAnimationOrder) {
-        return baseValid && state.brief.script.trim().length > 0 && state.brief.deadline.trim().length > 0;
+        return (
+          baseValid &&
+          state.brief.script.trim().length > 0 &&
+          state.characterReferenceFiles.length > 0
+        );
       }
       return baseValid;
-    }
-    // Animation Validation (16 Agustus 2026, Fase 5) — the "upload" step
-    // previously had no gate at all (fell through to the `return true`
-    // below); Animation orders now require at least one Character
-    // Reference Image before Continue unlocks. Every other category's
-    // upload step remains ungated, matching prior behavior.
-    if (state.step === "upload" && isAnimationOrder) {
-      return state.characterReferenceFiles.length > 0;
     }
     // Package/Bundle system (10 Agustus 2026) — Continue only unlocks once
     // the client has filled every creative-content slot the package grants,
@@ -633,8 +703,11 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     // defaults to one silently) — "custom-payment" is Custom Order
     // Builder's own step id, "payment" is Project Builder/Package's
     // (generalized 15 Agustus 2026, same underlying `paymentMethod` field
-    // either way — see OrderWizardState's own comment).
+    // either way — see OrderWizardState's own comment). 18 Agustus 2026 —
+    // "installments" additionally needs an explicit installmentPlan (2 vs 3)
+    // before Continue unlocks, same "never silently default" posture.
     if (state.step === "custom-payment" || state.step === "payment") {
+      if (state.paymentMethod === "installments") return state.installmentPlan !== null;
       return state.paymentMethod !== null;
     }
     return true;
@@ -643,11 +716,11 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     state.brief.projectTitle,
     state.brief.projectDescription,
     state.brief.script,
-    state.brief.deadline,
     state.characterReferenceFiles,
     state.bundleCreativeContentIds,
     state.customServiceSelections,
     state.paymentMethod,
+    state.installmentPlan,
     bundlePackage,
     isAnimationOrder,
   ]);
@@ -670,23 +743,27 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
         setSubmitError("Choose a payment method before submitting.");
         return;
       }
+      // 18 Agustus 2026 — same final-guard pattern as the checks below:
+      // canGoNext already gates step-by-step navigation on this, repeated
+      // here in case Review was reached via a restored session.
+      if (state.paymentMethod === "installments" && !state.installmentPlan) {
+        setSubmitError("Choose 2 or 3 installments before submitting.");
+        return;
+      }
 
-      // Animation Validation (16 Agustus 2026, Fase 5) — same three checks
-      // canGoNext's brief/upload branches already gate step-by-step
-      // navigation on, repeated here as a final guard in case Review was
-      // reached via a restored (non-authenticated -> /login -> back)
-      // session where an earlier step's requirement was met at the time but
-      // no longer is (e.g. localStorage brief edited outside the flow).
+      // Animation Validation (16 Agustus 2026, Fase 5) — same checks
+      // canGoNext's "brief" branch already gates step-by-step navigation
+      // on, repeated here as a final guard in case Review was reached via a
+      // restored (non-authenticated -> /login -> back) session where an
+      // earlier step's requirement was met at the time but no longer is
+      // (e.g. localStorage brief edited outside the flow).
       // submitOrderAction/submitCustomOrderAction re-validate this
       // server-side too — this is just so a visitor doesn't wait on a round
-      // trip to find out.
+      // trip to find out. Deadline is no longer part of this check (18
+      // Agustus 2026) — it's auto-computed, never client-typed.
       if (isAnimationOrder) {
         if (!state.brief.script.trim()) {
           setSubmitError("Add a script or story before submitting an Animation project.");
-          return;
-        }
-        if (!state.brief.deadline.trim()) {
-          setSubmitError("Add a deadline before submitting an Animation project.");
           return;
         }
         if (state.characterReferenceFiles.length === 0) {
@@ -796,6 +873,9 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
               intent,
               selections: state.customServiceSelections,
               paymentMethod: state.paymentMethod,
+              // 18 Agustus 2026 — see SubmitCustomOrderActionInput.installmentPlan's
+              // own comment in submit-custom-order-action.ts.
+              installmentPlan: state.installmentPlan,
               brief: state.brief,
               negotiationOffer: state.negotiationOffer,
               uploadedFiles,
@@ -812,6 +892,9 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
               // 15 Agustus 2026 — see SubmitOrderActionInput.paymentMethod's
               // own comment in submit-order-action.ts.
               paymentMethod: state.paymentMethod,
+              // 18 Agustus 2026 — see SubmitOrderActionInput.installmentPlan's
+              // own comment in submit-order-action.ts.
+              installmentPlan: state.installmentPlan,
               brief: state.brief,
               negotiationOffer: state.negotiationOffer,
               uploadedFiles,
@@ -850,6 +933,7 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
       state.bundleCreativeContentIds,
       state.customServiceSelections,
       state.paymentMethod,
+      state.installmentPlan,
       state.brief,
       state.files,
       fileBlobs,
@@ -878,7 +962,8 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     currentStepIndex,
     estimate,
     customEstimate,
-    installmentFeePercentage,
+    installmentFeePercentages,
+    estimatedDeliveryDate,
     isAnimationOrder,
     isHydrated,
     canGoNext,
@@ -898,7 +983,7 @@ export function useOrderWizard(isAuthenticated: boolean): UseOrderWizardResult {
     removeCustomService,
     updateCustomServiceConfig,
     setCustomServicePackageTier,
-    setPaymentMethod,
+    choosePaymentPlan,
     updateConfigValue,
     updateBrief,
     updateNegotiationOffer,

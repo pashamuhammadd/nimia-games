@@ -32,6 +32,51 @@ export interface OrderWizardProps {
   isAuthenticated: boolean;
 }
 
+/** Brief + Upload merged into one step (18 Agustus 2026, per user request
+ * to trim the wizard's step count) — both ProjectBriefForm and the file
+ * upload zone(s) now render together under the single "brief" StepId,
+ * across all three flows below, instead of two separate Continue-gated
+ * screens. Extracted here once so the three near-identical render blocks
+ * (Project Builder / Package / Custom Order) never drift out of sync with
+ * each other. */
+function BriefAndUploadStep({
+  wizard,
+}: {
+  wizard: ReturnType<typeof useOrderWizard>;
+}) {
+  return (
+    <div className="flex flex-col gap-10">
+      <ProjectBriefForm
+        brief={wizard.state.brief}
+        onChange={wizard.updateBrief}
+        isAnimationOrder={wizard.isAnimationOrder}
+      />
+      <UploadSection
+        files={wizard.state.files}
+        onAddFiles={wizard.addFiles}
+        onRemoveFile={wizard.removeFile}
+      />
+      {/* Animation Validation (16 Agustus 2026, Fase 5) — a second,
+          dedicated, required upload zone, only rendered for Animation
+          orders (see FASE0-AUDIT.md section E's "Character Images
+          entirely missing" finding). Images-only accept, since these are
+          reference art, not general attachments. */}
+      {wizard.isAnimationOrder ? (
+        <UploadSection
+          files={wizard.state.characterReferenceFiles}
+          onAddFiles={wizard.addCharacterReferenceFiles}
+          onRemoveFile={wizard.removeCharacterReferenceFile}
+          title="Character reference images"
+          subtitle="Share character designs, model sheets, or visual references our animators should match."
+          accept=".jpg,.jpeg,.png,.webp,.gif"
+          helperText="Images only — up to 20.0 MB each"
+          requiredHint="At least one character reference image is required for Animation projects."
+        />
+      ) : null}
+    </div>
+  );
+}
+
 // The top-level orchestrator: owns no business logic itself (that all
 // lives in useOrderWizard + data/catalog.ts + pricing/), just lays out the
 // header, progress rail, current step's component, the sticky/bottom
@@ -150,49 +195,15 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
                   />
                 ) : null}
 
-                {wizard.state.step === "brief" ? (
-                  <ProjectBriefForm
-                    brief={wizard.state.brief}
-                    onChange={wizard.updateBrief}
-                    isAnimationOrder={wizard.isAnimationOrder}
-                  />
-                ) : null}
-
-                {wizard.state.step === "upload" ? (
-                  <div className="flex flex-col gap-10">
-                    <UploadSection
-                      files={wizard.state.files}
-                      onAddFiles={wizard.addFiles}
-                      onRemoveFile={wizard.removeFile}
-                    />
-                    {/* Animation Validation (16 Agustus 2026, Fase 5) — a
-                        second, dedicated, required upload zone, only
-                        rendered for Animation orders (see
-                        FASE0-AUDIT.md section E's "Character Images
-                        entirely missing" finding). Images-only accept,
-                        since these are reference art, not general
-                        attachments. */}
-                    {wizard.isAnimationOrder ? (
-                      <UploadSection
-                        files={wizard.state.characterReferenceFiles}
-                        onAddFiles={wizard.addCharacterReferenceFiles}
-                        onRemoveFile={wizard.removeCharacterReferenceFile}
-                        title="Character reference images"
-                        subtitle="Share character designs, model sheets, or visual references our animators should match."
-                        accept=".jpg,.jpeg,.png,.webp,.gif"
-                        helperText="Images only — up to 20.0 MB each"
-                        requiredHint="At least one character reference image is required for Animation projects."
-                      />
-                    ) : null}
-                  </div>
-                ) : null}
+                {wizard.state.step === "brief" ? <BriefAndUploadStep wizard={wizard} /> : null}
 
                 {wizard.state.step === "custom-payment" ? (
                   <PaymentMethodStep
                     paymentMethod={wizard.state.paymentMethod}
-                    onSelect={wizard.setPaymentMethod}
+                    installmentPlan={wizard.state.installmentPlan}
+                    onChoose={wizard.choosePaymentPlan}
                     estimate={wizard.customEstimate}
-                    installmentFeePercentage={wizard.installmentFeePercentage}
+                    installmentFeePercentages={wizard.installmentFeePercentages}
                   />
                 ) : null}
 
@@ -200,9 +211,11 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
                   <CustomOrderReviewSection
                     selections={wizard.state.customServiceSelections}
                     paymentMethod={wizard.state.paymentMethod}
+                    installmentPlan={wizard.state.installmentPlan}
                     estimate={wizard.customEstimate}
                     brief={wizard.state.brief}
                     files={wizard.state.files}
+                    estimatedDeliveryDate={wizard.estimatedDeliveryDate}
                     agreedToTerms={wizard.state.agreedToTerms}
                     onAgreedToTermsChange={wizard.setAgreedToTerms}
                     onEditStep={wizard.goToStep}
@@ -297,42 +310,7 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
                   />
                 ) : null}
 
-                {wizard.state.step === "brief" ? (
-                  <ProjectBriefForm
-                    brief={wizard.state.brief}
-                    onChange={wizard.updateBrief}
-                    isAnimationOrder={wizard.isAnimationOrder}
-                  />
-                ) : null}
-
-                {wizard.state.step === "upload" ? (
-                  <div className="flex flex-col gap-10">
-                    <UploadSection
-                      files={wizard.state.files}
-                      onAddFiles={wizard.addFiles}
-                      onRemoveFile={wizard.removeFile}
-                    />
-                    {/* Animation Validation (16 Agustus 2026, Fase 5) — a
-                        second, dedicated, required upload zone, only
-                        rendered for Animation orders (see
-                        FASE0-AUDIT.md section E's "Character Images
-                        entirely missing" finding). Images-only accept,
-                        since these are reference art, not general
-                        attachments. */}
-                    {wizard.isAnimationOrder ? (
-                      <UploadSection
-                        files={wizard.state.characterReferenceFiles}
-                        onAddFiles={wizard.addCharacterReferenceFiles}
-                        onRemoveFile={wizard.removeCharacterReferenceFile}
-                        title="Character reference images"
-                        subtitle="Share character designs, model sheets, or visual references our animators should match."
-                        accept=".jpg,.jpeg,.png,.webp,.gif"
-                        helperText="Images only — up to 20.0 MB each"
-                        requiredHint="At least one character reference image is required for Animation projects."
-                      />
-                    ) : null}
-                  </div>
-                ) : null}
+                {wizard.state.step === "brief" ? <BriefAndUploadStep wizard={wizard} /> : null}
 
                 {/* Payment Method step (15 Agustus 2026, generalized from
                     Custom Order Builder — see PaymentMethodStepProps' own
@@ -344,9 +322,10 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
                 {wizard.state.step === "payment" ? (
                   <PaymentMethodStep
                     paymentMethod={wizard.state.paymentMethod}
-                    onSelect={wizard.setPaymentMethod}
+                    installmentPlan={wizard.state.installmentPlan}
+                    onChoose={wizard.choosePaymentPlan}
                     estimate={{ subtotal: wizard.estimate.totalPrice }}
-                    installmentFeePercentage={wizard.installmentFeePercentage}
+                    installmentFeePercentages={wizard.installmentFeePercentages}
                   />
                 ) : null}
 
@@ -359,6 +338,7 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
                     brief={wizard.state.brief}
                     files={wizard.state.files}
                     estimate={wizard.estimate}
+                    estimatedDeliveryDate={wizard.estimatedDeliveryDate}
                     agreedToTerms={wizard.state.agreedToTerms}
                     onAgreedToTermsChange={wizard.setAgreedToTerms}
                     onEditStep={wizard.goToStep}
@@ -474,37 +454,7 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
                 />
               ) : null}
 
-              {wizard.state.step === "brief" ? (
-                <ProjectBriefForm
-                  brief={wizard.state.brief}
-                  onChange={wizard.updateBrief}
-                  isAnimationOrder={wizard.isAnimationOrder}
-                />
-              ) : null}
-
-              {wizard.state.step === "upload" ? (
-                <div className="flex flex-col gap-10">
-                  <UploadSection
-                    files={wizard.state.files}
-                    onAddFiles={wizard.addFiles}
-                    onRemoveFile={wizard.removeFile}
-                  />
-                  {/* Animation Validation (16 Agustus 2026, Fase 5) — see
-                      the Custom Order branch above's identical comment. */}
-                  {wizard.isAnimationOrder ? (
-                    <UploadSection
-                      files={wizard.state.characterReferenceFiles}
-                      onAddFiles={wizard.addCharacterReferenceFiles}
-                      onRemoveFile={wizard.removeCharacterReferenceFile}
-                      title="Character reference images"
-                      subtitle="Share character designs, model sheets, or visual references our animators should match."
-                      accept=".jpg,.jpeg,.png,.webp,.gif"
-                      helperText="Images only — up to 20.0 MB each"
-                      requiredHint="At least one character reference image is required for Animation projects."
-                    />
-                  ) : null}
-                </div>
-              ) : null}
+              {wizard.state.step === "brief" ? <BriefAndUploadStep wizard={wizard} /> : null}
 
               {/* Payment Method step (15 Agustus 2026, generalized from
                   Custom Order Builder — see the Package branch above's
@@ -512,9 +462,10 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
               {wizard.state.step === "payment" ? (
                 <PaymentMethodStep
                   paymentMethod={wizard.state.paymentMethod}
-                  onSelect={wizard.setPaymentMethod}
+                  installmentPlan={wizard.state.installmentPlan}
+                  onChoose={wizard.choosePaymentPlan}
                   estimate={{ subtotal: wizard.estimate.totalPrice }}
-                  installmentFeePercentage={wizard.installmentFeePercentage}
+                  installmentFeePercentages={wizard.installmentFeePercentages}
                 />
               ) : null}
 
@@ -527,6 +478,7 @@ export function OrderWizard({ isAuthenticated }: OrderWizardProps) {
                   brief={wizard.state.brief}
                   files={wizard.state.files}
                   estimate={wizard.estimate}
+                  estimatedDeliveryDate={wizard.estimatedDeliveryDate}
                   agreedToTerms={wizard.state.agreedToTerms}
                   onAgreedToTermsChange={wizard.setAgreedToTerms}
                   onEditStep={wizard.goToStep}

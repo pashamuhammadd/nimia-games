@@ -9,11 +9,14 @@ describe("materializeInstallments — full_payment", () => {
 });
 
 describe("materializeInstallments — installments, two_milestones (also the 'none' default)", () => {
-  it("splits 50/50 with the correct labels", () => {
+  it("splits 60/40 with the correct labels", () => {
+    // 18 Agustus 2026, per user request ("2x: 60/40") — was 50/50 under
+    // 0038's original design; see migration
+    // 0051_tiered_installment_plans.sql.
     const rows = materializeInstallments({ finalPriceUsd: 1000, paymentMethod: "installments", paymentPlan: "two_milestones" });
     expect(rows).toEqual([
-      { sequence: 1, label: "Project Start", percentage: 50, amountUsd: 500, status: "pending_payment" },
-      { sequence: 2, label: "Before Final Delivery", percentage: 50, amountUsd: 500, status: "scheduled" },
+      { sequence: 1, label: "Project Start", percentage: 60, amountUsd: 600, status: "pending_payment" },
+      { sequence: 2, label: "Before Final Delivery", percentage: 40, amountUsd: 400, status: "scheduled" },
     ]);
   });
 
@@ -31,11 +34,14 @@ describe("materializeInstallments — installments, two_milestones (also the 'no
 });
 
 describe("materializeInstallments — installments, three_milestones", () => {
-  it("splits 30/30/40 with the correct labels", () => {
+  it("splits 40/30/30 with the correct labels", () => {
+    // 18 Agustus 2026, per user request ("3x: 40/30/30") — was 30/30/40
+    // under 0038's original design; see migration
+    // 0051_tiered_installment_plans.sql.
     const rows = materializeInstallments({ finalPriceUsd: 1000, paymentMethod: "installments", paymentPlan: "three_milestones" });
-    expect(rows.map((r) => r.percentage)).toEqual([30, 30, 40]);
+    expect(rows.map((r) => r.percentage)).toEqual([40, 30, 30]);
     expect(rows.map((r) => r.label)).toEqual(["Project Start", "Project Milestone", "Final Delivery"]);
-    expect(rows.map((r) => r.amountUsd)).toEqual([300, 300, 400]);
+    expect(rows.map((r) => r.amountUsd)).toEqual([400, 300, 300]);
   });
 });
 

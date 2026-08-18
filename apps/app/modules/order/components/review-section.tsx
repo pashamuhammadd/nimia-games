@@ -21,6 +21,12 @@ export interface ReviewSectionProps {
   brief: ProjectBrief;
   files: UploadedFileMeta[];
   estimate: Estimate;
+  /** Auto-computed delivery date (18 Agustus 2026, per user request —
+   * replaces the old client-typed Deadline field). Null before there's
+   * enough of an order to estimate from — see useOrderWizard's own field.
+   * Rendered in the Estimate card's "Estimated Delivery" row in place of
+   * the plain day count, when available. */
+  estimatedDeliveryDate: string | null;
   agreedToTerms: boolean;
   onAgreedToTermsChange: (agreed: boolean) => void;
   onEditStep: (step: StepId) => void;
@@ -47,7 +53,7 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-// STEP 7 — the whole order recapped through SummaryCard, the same building
+// STEP — the whole order recapped through SummaryCard, the same building
 // block PriceEstimator uses, so Review and the sidebar never disagree about
 // how a given section is labeled or formatted.
 export function ReviewSection({
@@ -58,6 +64,7 @@ export function ReviewSection({
   brief,
   files,
   estimate,
+  estimatedDeliveryDate,
   agreedToTerms,
   onAgreedToTermsChange,
   onEditStep,
@@ -97,11 +104,15 @@ export function ReviewSection({
       : [{ label: "Creative Content", value: "None selected" }]
     : configRows;
 
+  // "Deadline" row removed (18 Agustus 2026, per user request) — no
+  // longer a client-typed field, see estimatedDeliveryDate's own comment
+  // above; the Estimate card's "Estimated Delivery" row below shows the
+  // real, auto-computed date instead. "Files" moved off this card
+  // (already had its own SummaryCard below) — unchanged.
   const briefRows = [
     { label: "Title", value: brief.projectTitle || "-" },
     { label: "Description", value: brief.projectDescription || "-" },
     { label: "Target Platform", value: brief.targetPlatform || "-" },
-    { label: "Deadline", value: brief.deadline || "-" },
     // Animation Validation (16 Agustus 2026, Fase 5) — only shown for
     // Animation orders, matching ProjectBriefForm only rendering the field
     // itself when isAnimationOrder is true.
@@ -131,7 +142,7 @@ export function ReviewSection({
         <SummaryCard title="Project Brief" onEdit={() => onEditStep("brief")} rows={briefRows} />
         <SummaryCard
           title="Files"
-          onEdit={() => onEditStep("upload")}
+          onEdit={() => onEditStep("brief")}
           rows={
             files.length > 0
               ? files.map((file) => ({ label: file.name, value: formatBytes(file.size) }))
@@ -140,12 +151,12 @@ export function ReviewSection({
         />
         {/* Animation Validation (16 Agustus 2026, Fase 5) — separate card so
             the client sees exactly what's required for Animation (Script,
-            Character Reference Images, Deadline) is actually filled in
-            before they submit. */}
+            Character Reference Images) is actually filled in before they
+            submit. */}
         {isAnimationOrder ? (
           <SummaryCard
             title="Character Reference Images"
-            onEdit={() => onEditStep("upload")}
+            onEdit={() => onEditStep("brief")}
             rows={
               characterReferenceFiles.length > 0
                 ? characterReferenceFiles.map((file) => ({ label: file.name, value: formatBytes(file.size) }))
@@ -173,8 +184,10 @@ export function ReviewSection({
                 ]
               : [{ label: "Estimated Price", value: `$${estimate.totalPrice}` }]),
             {
+              // 18 Agustus 2026 (per user request) — an actual auto-computed
+              // date now, when available, instead of just a day count.
               label: "Estimated Delivery",
-              value: estimate.deliveryLabel ?? `${estimate.totalDeliveryDays} Days`,
+              value: estimatedDeliveryDate ?? estimate.deliveryLabel ?? `${estimate.totalDeliveryDays} Days`,
             },
           ]}
           className="sm:col-span-2"
