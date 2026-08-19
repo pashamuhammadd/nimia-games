@@ -36,7 +36,10 @@ export function PaymentVerifiedEmail({
   dashboardUrl,
 }: PaymentVerifiedEmailProps) {
   return (
-    <EmailLayout previewText={`Payment verified for your ${serviceName} order`}>
+    // previewText is the hidden preheader shown after the subject in the
+    // inbox list — fixed 19 Agustus 2026 (used to just restate the subject).
+    <EmailLayout previewText="Your project is now moving into production — we'll keep you posted.">
+
       <Heading style={{ color: BRAND.maroon, fontSize: 20, margin: "0 0 16px" }}>
         Payment verified ✅
       </Heading>

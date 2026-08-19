@@ -32,7 +32,10 @@ export function PaymentFlaggedEmail({
   dashboardUrl,
 }: PaymentFlaggedEmailProps) {
   return (
-    <EmailLayout previewText={`Your payment for ${serviceName} needs a second look`}>
+    // previewText is the hidden preheader shown after the subject in the
+    // inbox list — fixed 19 Agustus 2026 (used to just restate the subject).
+    <EmailLayout previewText="Please double-check the details and resend from your dashboard.">
+
       <Heading style={{ color: BRAND.maroon, fontSize: 20, margin: "0 0 16px" }}>
         Your payment needs a second look
       </Heading>

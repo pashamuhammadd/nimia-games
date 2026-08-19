@@ -46,11 +46,17 @@ export function NegotiationUpdateEmail({
   const isAccepted = kind === "accepted";
 
   return (
+    // previewText is the hidden preheader shown after the subject in the
+    // inbox list — fixed 19 Agustus 2026 (user report of subject/preview
+    // looking duplicated in Gmail). This used to just restate the subject
+    // ("Your offer ... was accepted — ready to pay" right after a subject
+    // that already says "... was accepted"); now it adds the actual price
+    // (accepted) or a clear next action (counter) instead.
     <EmailLayout
       previewText={
         isAccepted
-          ? `Your offer for ${serviceName} was accepted — ready to pay`
-          : `Nimia Studio sent a counter offer for ${serviceName}`
+          ? `Your price is locked in at ${formatUsd(amountUsd)} — pay whenever you're ready.`
+          : `Take a look and accept, counter again, or decline from your dashboard.`
       }
     >
       <Heading style={{ color: BRAND.maroon, fontSize: 20, margin: "0 0 16px" }}>

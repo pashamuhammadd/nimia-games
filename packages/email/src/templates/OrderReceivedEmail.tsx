@@ -40,7 +40,15 @@ export function OrderReceivedEmail({
       : description;
 
   return (
-    <EmailLayout previewText={`We've received your ${serviceName} order`}>
+    // previewText is the hidden preheader Gmail/Outlook show right after the
+    // subject line in the inbox list ("Subject - preview snippet"). Fixed 19
+    // Agustus 2026 (user report: inbox showed "We've received your Web3
+    // Launch order - We've received your Web3 Launch order", subject and
+    // preview literally identical) — this used to just repeat the subject
+    // verbatim. Every previewText below across all 5 templates now adds NEW
+    // information instead of restating the subject.
+    <EmailLayout previewText="No charge yet — we'll review your details and send a quote within 1-2 business days.">
+
       <Heading style={{ color: BRAND.maroon, fontSize: 20, margin: "0 0 16px" }}>
         We&apos;ve received your order 🎉
       </Heading>
