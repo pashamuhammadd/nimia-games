@@ -18,7 +18,9 @@ export {
   createPrivateThread,
   addThreadMember,
   archiveThread,
+  buildLinkButtonRow,
   type DiscordEmbed,
+  type DiscordLinkButton,
 } from "./rest";
 export { getDiscordRoleId, getDiscordChannelId } from "./config";
 export {
@@ -28,8 +30,10 @@ export {
   notifyPaymentVerified,
   notifyPaymentFlagged,
   notifySystemLog,
+  notifyProspectFound,
   type NegotiationEventKind,
   type NotifyPaymentMethod,
+  type ProspectFoundInput,
 } from "./notify";
 export { createSupportTicket, closeSupportTicketThread } from "./tickets";
 export {

@@ -1,13 +1,25 @@
-import type { createServerClient } from "@nimia/db";
+import type { createServerClient, createServiceRoleClient } from "@nimia/db";
 import type { AgentRunParams, AgentRunSummary, AgentRunError, AnalyzedProject, DiscoveredProject } from "./types";
 import { getDiscoverySource } from "./discovery/registry";
 import { isDemoModeEnabled } from "./discovery/demo-provider";
 import { dedupeProjectsInBatch } from "./tools/dedupe";
 import { scoreProject, opportunityLevelForScore } from "./tools/scoreProject";
 import { saveProject } from "./tools/save";
-import { QUALIFIED_SCORE_THRESHOLD } from "./constants";
+import { notifyPartners } from "./tools/notifyPartners";
+import { QUALIFIED_SCORE_THRESHOLD, PARTNER_NOTIFY_SCORE_THRESHOLD } from "./constants";
 
-type SupabaseClient = ReturnType<typeof createServerClient>;
+// Accepts EITHER Supabase client shape (added 19 Aug 2026, cron route —
+// see app/api/cron/prospect-hunter/route.ts): the existing cookie-session
+// client (an admin clicking "Find Prospects" in the dashboard, still the
+// only caller before this pass) OR the service-role client (the new cron
+// route, which has no signed-in user/cookies at all — it's called by an
+// external scheduler, not a browser). Both @nimia/db factories return the
+// same underlying @supabase/supabase-js `SupabaseClient<Database>` shape
+// under the hood (createServerClient is a thin @supabase/ssr wrapper over
+// it), so every `supabase.from(...)` call this file already makes works
+// identically either way — this widening is type-only, no behavior here
+// needed to change.
+type SupabaseClient = ReturnType<typeof createServerClient> | ReturnType<typeof createServiceRoleClient>;
 
 // The Agent — orchestrates the full pipeline the spec lays out (section
 // 18):
@@ -212,6 +224,15 @@ export async function runAgentPipeline(supabase: SupabaseClient, params: AgentRu
 
       if ("error" in result) {
         errors.push({ step: "save_project", message: result.error, at: nowIso() });
+      } else if (result.isNewlyDiscovered && analyzed.opportunityScore >= PARTNER_NOTIFY_SCORE_THRESHOLD) {
+        // Partner broadcast (added 19 Aug 2026 — see tools/notifyPartners.ts's
+        // own top comment). Deliberately gated on isNewlyDiscovered, not
+        // just the score threshold: a re-analyzed project (shouldn't
+        // normally happen — see saveProject's comment on why excludeCoingeckoIds
+        // makes this rare — but not impossible) must never post to
+        // partners a second time for the same project. Never throws (see
+        // that file's own comment) — no try/catch needed here.
+        await notifyPartners(analyzed);
       }
     } catch (error) {
       errors.push({

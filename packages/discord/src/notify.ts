@@ -1,4 +1,4 @@
-import { sendChannelMessage, createThreadFromMessage, type DiscordEmbed } from "./rest";
+import { sendChannelMessage, createThreadFromMessage, buildLinkButtonRow, type DiscordEmbed, type DiscordLinkButton } from "./rest";
 import { getDiscordChannelId } from "./config";
 
 // Notifications phase (9 Agustus 2026) — see docs/DISCORD.md's "Bot
@@ -30,6 +30,7 @@ const COLOR_ACCEPTED = 0x2ecc71; // green — agreed / verified
 const COLOR_REJECTED = 0xe74c3c; // red — rejected / flagged
 const COLOR_PAYMENT_SUBMITTED = 0x3498db; // blue — informational, not yet actioned
 const COLOR_SYSTEM = 0x99aaab; // neutral grey — plain activity log
+const COLOR_PROSPECT = 0xf1c40f; // gold — "here's a new lead", distinct from every operational color above
 
 type DiscordChannelName = Parameters<typeof getDiscordChannelId>[0];
 
@@ -38,11 +39,14 @@ type DiscordChannelName = Parameters<typeof getDiscordChannelId>[0];
  * embed, and swallows (logs) any failure rather than throwing. A
  * missing/misconfigured channel env var is exactly as recoverable as a
  * Discord API error from here: neither should be able to break the
- * website action that triggered the notification. */
-async function safeSend(channel: DiscordChannelName, embed: DiscordEmbed, context: string): Promise<void> {
+ * website action that triggered the notification. `components` (added 19
+ * Agustus 2026, AI Prospect Hunter partner broadcast) is optional and
+ * additive — every existing caller that omits it behaves identically to
+ * before this change. */
+async function safeSend(channel: DiscordChannelName, embed: DiscordEmbed, context: string, components?: unknown[]): Promise<void> {
   try {
     const channelId = getDiscordChannelId(channel);
-    await sendChannelMessage(channelId, { embeds: [embed] });
+    await sendChannelMessage(channelId, { embeds: [embed], ...(components ? { components } : {}) });
   } catch (error) {
     console.error(`[discord] Failed to send ${context} notification`, error);
   }
@@ -369,5 +373,113 @@ export async function notifySystemLog(event: string, description: string): Promi
     "system-log",
     { title: event, description, color: COLOR_SYSTEM, timestamp: new Date().toISOString() },
     `system-log (${event})`,
+  );
+}
+
+// ------------------------------------------------------------------
+// #prospect-hunter (AI Prospect Hunter partner broadcast, added 19
+// Agustus 2026 — product request: partners need a stream of vetted
+// crypto/Web3 leads to reach out to themselves, in a NEW Discord channel
+// under a "Partner" category the user creates by hand (see config.ts's
+// "prospect-hunter" comment). Fired from apps/admin/lib/ai-agent/
+// orchestrator.ts the moment a genuinely NEW project (never discovered
+// before — see that file's isNewlyDiscovered guard) crosses
+// constants.ts's PARTNER_NOTIFY_SCORE_THRESHOLD. Duplicate-post safety
+// isn't this function's job: the pipeline's own permanent
+// already-discovered exclusion (constants.ts / orchestrator.ts,
+// discovery/coingecko-project-provider.ts) means a given coingecko_id can
+// only ever reach here once, ever, across every future run — this
+// function fires at most once per project, full stop.
+//
+// Deliberately NO action button of any kind other than plain outbound
+// LINKS (product decision, 19 Agustus 2026: "di discord dan telegram
+// gausah ada 'mark as contacted'") — every button here is a LINK-style
+// component (rest.ts's buildLinkButtonRow), which Discord never sends
+// this app an interaction for. Nothing about a partner clicking one of
+// these buttons is ever recorded anywhere; "mark as contacted" stays an
+// admin-only action inside the web dashboard
+// (app/(protected)/ai-prospect-hunter/actions.ts's
+// markProjectContactedAction), same as before this feature existed.
+// ------------------------------------------------------------------
+
+export type ProspectFoundInput = {
+  name: string;
+  symbol: string | null;
+  /** Human-readable category label — this package has zero dependencies
+   * by design (see this file's own top comment), so it never imports
+   * apps/admin's own category/tier constants; the caller formats this. */
+  category: string | null;
+  opportunityScore: number;
+  /** Pre-formatted label, e.g. "High" — same reasoning as `category`
+   * above: this package doesn't know apps/admin's AiOpportunityLevel
+   * vocabulary. */
+  opportunityLevel: string;
+  commercialPotential: string;
+  recommendedServices: string[];
+  reasoning: string;
+  marketCapUsd: number | null;
+  /** Every link here is OPTIONAL and independently nullable — only the
+   * ones a project's own CoinGecko profile actually reported get turned
+   * into a button (buildLinkButtonRow below), never a guessed/invented
+   * URL. See lib/ai-agent/types.ts's ProjectSocialLinks/
+   * DiscoveredProject for where these come from on the caller's side. */
+  links: {
+    website: string | null;
+    twitter: string | null;
+    telegram: string | null;
+    discord: string | null;
+    /** Always present in practice (CoinGecko's own coin page) — kept
+     * nullable for type honesty and because this function must never
+     * invent one either. Doubles as CoinGecko attribution (see
+     * coingecko-client.ts's commercial-use note) — the button label says
+     * "View on CoinGecko" specifically so that requirement is satisfied
+     * wherever this message is shown, not just on the website. */
+    coingeckoUrl: string | null;
+  };
+};
+
+function formatMarketCap(marketCapUsd: number | null): string {
+  if (marketCapUsd == null) return "Unknown";
+  return `$${Math.round(marketCapUsd).toLocaleString()}`;
+}
+
+function buildProspectLinkButtons(links: ProspectFoundInput["links"]): DiscordLinkButton[] {
+  const candidates: (DiscordLinkButton | null)[] = [
+    links.website ? { label: "🌐 Website", url: links.website } : null,
+    links.twitter ? { label: "🐦 Twitter / X", url: links.twitter } : null,
+    links.telegram ? { label: "✈️ Telegram", url: links.telegram } : null,
+    links.discord ? { label: "💬 Discord", url: links.discord } : null,
+    links.coingeckoUrl ? { label: "📊 View on CoinGecko", url: links.coingeckoUrl } : null,
+  ];
+  return candidates.filter((b): b is DiscordLinkButton => b !== null);
+}
+
+/** Posts one new-prospect embed to #prospect-hunter, with LINK buttons for
+ * every official channel the project's own CoinGecko profile reported
+ * (website/Twitter/Telegram/Discord/CoinGecko itself). Never throws — a
+ * missing DISCORD_CHANNEL_PROSPECT_HUNTER_ID or a Discord API failure logs
+ * and returns, exactly like every other notify* export in this file; the
+ * project is still saved and visible in the admin dashboard either way. */
+export async function notifyProspectFound(input: ProspectFoundInput): Promise<void> {
+  const buttons = buildProspectLinkButtons(input.links);
+  await safeSend(
+    "prospect-hunter",
+    {
+      title: `🎯 New Prospect — ${input.name}${input.symbol ? ` ($${input.symbol})` : ""}`,
+      description: input.reasoning,
+      color: COLOR_PROSPECT,
+      fields: [
+        ...(input.category ? [{ name: "Category", value: input.category, inline: true }] : []),
+        { name: "Opportunity Score", value: `${input.opportunityScore}/100 (${input.opportunityLevel})`, inline: true },
+        { name: "Commercial Potential", value: input.commercialPotential, inline: true },
+        { name: "Market Cap", value: formatMarketCap(input.marketCapUsd), inline: true },
+        ...(input.recommendedServices.length > 0
+          ? [{ name: "Suggested Services", value: input.recommendedServices.join(", ") }]
+          : []),
+      ],
+      timestamp: new Date().toISOString(),
+    },
+    "prospect found",
+    buttons.length > 0 ? [buildLinkButtonRow(buttons)] : undefined,
   );
 }

@@ -115,7 +115,15 @@ export function getDiscordChannelId(
     | "partner-joined"
     | "recent-rewards"
     | "partner-leaderboard"
-    | "partner-success",
+    | "partner-success"
+    // AI Prospect Hunter partner broadcast (19 Agustus 2026) — a NEW
+    // channel under a "Partner" category the user creates by hand in
+    // Discord (this package never creates channels itself, see this
+    // package's README "Server setup notes"). Every newly-discovered
+    // project that crosses apps/admin/lib/ai-agent/constants.ts's
+    // PARTNER_NOTIFY_SCORE_THRESHOLD gets posted here — see
+    // notify.ts's notifyProspectFound and lib/ai-agent/orchestrator.ts.
+    | "prospect-hunter",
 ): string {
   const envName =
     {
@@ -133,6 +141,7 @@ export function getDiscordChannelId(
       "recent-rewards": "DISCORD_CHANNEL_RECENT_REWARDS_ID",
       "partner-leaderboard": "DISCORD_CHANNEL_PARTNER_LEADERBOARD_ID",
       "partner-success": "DISCORD_CHANNEL_PARTNER_SUCCESS_ID",
+      "prospect-hunter": "DISCORD_CHANNEL_PROSPECT_HUNTER_ID",
     } as const satisfies Record<typeof channel, string>;
   return requireEnv(envName[channel]);
 }

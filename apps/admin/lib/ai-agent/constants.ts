@@ -27,6 +27,21 @@ export const SCORE_TOTAL_MAX = Object.values(SCORE_MAX).reduce((sum, n) => sum +
 export const QUALIFIED_SCORE_THRESHOLD = 70;
 export const OPPORTUNITY_SCORE_THRESHOLD = 40;
 
+// AI Prospect Hunter partner broadcast (added 19 Aug 2026 — see
+// tools/notifyPartners.ts and orchestrator.ts's call site). Deliberately a
+// SEPARATE named constant from OPPORTUNITY_SCORE_THRESHOLD above even
+// though it's the same number today — product decision, confirmed
+// explicitly by the user ("Lebih longgar (termasuk 'opportunity', skor
+// 40+)") rather than the stricter QUALIFIED_SCORE_THRESHOLD (70): a
+// project only needs to clear "opportunity" level, not "qualified
+// prospect", to be posted to #prospect-hunter (Discord) and the Nimia
+// Partner Program Telegram channel. Kept separate so retuning WHO gets
+// classified as an "opportunity" in the dashboard (OPPORTUNITY_SCORE_
+// THRESHOLD) doesn't silently also retune what partners see broadcast to
+// them, and vice versa — if that ever needs its own independent value,
+// only this line changes.
+export const PARTNER_NOTIFY_SCORE_THRESHOLD = 40;
+
 // animation_opportunity level thresholds (spec section 11) — deliberately
 // a finer-grained read than the two thresholds above, since a project can
 // be a "medium" opportunity without yet crossing into "qualified_prospect"

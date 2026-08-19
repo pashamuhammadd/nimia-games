@@ -14,6 +14,7 @@
     "@nimia/db": "*",
     "@nimia/discord": "*",
     "@nimia/pdf": "*",
+    "@nimia/telegram": "*",
     "@nimia/ui": "*",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",

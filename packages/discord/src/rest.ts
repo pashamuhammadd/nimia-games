@@ -115,6 +115,41 @@ export type DiscordEmbed = {
   timestamp?: string;
 };
 
+/** A single Discord LINK-style button (component type 2, style 5) — the
+ * only button style that needs no interaction handler at all: clicking it
+ * just opens `url` in the user's browser/Discord client, Discord never
+ * sends this app a webhook for it. Added 19 Agustus 2026 for the AI
+ * Prospect Hunter partner broadcast (notify.ts's notifyProspectFound),
+ * which is exactly why it's safe to use here — spec requirement (product
+ * decision, 19 Agustus 2026): the partner-facing prospect message must
+ * NEVER have a "Mark as Contacted" or any other action button, only plain
+ * outbound links to the prospect's own channels. This is "a real type"
+ * for the `components` param below — see that param's own comment for why
+ * it stayed untyped (`unknown[]`) until this, the second caller, needed
+ * one. */
+export type DiscordLinkButton = { label: string; url: string };
+
+/** Wraps up to 5 `DiscordLinkButton`s into ONE Discord action row (type 1)
+ * — Discord allows at most 5 components per action row and 5 rows per
+ * message; this package only ever needs one row so far, so a caller
+ * wanting more than 5 buttons should build additional rows by hand rather
+ * than this helper growing a multi-row mode it doesn't need yet. Silently
+ * drops anything past the 5th button rather than throwing — a caller
+ * passing too many buttons is a bug worth a quiet no-op, not a failed
+ * notification (see notify.ts's own "never let a partner notification
+ * throw" posture). */
+export function buildLinkButtonRow(buttons: DiscordLinkButton[]): { type: 1; components: unknown[] } {
+  return {
+    type: 1,
+    components: buttons.slice(0, 5).map((button) => ({
+      type: 2, // BUTTON
+      style: 5, // LINK — url required, no custom_id, no interaction ever fires
+      label: button.label.slice(0, 80), // Discord's own button label cap
+      url: button.url,
+    })),
+  };
+}
+
 /** Posts a message to `channelId` as the bot (added 9 Agustus 2026,
  * notifications phase — see docs/DISCORD.md's "Bot responsibilities").
  * Every caller in this package goes through notify.ts's safeSend, which
@@ -135,9 +170,12 @@ export type DiscordEmbed = {
  * editChannelMessage below (e.g. the leaderboard's one pinned message).
  * `components` (added 12 Agustus 2026, in-Discord ticket button — see
  * docs/DISCORD.md's "In-Discord ticket button" section) accepts Discord's
- * raw message-component tree (action rows / buttons) — not modeled as its
- * own type here since only interactions.ts's buildCreateTicketButtonMessage
- * builds one today; add a real type if a second caller ever needs one. */
+ * raw message-component tree (action rows / buttons) — kept as `unknown[]`
+ * rather than a fully-modeled union since the two callers that build one
+ * today (interactions.ts's buildCreateTicketButtonMessage, and
+ * buildLinkButtonRow above) each already return the right shape; add a
+ * proper discriminated type here if a third, differently-shaped caller
+ * ever needs one. */
 export async function sendChannelMessage(
   channelId: string,
   payload: { content?: string; embeds?: DiscordEmbed[]; components?: unknown[] },

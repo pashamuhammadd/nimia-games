@@ -199,14 +199,88 @@ CoinGecko's own `Retry-After` header on a 429 and a short fixed backoff
 otherwise, before the original error propagates to the caller exactly as
 before this change.
 
+## Auto-run + partner broadcast (19 Aug 2026)
+
+Product request (6 points, verbatim: "AI Prospect agent bisa auto cari
+calon klien setiap 3 jam sekali", auto-send results to Discord + Telegram,
+a new Discord "Partner" category channel, clickable prospect-contact
+buttons, a Telegram Nimia Partner Program channel, no "mark as contacted"
+button anywhere in either). Two independent additions, both opt-in via env
+vars (a deployment with neither configured behaves exactly as before this
+pass):
+
+**Auto-run, every 3 hours** — `app/api/cron/prospect-hunter/route.ts`.
+Calls the exact same `runAgentPipeline` the dashboard's "Find Prospects"
+button already calls (`app/(protected)/ai-prospect-hunter/actions.ts`'s
+`startAgentRunAction`) — there is no separate cron-only pipeline to keep in
+sync. Triggered by an external scheduler, NOT Vercel's native `vercel.json`
+cron: this project is still on Vercel's Hobby plan (confirmed with the
+user), which caps native Cron Jobs at once per day — nowhere near "every 3
+hours". Upstash QStash (free tier) fills that gap instead, calling the
+route over plain HTTP with `Authorization: Bearer <CRON_SECRET>` — see the
+route file's own top comment for the exact QStash schedule setup and the
+one-line migration path to native Vercel Cron if this project ever moves
+to Pro. Uses `createServiceRoleClient()` (`@nimia/db`), not
+`createServerClient` — a scheduler calling this route has no signed-in
+admin session/cookies at all, which is exactly the documented exception in
+`packages/db/src/service.ts`'s own header comment. `ai_agent_runs.created_by`
+is `null` for every cron-triggered run, distinguishing it from an
+admin-triggered one in the Runs history page without needing a separate
+flag.
+
+**Partner broadcast** — `tools/notifyPartners.ts`, called from
+`orchestrator.ts` right after `saveProject` succeeds, gated on BOTH:
+`saveProject`'s new `isNewlyDiscovered` flag (a project already sitting in
+the dashboard is never re-broadcast — in practice this is almost always
+true anyway, since discovery's permanent already-discovered exclusion,
+above, already keeps known projects out of the pipeline entirely) AND
+`opportunityScore >= PARTNER_NOTIFY_SCORE_THRESHOLD` (`constants.ts`,
+currently 40 — the "opportunity" threshold, not the stricter 70
+"qualified_prospect" one, per explicit product direction: "Lebih longgar
+(termasuk 'opportunity', skor 40+)"). Fans out to `@nimia/discord`'s and
+`@nimia/telegram`'s own `notifyProspectFound` via `Promise.allSettled` —
+one message PER PROSPECT on each platform (not a digest, per explicit
+product direction), each with clickable link buttons to whichever of the
+project's own Website/Twitter/Telegram/Discord/CoinGecko channels
+CoinGecko actually reported (never a guessed URL). Deliberately NO "mark as
+contacted" button on either platform (explicit product direction, point 6)
+— every button is a plain outbound link; see `tools/notifyPartners.ts`,
+`packages/discord/src/notify.ts`, and `packages/telegram/src/notify.ts`'s
+own comments for the full reasoning. Both package sends are
+never-throwing, same posture as every other `notify*` in this codebase — a
+Discord or Telegram outage/misconfiguration never rolls back a successful
+save or fails the run.
+
+**Setup checklist** (see each linked README for the actual step-by-step):
+
+1. Discord: create a new **Partner** category + `#prospect-hunter` channel
+   inside it (`packages/discord/README.md`'s "AI Prospect Hunter partner
+   broadcast" note), invite the existing bot with Send Messages + Embed
+   Links there, set `DISCORD_CHANNEL_PROSPECT_HUNTER_ID`.
+2. Telegram: create the Nimia Partner Program channel, create a bot via
+   @BotFather, add it as channel Administrator, set `TELEGRAM_BOT_TOKEN`
+   and `TELEGRAM_CHANNEL_PROSPECT_HUNTER_ID` (`packages/telegram/README.md`).
+3. Set `SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET` (see
+   `apps/admin/.env.example`'s comments for where to get each).
+4. Create the QStash schedule pointing at
+   `https://<this app's real domain>/api/cron/prospect-hunter`, cron
+   `0 */3 * * *`, header `Authorization: Bearer <same CRON_SECRET>` — see
+   the route file's top comment for the full walkthrough.
+5. Deploy, then fire the QStash schedule once manually (Upstash console)
+   to confirm end-to-end before waiting 3 hours for the first real run.
+
 ## Moving this behind a queue later
 
 If a future run needs to process far more projects than fits in one
 request: `runAgentPipeline` already writes its own progress into
 `ai_agent_runs` (status/counts) as it goes, and every tool in `tools/` is
 a plain async function with no in-memory state — the natural next step is
-calling the same tools from a queue worker (e.g. a Vercel Cron / QStash /
-Supabase Edge Function job) that processes one project per invocation and
-updates the same run row, instead of `runAgentPipeline` looping
-in-process. No change to `tools/`, `discovery/`, or the database schema
-would be required.
+calling the same tools from a queue worker that processes one project per
+invocation and updates the same run row, instead of `runAgentPipeline`
+looping in-process. No change to `tools/`, `discovery/`, or the database
+schema would be required. (Note this is a DIFFERENT problem from the
+auto-run section above — that section's QStash schedule triggers one
+whole `runAgentPipeline` call every 3 hours, still processing its
+projects in-process within that one invocation; a queue-per-project
+would go a level deeper, useful only if a single run's own project count
+ever grows past what one serverless invocation's time limit allows.)

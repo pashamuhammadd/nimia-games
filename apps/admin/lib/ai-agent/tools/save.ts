@@ -15,7 +15,7 @@ type SupabaseClient = ReturnType<typeof createServerClient>;
 export async function saveProject(
   supabase: SupabaseClient,
   analyzed: AnalyzedProject,
-): Promise<{ projectId: string } | { error: string }> {
+): Promise<{ projectId: string; isNewlyDiscovered: boolean } | { error: string }> {
   const p = analyzed.project;
 
   // ---- ai_projects (source of truth) ----
@@ -94,6 +94,21 @@ export async function saveProject(
   const ADMIN_MANAGED_STAGES = ["contacted", "replied", "negotiation", "client", "rejected"];
   const isAdminManaged = existingStatus && ADMIN_MANAGED_STAGES.includes((existingStatus as { status: string }).status);
 
+  // No prior ai_prospect_status row = this project_id has never been saved
+  // by this pipeline before (see the `!existingStatus` branch immediately
+  // below, which is the ONLY place an initial row is ever inserted) — the
+  // exact signal tools/notifyPartners.ts / orchestrator.ts need to decide
+  // whether a project is genuinely NEW enough to broadcast to partners
+  // (added 19 Aug 2026, AI Prospect Hunter partner broadcast). In practice
+  // this is almost always true whenever saveProject is reached at all,
+  // since orchestrator.ts's excludeCoingeckoIds already keeps
+  // previously-saved projects out of discovery entirely — this flag is the
+  // one extra bit of defense against the rare case discovery still hands
+  // back something already known (e.g. two sources racing in the same
+  // run, ahead of dedupeProjectsInBatch settling which one wins), so a
+  // partner is never notified twice about the same project.
+  const isNewlyDiscovered = !existingStatus;
+
   if (!existingStatus) {
     const initialStatus =
       analyzed.opportunityScore >= QUALIFIED_SCORE_THRESHOLD
@@ -125,5 +140,5 @@ export async function saveProject(
     if (statusError) return { error: statusError.message };
   }
 
-  return { projectId };
+  return { projectId, isNewlyDiscovered };
 }

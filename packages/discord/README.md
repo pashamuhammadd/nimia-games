@@ -31,6 +31,7 @@ root sudah exclude semua `.env*`).
 | `DISCORD_CHANNEL_RECENT_REWARDS_ID` | Channel #recent-rewards — setiap successful paid referral (`notifyReferralReward`, 11 Agustus 2026) | `apps/admin` |
 | `DISCORD_CHANNEL_PARTNER_LEADERBOARD_ID` | Channel #partner-leaderboard — satu pesan pinned, di-EDIT setiap update (`postOrUpdateLeaderboard`, 11 Agustus 2026) | `apps/admin` |
 | `DISCORD_CHANNEL_PARTNER_SUCCESS_ID` | Channel #partner-success — partner naik level (`notifyPartnerLevelChanged`, 11 Agustus 2026) | `apps/admin` |
+| `DISCORD_CHANNEL_PROSPECT_HUNTER_ID` | Channel #prospect-hunter (kategori **Partner**) — hasil AI Prospect Hunter yang lolos `PARTNER_NOTIFY_SCORE_THRESHOLD` (`notifyProspectFound`, 19 Agustus 2026) | `apps/admin` |
 | `DISCORD_PUBLIC_KEY` | Verifikasi request Interactions HTTP endpoint (`app/api/discord/interactions/route.ts`) — bukan rahasia, tapi wajib diisi | `apps/studio` |
 
 Catatan (fix 10 Agustus 2026, guild-join): sebelumnya OAuth cuma minta
@@ -84,6 +85,30 @@ diverifikasi per-request (lihat "Kenapa tidak pakai discord.js" di bawah).
 Setelah env var `DISCORD_PUBLIC_KEY` terisi dan route-nya sudah live, jalan
 tombol "Post Ticket Button" di halaman Tickets `hub.nimiastudio.com`
 sekali untuk memasang pesannya di `#create-ticket`.
+
+Catatan (AI Prospect Hunter partner broadcast, 19 Agustus 2026): channel
+baru `#prospect-hunter` HARUS dibuat manual dulu di Discord, di dalam
+kategori baru bernama **Partner** (buat kategori itu juga kalau belum
+ada) — sama seperti channel gamification di atas, package ini tidak
+pernah membuat channel/kategori sendiri. Fungsinya: setiap kali AI
+Prospect Hunter (`apps/admin/lib/ai-agent`) menemukan project BARU (belum
+pernah tersimpan sebelumnya — lihat catatan permanent-skip di
+`lib/ai-agent/README.md`) dengan skor ≥ `PARTNER_NOTIFY_SCORE_THRESHOLD`
+(default 40, level "opportunity" ke atas), `notifyProspectFound`
+(`src/notify.ts`) posting satu embed per project ke channel ini — bukan
+digest, satu project = satu pesan. Embed-nya menyertakan tombol LINK
+(bukan tombol interactive, jadi TIDAK butuh Interactions endpoint apa pun)
+ke Website/Twitter/Telegram/Discord/CoinGecko milik project itu kalau
+datanya ada — anggota Partner Program tinggal klik tombol yang relevan
+untuk langsung menghubungi calon klien itu. Sengaja TIDAK ada tombol "mark
+as contacted" di sini (keputusan eksplisit user) — tracking status contact
+tetap di dashboard admin (`apps/admin`), bukan di Discord. Sama seperti
+semua `notify*` lain di package ini, fungsi ini TIDAK PERNAH melempar
+error — kegagalan kirim cuma di-`console.error`, tidak pernah
+menggagalkan run AI Prospect Hunter itu sendiri. Bot butuh permission
+**Send Messages** dan **Embed Links** di channel ini (cek Server Settings
+→ Roles atau override permission per-channel kalau kategori Partner
+dibatasi).
 
 ## Cara ambil setiap nilai
 
