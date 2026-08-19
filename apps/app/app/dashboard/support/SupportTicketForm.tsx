@@ -13,6 +13,11 @@ export function SupportTicketForm() {
   const [message, setMessage] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState(false);
+  // "Connect Discord first" gate (19 Agustus 2026, per user request — see
+  // createSupportTicketAction's needsDiscordConnect). Kept separate from
+  // `error` so this form can show the richer connect-prompt card instead
+  // of just the plain FieldError text for this one case.
+  const [needsDiscordConnect, setNeedsDiscordConnect] = React.useState(false);
 
   return (
     <form
@@ -21,10 +26,12 @@ export function SupportTicketForm() {
         event.preventDefault();
         setError(null);
         setSuccess(false);
+        setNeedsDiscordConnect(false);
         startTransition(async () => {
           const result = await createSupportTicketAction(subject, message);
           if (!result.success) {
             setError(result.error);
+            setNeedsDiscordConnect(Boolean(result.needsDiscordConnect));
             return;
           }
           setSubject("");
@@ -58,7 +65,20 @@ export function SupportTicketForm() {
           disabled={isPending}
         />
       </div>
-      <FieldError>{error}</FieldError>
+      <FieldError>{!needsDiscordConnect ? error : null}</FieldError>
+      {needsDiscordConnect ? (
+        <div className="rounded-lg border border-[#5865F2]/30 bg-[#5865F2]/10 px-4 py-3">
+          <p className="text-sm text-white/80">{error}</p>
+          <a
+            href="/api/discord/connect"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[#5865F2] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#4752c4]"
+          >
+            Connect Discord
+          </a>
+        </div>
+      ) : null}
       {success ? (
         <p className="text-sm text-emerald-400">Ticket opened — we&apos;ll follow up soon.</p>
       ) : null}

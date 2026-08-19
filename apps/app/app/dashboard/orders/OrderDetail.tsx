@@ -4,6 +4,11 @@ import { orderStatusMeta } from "../../lib/orderStatus";
 import { formatRelativeTime } from "../../lib/relativeTime";
 import { PaymentPanel, type PaymentWalletOption } from "./PaymentPanel";
 import { InstallmentSchedule } from "./InstallmentSchedule";
+// Per-order "Discuss on Discord" button (19 Agustus 2026, per user
+// request — every order needs its own Discord entry point, not just the
+// post-submit confirmation screen's "Discuss this brief" button). See
+// DiscordTicketButton.tsx for the shared connect-gate/status handling.
+import { DiscordTicketButton } from "../../components/dashboard/DiscordTicketButton";
 import type { OrderListItem } from "./OrdersList";
 
 // Statuses where the payment flow actually has something to show — before
@@ -20,6 +25,12 @@ export function OrderDetail({
 }) {
   const meta = orderStatusMeta(order.status);
   const showPayment = PAYMENT_VISIBLE_STATUSES.has(order.status);
+  // Same ORD-XXXXXXXX short form used everywhere else in this app
+  // (order-wizard.tsx, submitOrderAction/submitCustomOrderAction) —
+  // re-derived from order.id rather than stored anywhere new, so the
+  // Discord ticket/thread this button opens is named to match what the
+  // client already sees right here.
+  const orderRef = `ORD-${order.id.slice(0, 8).toUpperCase()}`;
 
   return (
     <div className="flex flex-col gap-5">
@@ -30,6 +41,14 @@ export function OrderDetail({
           <span className={`h-1.5 w-1.5 rounded-full ${meta.dotClass}`} aria-hidden="true" />
           <span className="text-xs font-medium text-white/55">{meta.label}</span>
           <span className="text-xs text-white/30">· Submitted {formatRelativeTime(order.createdAt)}</span>
+        </div>
+        <div className="mt-3">
+          <DiscordTicketButton
+            subject={`Let's discuss order ${orderRef} — ${order.title}`.slice(0, 120)}
+            message={`I'd like to discuss order ${orderRef} (${order.title}).`}
+            orderId={order.id}
+            label="Discuss this order on Discord"
+          />
         </div>
       </div>
 

@@ -15,6 +15,11 @@ export type TicketRow = {
   email: string;
   discord_url: string | null;
   created_at: string;
+  // ORD-XXXXXXXX — Title, when this ticket was opened via a per-order
+  // "Discuss on Discord" button (19 Agustus 2026, migration
+  // 0053_support_ticket_order_link.sql) — null for a general ticket opened
+  // from the website's /dashboard/support form with no order in mind.
+  order_label: string | null;
 };
 
 // Client island for the one interactive bit (Close button) — same split
@@ -58,6 +63,11 @@ export function TicketsList({ tickets }: { tickets: TicketRow[] }) {
                 >
                   {ticket.status === "open" ? "Open" : "Closed"}
                 </span>
+                {ticket.order_label ? (
+                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-xs font-medium text-white/60">
+                    {ticket.order_label}
+                  </span>
+                ) : null}
               </div>
               <p className="mt-1 text-xs text-white/45">
                 {clientName} · {ticket.email} ·{" "}

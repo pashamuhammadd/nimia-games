@@ -28,11 +28,22 @@ export async function createSupportTicket(params: {
   subject: string;
   message: string;
   discordUserId?: string | null;
+  /** When this ticket is about a specific order (added 19 Agustus 2026,
+   * per user request — "nama thread tiket harus sesuai dengan nama
+   * orderannya/resi orderannya/invoice orderannya"), the Discord thread
+   * name uses this order reference instead of the generic TKT-XXXXXXXX
+   * ticketId, so staff can tell which project a ticket thread is about at
+   * a glance without opening it. Falls back to ticketId when absent
+   * (general Support-page tickets with no specific order attached). */
+  threadLabel?: string;
 }): Promise<{ threadId: string | null }> {
   let threadId: string | null = null;
   try {
     const channelId = getDiscordChannelId("support");
-    threadId = await createPrivateThread(channelId, `🎫 ${params.ticketId} — ${params.subject}`.slice(0, 100));
+    threadId = await createPrivateThread(
+      channelId,
+      `🎫 ${params.threadLabel ?? params.ticketId} — ${params.subject}`.slice(0, 100),
+    );
 
     const embed: DiscordEmbed = {
       title: `🎫 New Support Ticket — ${params.ticketId}`,
@@ -41,6 +52,7 @@ export async function createSupportTicket(params: {
       fields: [
         { name: "Client", value: params.clientName, inline: true },
         { name: "Subject", value: params.subject, inline: true },
+        ...(params.threadLabel ? [{ name: "Order", value: params.threadLabel, inline: false }] : []),
       ],
       timestamp: new Date().toISOString(),
     };
