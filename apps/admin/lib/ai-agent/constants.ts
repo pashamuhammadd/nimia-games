@@ -29,18 +29,25 @@ export const OPPORTUNITY_SCORE_THRESHOLD = 40;
 
 // AI Prospect Hunter partner broadcast (added 19 Aug 2026 — see
 // tools/notifyPartners.ts and orchestrator.ts's call site). Deliberately a
-// SEPARATE named constant from OPPORTUNITY_SCORE_THRESHOLD above even
-// though it's the same number today — product decision, confirmed
-// explicitly by the user ("Lebih longgar (termasuk 'opportunity', skor
-// 40+)") rather than the stricter QUALIFIED_SCORE_THRESHOLD (70): a
-// project only needs to clear "opportunity" level, not "qualified
-// prospect", to be posted to #prospect-hunter (Discord) and the Nimia
-// Partner Program Telegram channel. Kept separate so retuning WHO gets
-// classified as an "opportunity" in the dashboard (OPPORTUNITY_SCORE_
-// THRESHOLD) doesn't silently also retune what partners see broadcast to
-// them, and vice versa — if that ever needs its own independent value,
-// only this line changes.
-export const PARTNER_NOTIFY_SCORE_THRESHOLD = 40;
+// SEPARATE named constant from OPPORTUNITY_SCORE_THRESHOLD and
+// QUALIFIED_SCORE_THRESHOLD above, not tied to either — retuning WHO
+// gets classified as an "opportunity"/"qualified prospect" in the
+// dashboard never silently also retunes what partners see broadcast to
+// them, and vice versa.
+//
+// Raised 40 -> 60 on 20 Aug 2026, one day after the first value shipped —
+// product correction, user's own words: "kayaknya jangan minimal poin 40
+// deh kebanyakan, misal minimal poin 60 deh biar berkualitas". 40 was the
+// OPPORTUNITY_SCORE_THRESHOLD value (deliberately reused verbatim the
+// first time per the user's initial answer, "Lebih longgar (termasuk
+// 'opportunity', skor 40+)"), but in practice that let through more
+// partner-facing notifications than the user wanted — 60 sits strictly
+// between OPPORTUNITY_SCORE_THRESHOLD (40) and QUALIFIED_SCORE_THRESHOLD
+// (70), a deliberate middle ground: still looser than "qualified
+// prospect" (a partner can act on a strong "opportunity"-tier lead before
+// it's fully vetted), but no longer loose enough to flood the channel
+// with borderline ones.
+export const PARTNER_NOTIFY_SCORE_THRESHOLD = 60;
 
 // animation_opportunity level thresholds (spec section 11) — deliberately
 // a finer-grained read than the two thresholds above, since a project can

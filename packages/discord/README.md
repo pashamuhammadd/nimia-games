@@ -94,11 +94,16 @@ pernah membuat channel/kategori sendiri. Fungsinya: setiap kali AI
 Prospect Hunter (`apps/admin/lib/ai-agent`) menemukan project BARU (belum
 pernah tersimpan sebelumnya — lihat catatan permanent-skip di
 `lib/ai-agent/README.md`) dengan skor ≥ `PARTNER_NOTIFY_SCORE_THRESHOLD`
-(default 40, level "opportunity" ke atas), `notifyProspectFound`
+(60 per 20 Agustus 2026 — dinaikkan dari 40 sehari setelah dirilis, user:
+"kayaknya jangan minimal poin 40 deh kebanyakan, misal minimal poin 60
+deh biar berkualitas"), `notifyProspectFound`
 (`src/notify.ts`) posting satu embed per project ke channel ini — bukan
-digest, satu project = satu pesan. Embed-nya menyertakan tombol LINK
-(bukan tombol interactive, jadi TIDAK butuh Interactions endpoint apa pun)
-ke Website/Twitter/Telegram/Discord/CoinGecko milik project itu kalau
+digest, satu project = satu pesan. Embed-nya menampilkan logo CoinGecko
+project itu sebagai `thumbnail` (ditambahkan 20 Agustus 2026, kalau
+CoinGecko punya logo-nya — kalau tidak ada, embed tetap terkirim tanpa
+gambar, bukan gagal) dan menyertakan tombol LINK (bukan tombol
+interactive, jadi TIDAK butuh Interactions endpoint apa pun) ke
+Website/Twitter/Telegram/Discord/CoinGecko milik project itu kalau
 datanya ada — anggota Partner Program tinggal klik tombol yang relevan
 untuk langsung menghubungi calon klien itu. Sengaja TIDAK ada tombol "mark
 as contacted" di sini (keputusan eksplisit user) — tracking status contact

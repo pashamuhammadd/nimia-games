@@ -60,6 +60,27 @@ export function buildInlineKeyboard(buttons: TelegramLinkButton[]): {
  * the Bot API returns with HTTP 200 for some errors) so notify.ts's
  * safeSend has something to catch — same "never let a failure here escape
  * to the caller" posture as the Discord package. */
+/** Shared response handling for every telegramBotFetch call below — parses
+ * the body once and throws a single consistent error shape, since both
+ * sendMessage and sendPhoto need the exact same "non-2xx OR {ok:false}
+ * body" check (the Bot API returns HTTP 200 with `{ok:false}` for some
+ * errors, so `response.ok` alone isn't enough). `methodLabel` is just for
+ * the error message, so a caller can tell which call actually failed. */
+async function assertTelegramOk(response: Response, methodLabel: string): Promise<void> {
+  const rawBody = await response.text().catch(() => "");
+  let data: { ok?: boolean; description?: string } | null = null;
+  try {
+    data = rawBody ? (JSON.parse(rawBody) as { ok?: boolean; description?: string }) : null;
+  } catch {
+    // Non-JSON body (e.g. an upstream 5xx HTML error page) — fall through
+    // and report the raw text below instead.
+  }
+
+  if (!response.ok || !data?.ok) {
+    throw new Error(`Telegram ${methodLabel} failed (${response.status}): ${data?.description ?? (rawBody || "unknown error")}`);
+  }
+}
+
 export async function sendTelegramMessage(
   chatId: string,
   text: string,
@@ -72,17 +93,34 @@ export async function sendTelegramMessage(
     disable_web_page_preview: true,
     ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
   });
+  await assertTelegramOk(response, "sendMessage");
+}
 
-  const rawBody = await response.text().catch(() => "");
-  let data: { ok?: boolean; description?: string } | null = null;
-  try {
-    data = rawBody ? (JSON.parse(rawBody) as { ok?: boolean; description?: string }) : null;
-  } catch {
-    // Non-JSON body (e.g. an upstream 5xx HTML error page) — fall through
-    // and report the raw text below instead.
-  }
-
-  if (!response.ok || !data?.ok) {
-    throw new Error(`Telegram sendMessage failed (${response.status}): ${data?.description ?? (rawBody || "unknown error")}`);
-  }
+/** Posts a photo with an HTML caption to `chatId` (added 20 Agustus 2026,
+ * AI Prospect Hunter partner broadcast — product request: "ada gambarnya
+ * yaitu logo projeknya"). `photoUrl` is passed straight through as
+ * Telegram's `photo` field — Telegram fetches it server-side from that
+ * URL itself (no upload from this app), same "just a URL" shape as
+ * Discord's embed thumbnail (rest.ts's DiscordEmbed). IMPORTANT: Telegram
+ * caps a photo's `caption` at 1024 characters (vs. 4096 for a plain
+ * `sendMessage` text) — notify.ts is responsible for truncating `caption`
+ * to fit before calling this, this function does not truncate for you and
+ * will let Telegram's own 400 error surface if it's too long. Throws on
+ * failure (bad/unreachable `photoUrl` included) exactly like
+ * sendTelegramMessage — notify.ts is the layer that decides whether to
+ * fall back to a plain text message when this throws, not this file. */
+export async function sendTelegramPhoto(
+  chatId: string,
+  photoUrl: string,
+  caption: string,
+  replyMarkup?: { inline_keyboard: { text: string; url: string }[][] },
+): Promise<void> {
+  const response = await telegramBotFetch("sendPhoto", {
+    chat_id: chatId,
+    photo: photoUrl,
+    caption,
+    parse_mode: "HTML",
+    ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+  });
+  await assertTelegramOk(response, "sendPhoto");
 }

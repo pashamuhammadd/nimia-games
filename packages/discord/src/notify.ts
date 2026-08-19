@@ -405,6 +405,13 @@ export async function notifySystemLog(event: string, description: string): Promi
 export type ProspectFoundInput = {
   name: string;
   symbol: string | null;
+  /** The project's own logo, straight from its CoinGecko profile — never
+   * a guessed/generated image. Added 20 Agustus 2026 per product request
+   * ("bisa gak pesannya diimprove, misalnya ada gambarnya yaitu logo
+   * projeknya"). Rendered as the embed's `thumbnail` (rest.ts) — null just
+   * means the embed posts without one, never a reason to skip the
+   * notification. */
+  logoUrl: string | null;
   /** Human-readable category label — this package has zero dependencies
    * by design (see this file's own top comment), so it never imports
    * apps/admin's own category/tier constants; the caller formats this. */
@@ -468,6 +475,7 @@ export async function notifyProspectFound(input: ProspectFoundInput): Promise<vo
       title: `🎯 New Prospect — ${input.name}${input.symbol ? ` ($${input.symbol})` : ""}`,
       description: input.reasoning,
       color: COLOR_PROSPECT,
+      ...(input.logoUrl ? { thumbnail: { url: input.logoUrl } } : {}),
       fields: [
         ...(input.category ? [{ name: "Category", value: input.category, inline: true }] : []),
         { name: "Opportunity Score", value: `${input.opportunityScore}/100 (${input.opportunityLevel})`, inline: true },

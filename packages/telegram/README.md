@@ -42,6 +42,19 @@ project itu (kalau datanya ada di CoinGecko). Sengaja TIDAK ada tombol
 keluar, tidak pernah memicu callback apa pun ke bot ini, jadi package ini
 tidak pernah perlu menangani update/webhook dari Telegram sama sekali.
 
+**Logo project (ditambahkan 20 Agustus 2026)** — kalau CoinGecko punya
+logo untuk project itu, pesannya dikirim sebagai FOTO (`sendPhoto`,
+`rest.ts`) dengan teks di atas sebagai caption, bukan pesan teks biasa.
+Telegram membatasi caption foto maksimal 1024 karakter (beda dari pesan
+teks biasa yang 4096) — kalau teksnya kepanjangan, `buildCaption`
+(`notify.ts`) motong per BARIS UTUH (tidak pernah motong di tengah tag
+HTML), jadi field paling bawah (misal "Suggested Services") bisa hilang
+kalau pesannya panjang, tapi tidak akan bikin format-nya rusak. Kalau
+`sendPhoto` gagal karena alasan apa pun (URL logo tidak valid/tidak bisa
+diakses Telegram, dst), otomatis fallback ke pesan teks biasa dengan teks
+LENGKAP (tidak terpotong) — satu logo yang gagal dimuat tidak pernah
+sampai bikin notifikasinya hilang total.
+
 Sama seperti semua `notify*` di `@nimia/discord`, `notifyProspectFound` di
 sini TIDAK PERNAH melempar error — kegagalan kirim (token salah, bot bukan
 admin channel, channel id salah, dst) cuma di-`console.error`, tidak pernah

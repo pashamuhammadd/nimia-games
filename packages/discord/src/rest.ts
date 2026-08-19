@@ -104,14 +104,21 @@ export async function addGuildMember(
 }
 
 /** Discord's embed object, trimmed to the fields this integration actually
- * uses (Discord's real schema has many more — author/footer/thumbnail/
- * etc. — deliberately not modeled here since nothing in notify.ts needs
- * them yet; add fields here if/when a notification needs one). */
+ * uses (Discord's real schema has many more — author/footer/etc. —
+ * deliberately not modeled here since nothing in notify.ts needs them
+ * yet; add fields here if/when a notification needs one). `thumbnail`
+ * added 20 Agustus 2026 for the AI Prospect Hunter partner broadcast
+ * (notify.ts's notifyProspectFound) — a small image in the embed's
+ * top-right corner, used for the prospect's own CoinGecko logo. Discord
+ * renders the embed fine even if `url` 404s or isn't reachable (it just
+ * shows no image), so callers don't need a fallback for a bad/missing
+ * logo URL the way Telegram's sendPhoto does (see that package's rest.ts). */
 export type DiscordEmbed = {
   title?: string;
   description?: string;
   color?: number;
   fields?: { name: string; value: string; inline?: boolean }[];
+  thumbnail?: { url: string };
   timestamp?: string;
 };
 

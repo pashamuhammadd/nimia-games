@@ -28,6 +28,13 @@ export async function notifyPartners(analyzed: AnalyzedProject): Promise<void> {
   const input = {
     name: p.name,
     symbol: p.symbol,
+    // The project's own CoinGecko logo — added 20 Aug 2026 per product
+    // request ("ada gambarnya yaitu logo projeknya") so both platforms'
+    // notify.ts can render it (Discord's embed thumbnail, Telegram's
+    // sendPhoto). Never a guessed/generated image — null just means
+    // CoinGecko didn't report one for this project, same "never invent a
+    // fact" posture as every other field sourced from `p` here.
+    logoUrl: p.logoUrl,
     category: p.categories.length > 0 ? p.categories.join(", ") : null,
     opportunityScore: analyzed.opportunityScore,
     opportunityLevel: OPPORTUNITY_LEVEL_LABELS[analyzed.animationOpportunity] ?? analyzed.animationOpportunity,

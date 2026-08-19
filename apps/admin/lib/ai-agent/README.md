@@ -235,16 +235,22 @@ the dashboard is never re-broadcast — in practice this is almost always
 true anyway, since discovery's permanent already-discovered exclusion,
 above, already keeps known projects out of the pipeline entirely) AND
 `opportunityScore >= PARTNER_NOTIFY_SCORE_THRESHOLD` (`constants.ts`,
-currently 40 — the "opportunity" threshold, not the stricter 70
-"qualified_prospect" one, per explicit product direction: "Lebih longgar
-(termasuk 'opportunity', skor 40+)"). Fans out to `@nimia/discord`'s and
+currently **60** — raised from an initial 40 one day after shipping, per
+product correction: "kayaknya jangan minimal poin 40 deh kebanyakan, misal
+minimal poin 60 deh biar berkualitas". Sits strictly between
+`OPPORTUNITY_SCORE_THRESHOLD` (40) and `QUALIFIED_SCORE_THRESHOLD` (70) —
+not tied to either). Fans out to `@nimia/discord`'s and
 `@nimia/telegram`'s own `notifyProspectFound` via `Promise.allSettled` —
 one message PER PROSPECT on each platform (not a digest, per explicit
-product direction), each with clickable link buttons to whichever of the
-project's own Website/Twitter/Telegram/Discord/CoinGecko channels
-CoinGecko actually reported (never a guessed URL). Deliberately NO "mark as
-contacted" button on either platform (explicit product direction, point 6)
-— every button is a plain outbound link; see `tools/notifyPartners.ts`,
+product direction), each with the project's own CoinGecko logo (added 20
+Aug 2026, product request: "ada gambarnya yaitu logo projeknya" — Discord's
+embed `thumbnail`, Telegram's `sendPhoto` with the logo as the photo and
+the text as caption, falling back to plain text if the photo send fails
+for any reason) and clickable link buttons to whichever of the project's
+own Website/Twitter/Telegram/Discord/CoinGecko channels CoinGecko actually
+reported (never a guessed URL). Deliberately NO "mark as contacted" button
+on either platform (explicit product direction, point 6) — every button
+is a plain outbound link; see `tools/notifyPartners.ts`,
 `packages/discord/src/notify.ts`, and `packages/telegram/src/notify.ts`'s
 own comments for the full reasoning. Both package sends are
 never-throwing, same posture as every other `notify*` in this codebase — a
