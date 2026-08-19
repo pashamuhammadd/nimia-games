@@ -73,6 +73,31 @@ export function getDiscordRoleId(role: "client" | "partner"): string {
   return requireEnv(role === "client" ? "DISCORD_ROLE_CLIENT_ID" : "DISCORD_ROLE_PARTNER_ID");
 }
 
+// Ticket staff auto-add (added 19 Agustus 2026, per user request — a
+// private ticket thread's own member list was only ever showing the Bot +
+// Client, never Founder/Admin). "Manage Threads" on #create-ticket (see
+// docs/DISCORD.md's "Server setup notes") lets staff BROWSE to a private
+// thread, but that's a permission check, not membership — it never adds
+// them as an actual thread member, so they never showed up in the
+// thread's own member list and could miss @mentions/notifications for it.
+//
+// Role ids, NOT specific accounts (per user clarification — "maksudnya
+// bukan founder dan admin account, tapi role admin dan foundernya"):
+// createSupportTicket (tickets.ts) resolves who currently holds each role
+// via listGuildMemberIdsWithRole (rest.ts) at ticket-creation time and
+// adds all of them as thread members, so promoting/demoting someone from
+// Founder or Admin in Discord itself is the only thing that needs to
+// change — no code or env update, unlike a static account-id list would
+// need. Deliberately NOT requireEnv'd like the channel/role ids above:
+// either one being unset just means that role's members aren't
+// auto-added yet, not a hard failure — a caller can configure Admin now
+// and Founder later (or vice versa) without breaking ticket creation.
+export function getDiscordStaffRoleIds(): string[] {
+  return [process.env.DISCORD_ROLE_FOUNDER_ID, process.env.DISCORD_ROLE_ADMIN_ID].filter(
+    (id): id is string => Boolean(id),
+  );
+}
+
 export function getDiscordChannelId(
   channel:
     | "new-orders"

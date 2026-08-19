@@ -1,5 +1,12 @@
-import { sendChannelMessage, createPrivateThread, addThreadMember, archiveThread, type DiscordEmbed } from "./rest";
-import { getDiscordChannelId } from "./config";
+import {
+  sendChannelMessage,
+  createPrivateThread,
+  addThreadMember,
+  archiveThread,
+  listGuildMemberIdsWithRole,
+  type DiscordEmbed,
+} from "./rest";
+import { getDiscordChannelId, getDiscordStaffRoleIds } from "./config";
 
 // Support-ticket pass (9 Agustus 2026) — docs/DISCORD.md's "Client
 // support": "A 'Support' button on the website → the bot creates a
@@ -67,6 +74,33 @@ export async function createSupportTicket(params: {
         await addThreadMember(threadId, params.discordUserId);
       } catch (error) {
         console.error("[discord] Failed to add client to their own support ticket thread", error);
+      }
+    }
+
+    // Staff (Founder/Admin ROLE, not specific accounts — 19 Agustus 2026,
+    // per user clarification) auto-add — "Manage Threads" only lets staff
+    // browse to a private thread, it doesn't add them as a member, so no
+    // one holding either role ever showed up in the thread's own member
+    // list. Resolves who CURRENTLY holds each configured role
+    // (listGuildMemberIdsWithRole) rather than a static account list, so
+    // staff changes in Discord are picked up automatically. One
+    // try/catch around the whole per-role lookup (a role lookup failing —
+    // e.g. Server Members Intent not enabled yet — is one error worth
+    // logging once, not per-member) plus one try/catch per addThreadMember
+    // call, same as the client above, so a single member failing never
+    // blocks the rest or the ticket itself.
+    for (const roleId of getDiscordStaffRoleIds()) {
+      try {
+        const memberIds = await listGuildMemberIdsWithRole(roleId);
+        for (const memberId of memberIds) {
+          try {
+            await addThreadMember(threadId, memberId);
+          } catch (error) {
+            console.error("[discord] Failed to add staff member to support ticket thread", memberId, error);
+          }
+        }
+      } catch (error) {
+        console.error("[discord] Failed to list staff role members for support ticket thread", roleId, error);
       }
     }
   } catch (error) {

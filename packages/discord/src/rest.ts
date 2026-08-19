@@ -226,6 +226,46 @@ export async function addThreadMember(threadId: string, discordUserId: string): 
   }
 }
 
+/** Lists every CURRENT guild member who holds `roleId`, as their Discord
+ * user ids — added 19 Agustus 2026, per user request: ticket threads
+ * should include whoever holds the Founder/Admin ROLE right now, not a
+ * fixed set of specific accounts that goes stale the moment staff changes
+ * (someone new gets promoted, someone leaves). Paginates Discord's "List
+ * Guild Members" endpoint (max 1000 per page, sorted by user id
+ * ascending, `after` cursor) — capped at 10 pages (10,000 members) as a
+ * sanity backstop; this studio's server is nowhere near that size, a
+ * genuinely larger guild would need a real cursor-based caller instead.
+ * REQUIRES the "Server Members Intent" privileged intent to be enabled
+ * for the bot application (Discord Developer Portal → your app → Bot →
+ * Privileged Gateway Intents) — without it this call still succeeds but
+ * returns an empty/partial list rather than erroring, so a caller getting
+ * 0 members back for a role that clearly has people in it should check
+ * that toggle before assuming no one holds the role. */
+export async function listGuildMemberIdsWithRole(roleId: string): Promise<string[]> {
+  const { guildId } = getDiscordBotConfig();
+  const memberIds: string[] = [];
+  let after = "0";
+
+  for (let page = 0; page < 10; page++) {
+    const response = await discordBotFetch(`/guilds/${guildId}/members?limit=1000&after=${after}`);
+    if (!response.ok) {
+      throw new Error(`Discord list guild members failed (${response.status}): ${await response.text()}`);
+    }
+
+    const members = (await response.json()) as { user: { id: string }; roles: string[] }[];
+    for (const member of members) {
+      if (member.roles?.includes(roleId)) {
+        memberIds.push(member.user.id);
+      }
+    }
+
+    if (members.length < 1000) break;
+    after = members[members.length - 1].user.id;
+  }
+
+  return memberIds;
+}
+
 /** Archives AND locks `threadId` — used when staff closes a ticket from
  * the admin dashboard (added 9 Agustus 2026, support-ticket pass). Locked
  * (not just archived) so the client can't keep posting into a ticket
