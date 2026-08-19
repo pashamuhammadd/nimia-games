@@ -11,7 +11,24 @@ import { NextResponse, type NextRequest } from "next/server";
 // actually staff?" check (role === 'admin') happens in
 // app/(protected)/layout.tsx instead of here, same division of
 // responsibility as studio: middleware only proves "a session exists".
-const PUBLIC_PATHS = ["/login"];
+//
+// "/api/cron" added 20 Agustus 2026 (AI Prospect Hunter auto-run bug fix):
+// app/api/cron/prospect-hunter/route.ts is called directly by Upstash
+// QStash over plain HTTP — there is no browser, no Supabase session, no
+// cookie at all in that request. Before this fix, this matcher's default
+// (redirect anything without a `user` to /login) caught that request too,
+// so QStash's POST got silently 307-redirected to /login instead of ever
+// reaching the route handler — no error, no Discord/Telegram message, no
+// obvious sign anything was wrong until checking Vercel's own request
+// logs. This path is NOT actually public in the "anyone can call it and
+// see something" sense — the route itself still requires a valid
+// `Authorization: Bearer <CRON_SECRET>` header (see that file's own
+// isAuthorized check, returns 401 JSON on failure) — it just authenticates
+// a different way than every other route here, one middleware can't
+// evaluate (it would need the route's own CRON_SECRET check, which lives
+// past this point in the request lifecycle). Any future /api/cron/* route
+// gets the same treatment automatically via startsWith.
+const PUBLIC_PATHS = ["/login", "/api/cron"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
