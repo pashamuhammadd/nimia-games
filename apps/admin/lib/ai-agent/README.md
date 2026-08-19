@@ -116,18 +116,88 @@ Fixed on both sides of the pipeline:
 Retune the whole pipeline's targeting by adjusting the two constants in
 `constants.ts` — nothing else needs to change.
 
+## Coverage push + memecoin/new-project prioritization (19 Aug 2026)
+
+Product direction: get more results per run, sharpen targeting, and
+specifically prioritize memecoin and new/small projects (not just avoid
+excluding them). Four changes, all reversible via named constants:
+
+- **Default sweep no longer starves Tier 3/4** — `constants.ts`'s
+  `defaultSweepCategorySlugs()` replaced the old `allCategorySlugs()`
+  fallback used when the Find Prospects page's tier checkboxes are all
+  left unchecked. The old fallback was a flat concatenation of
+  `CATEGORY_TIERS` in tier order; Tier 1 (6 slugs) + Tier 2 (7 slugs)
+  alone already exceeded `MAX_CATEGORIES_PER_RUN`, so **every default
+  "sweep all" run silently never reached Tier 3 (Memecoin/DeFi/Payments/
+  Wallets) or Tier 4 (Infrastructure) at all** — a real bug, not just a
+  coverage gap. `defaultSweepCategorySlugs()` interleaves (round-robins)
+  across all 4 tiers instead, with Tier 3 sequenced FIRST in every round
+  per the memecoin-priority decision below.
+- **Tier 3 (memecoin) category-fit score raised** — `tools/scoreProject.ts`'s
+  `scoreCategoryFit` tier base went from 9/25 to 13/25 for Tier 3.
+  Reasoning: memecoin projects lean heavily on animated mascots, character
+  work, and meme/logo animation for community engagement — squarely
+  Nimia's own Meme Animation / Character Animation / Logo Animation
+  services (`knowledge/animation-services.ts`). Tier 1/2 (gaming/metaverse/
+  NFT) stay highest; Tier 4 (infrastructure) is unchanged.
+- **Discovery budget raised, funded by the already-discovered exclusion
+  below** — `discovery/coingecko-project-provider.ts`'s
+  `MAX_CATEGORIES_PER_RUN` (8→10), `MAX_MARKET_PAGES_PER_CATEGORY` (4→5),
+  `IN_BAND_TARGET_PER_CATEGORY` (15→18), `MAX_DETAIL_CALLS` (40→48), and
+  the NFT provider's `MAX_NFT_DETAIL_CALLS` (15→18) all moved up modestly.
+  `MAX_MARKET_PAGES_PER_CATEGORY` specifically matters for "new/small"
+  projects: within the in-band market-cap sweep, smaller projects tend to
+  sit on later pages of the `market_cap_desc` ordering, so paging further
+  is a direct lever for surfacing more of them, independent of the
+  memecoin-specific changes above.
+- **Rate-limit retries** — see "API-budget discipline" below; without
+  this, pushing the budgets above further would have made silent data
+  loss from CoinGecko's 30-calls/min free Demo limit more likely, not
+  less.
+
 ## API-budget discipline
 
-This runs on CoinGecko's free Demo plan (see `discovery/coingecko-client.ts`).
-`discovery/coingecko-project-provider.ts` caps how many categories it
-sweeps and how many `/coins/{id}` detail calls it makes per run
-(`MAX_CATEGORIES_PER_RUN`, `MAX_DETAIL_CALLS`), and `tools/save.ts`
-upserts on `coingecko_id` so re-discovering the same project refreshes it
-instead of duplicating it. A future improvement (not yet implemented):
-skip a fresh `/coins/{id}` detail call entirely when `ai_projects.updated_at`
-for that `coingecko_id` is recent enough — right now every run still
-re-fetches detail for whatever the category sweep returns, deduplicated
-only within that single run.
+This runs on CoinGecko's free Demo plan — 30 calls/minute
+(support.coingecko.com/hc/en-us/articles/4538771776153), see
+`discovery/coingecko-client.ts`. `discovery/coingecko-project-provider.ts`
+caps how many categories it sweeps and how many `/coins/{id}` detail calls
+it makes per run (`MAX_CATEGORIES_PER_RUN`, `MAX_DETAIL_CALLS`), and
+`tools/save.ts` upserts on `coingecko_id` so a project that DOES get
+re-discovered refreshes its existing row instead of duplicating it.
+
+**Skip already-discovered projects, permanently (implemented 19 Aug 2026 —
+this section used to flag a 24h version of this as a future improvement,
+then shipped and immediately widened to permanent same-day per explicit
+product direction: "skip projek yang udah pernah tercari"):**
+`orchestrator.ts` queries `ai_projects` for EVERY `coingecko_id` ever
+saved (capped at 20,000 rows — PostgREST's own default cap is 1,000;
+revisit if this table ever actually grows past 20k) before calling
+discovery, and passes that list to each source as
+`DiscoveryParams.excludeCoingeckoIds` (`types.ts`). Both
+`CoinGeckoProjectDiscoveryProvider` and `CoinGeckoNftDiscoveryProvider`
+skip the `/coins/{id}` (or `/nfts/{id}`) detail call for anything in that
+list — the market-list call still happens (needed to know what's even in
+the target band), but the expensive, rate-limited-per-call detail fetch is
+only ever spent on a coingecko_id this pipeline has NEVER saved before.
+This never removes anything from the dashboard: an excluded project's
+existing row and `ai_prospect_status` are completely untouched, it's
+simply never re-discovered by any later run. The direct trade-off: an
+already-saved project's market_cap/price/social-links snapshot is frozen
+at whatever it was on first discovery — there's currently no separate
+"refresh what I already have" action, since re-discovery was the only
+thing that ever refreshed it. If that's ever needed, it should be its own
+explicit admin action (e.g. a per-project "Refresh" button in
+`ProjectDetailPanel.tsx` calling `tools/save.ts` directly for that one
+project), not a change to this exclusion list.
+
+**Retry with backoff (added 19 Aug 2026):** `coingecko-client.ts`'s
+`coinGeckoFetch` used to give up permanently on the first non-2xx
+response — a single rate-limit hit anywhere in a run silently lost that
+market page or detail call for the rest of the run, with no visible
+error. It now retries up to `MAX_RATE_LIMIT_RETRIES` (2) times, honoring
+CoinGecko's own `Retry-After` header on a 429 and a short fixed backoff
+otherwise, before the original error propagates to the caller exactly as
+before this change.
 
 ## Moving this behind a queue later
 

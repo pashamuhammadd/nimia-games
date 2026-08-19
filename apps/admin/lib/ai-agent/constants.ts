@@ -1,4 +1,4 @@
-import type { CategoryTierInfo } from "./types";
+import type { CategoryTier, CategoryTierInfo } from "./types";
 
 // Scoring weights, qualification thresholds, and category tiers — the
 // single source of truth for the "Animation Opportunity Analysis" /
@@ -129,6 +129,47 @@ export function tierForCategorySlug(slug: string): CategoryTierInfo | null {
 
 export function allCategorySlugs(): string[] {
   return CATEGORY_TIERS.flatMap((t) => t.categorySlugs);
+}
+
+// Default sweep order when the Find Prospects page's tier checkboxes are
+// all left unchecked ("sweep all of them" — FindProspectsForm.tsx).
+//
+// BUG FIXED 19 Aug 2026: discovery/coingecko-project-provider.ts used to
+// fall back to allCategorySlugs() above — a flat concatenation of
+// CATEGORY_TIERS in tier order — then slice(0, MAX_CATEGORIES_PER_RUN).
+// Tier 1 (6 slugs) + Tier 2 (7 slugs) alone is 13 slugs, already bigger
+// than MAX_CATEGORIES_PER_RUN ever was, which meant a default "sweep all"
+// run NEVER actually reached Tier 3 (Memecoin/DeFi/Payments/Wallets) or
+// Tier 4 (Infrastructure) — every unrestricted run silently only ever
+// swept Gaming/Metaverse and NFT/Entertainment categories. Since the admin
+// never explicitly restricted categories, this looked like "the agent just
+// doesn't find memecoin/new projects" rather than the sweep-order bug it
+// actually was.
+//
+// Fixed by interleaving (round-robin) across tiers instead of
+// concatenating, so every tier gets a fair share of whatever
+// MAX_CATEGORIES_PER_RUN allows. DEFAULT_SWEEP_TIER_ORDER additionally puts
+// Tier 3 FIRST in each round (product decision, 19 Aug 2026: Nimia wants
+// the default sweep actively biased toward memecoin / new-and-small
+// projects, not just "not starved out entirely") — see
+// tools/scoreProject.ts's tierBase for the matching scoring-side change.
+const DEFAULT_SWEEP_TIER_ORDER: CategoryTier[] = [3, 1, 2, 4];
+
+export function defaultSweepCategorySlugs(): string[] {
+  const remainingByTier = new Map<CategoryTier, string[]>(CATEGORY_TIERS.map((t) => [t.tier, [...t.categorySlugs]]));
+  const interleaved: string[] = [];
+  let tookAny = true;
+  while (tookAny) {
+    tookAny = false;
+    for (const tier of DEFAULT_SWEEP_TIER_ORDER) {
+      const slug = remainingByTier.get(tier)?.shift();
+      if (slug) {
+        interleaved.push(slug);
+        tookAny = true;
+      }
+    }
+  }
+  return interleaved;
 }
 
 export const OUTREACH_STATUS_LABELS: Record<string, string> = {

@@ -141,13 +141,43 @@ export async function runAgentPipeline(supabase: SupabaseClient, params: AgentRu
   }
   const runId = (runRow as { id: string }).id;
 
+  // ---- Skip already-discovered projects (product decision, 19 Aug 2026 —
+  // see types.ts's DiscoveryParams.excludeCoingeckoIds) ----
+  // Every coingecko_id ever saved to ai_projects is excluded from this
+  // run's discovery, permanently, not just within a freshness window: once
+  // a project has been surfaced once, it's already sitting in the admin's
+  // Projects list (ai_prospect_status starts at 'project' and the admin
+  // can see/manage it from there) — re-showing the SAME project on a later
+  // "Find Prospects" run wastes that run's limited CoinGecko detail-call
+  // budget on something already known instead of spending it on something
+  // genuinely new. Trade-off, stated plainly: an already-saved project's
+  // market_cap/price/social-links snapshot is never refreshed by a later
+  // run either, since it's never re-discovered — if Nimia ever wants
+  // "refresh what I already have" as a separate action, that would need
+  // its own explicit admin action (e.g. a per-project "Refresh" button
+  // calling tools/save.ts directly), not a change to this exclusion list.
+  // README.md flagged this as a known future improvement before 19 Aug
+  // 2026 (originally shipped as a 24h rolling cache, then widened to
+  // permanent the same day per explicit product direction). Best-effort
+  // only — a failed lookup here just means this run doesn't get the
+  // exclusion, never a reason to fail the whole run. Capped at 20,000 rows
+  // (Supabase/PostgREST's own default cap is 1,000) — revisit if
+  // ai_projects ever actually grows past that before this cap does.
+  let excludeCoingeckoIds: string[] = [];
+  try {
+    const { data: knownRows } = await supabase.from("ai_projects").select("coingecko_id").limit(20_000);
+    excludeCoingeckoIds = (knownRows as { coingecko_id: string }[] | null)?.map((r) => r.coingecko_id) ?? [];
+  } catch {
+    // See comment above — swallow and proceed without the exclusion list.
+  }
+
   // ---- Discovery ----
   const perSourceLimit = Math.max(params.requestedTarget, 10);
   const allProjects: DiscoveredProject[] = [];
 
   for (const source of activeSources) {
     try {
-      const discovered = await source.discover({ categorySlugs: params.categorySlugs, limit: perSourceLimit });
+      const discovered = await source.discover({ categorySlugs: params.categorySlugs, limit: perSourceLimit, excludeCoingeckoIds });
       allProjects.push(...discovered);
     } catch (error) {
       errors.push({

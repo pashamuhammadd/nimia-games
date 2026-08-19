@@ -65,15 +65,31 @@ function scoreCategoryFit(project: DiscoveredProject): ScoreFactor {
   }
 
   const bestTier = Math.min(...matches.map((m) => m.tier));
-  const tierBase = { 1: 21, 2: 15, 3: 9, 4: 5 }[bestTier] ?? 5;
+  // Tier base scores (out of 25) — how central this category tier is to
+  // Nimia's animation-business case. Tier 3 (Memecoin/DeFi/Payments/
+  // Wallets) raised from 9 to 13 (product decision, 19 Aug 2026): memecoin
+  // projects lean heavily on animated mascots, character work, and meme/
+  // logo animation for community engagement — squarely Nimia's own Meme
+  // Animation / Character Animation / Logo Animation services
+  // (knowledge/animation-services.ts) — and Nimia explicitly wants the
+  // pipeline to actively prioritize memecoin and new/small projects, not
+  // merely avoid excluding them (see constants.ts's
+  // defaultSweepCategorySlugs() for the matching discovery-side fix). Tier
+  // 1/2 stay highest — gaming/metaverse/NFT remain the richest
+  // frame-by-frame animation use case — and Tier 4 (infrastructure) is
+  // unchanged as the least visually-driven category. Retune here if the
+  // balance needs to shift again; nothing else in the scoring pipeline
+  // depends on these specific numbers.
+  const tierBase = { 1: 21, 2: 15, 3: 13, 4: 5 }[bestTier] ?? 5;
   const tierLabel = matches.find((m) => m.tier === bestTier)!.label;
   const bonus = matches.filter((m) => m.tier === bestTier).length > 1 ? 3 : 0;
+  const potentialLabel = bestTier === 1 ? "very high" : bestTier === 2 ? "high" : bestTier === 3 ? "solid" : "moderate";
 
   return {
     score: clamp(tierBase + bonus, max),
     max,
     reasons: [
-      `Tier ${bestTier} category (${tierLabel}) — ${bestTier <= 2 ? "high" : "moderate"} animation-business potential for Nimia.`,
+      `Tier ${bestTier} category (${tierLabel}) — ${potentialLabel} animation-business potential for Nimia.`,
       ...(bonus > 0 ? [`Matches multiple Tier ${bestTier} categories, reinforcing the fit.`] : []),
     ],
   };

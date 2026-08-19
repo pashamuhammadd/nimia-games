@@ -19,6 +19,27 @@
 const COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3";
 const REQUEST_TIMEOUT_MS = 8000;
 
+// Retry with backoff (added 19 Aug 2026). CoinGecko's free Demo plan is
+// capped at 30 calls/minute
+// (support.coingecko.com/hc/en-us/articles/4538771776153) — before this
+// fix, a single rate-limit hit (or any transient network/5xx blip)
+// anywhere in a run PERMANENTLY lost that market page or project detail
+// call for the rest of the run (the caller's own try/catch just skipped
+// it), which quietly shrank the run's results with no visible error. As
+// discovery/coingecko-project-provider.ts's own per-run budget constants
+// grew (19 Aug 2026, part of the same coverage push), that risk grew too.
+// A 429 response honors CoinGecko's own `Retry-After` header when present;
+// any other failure (non-2xx, network error, timeout) backs off with a
+// short fixed schedule instead. Up to MAX_RATE_LIMIT_RETRIES extra
+// attempts — after that, the original error still propagates to the
+// caller exactly as before this change.
+const MAX_RATE_LIMIT_RETRIES = 2;
+const RETRY_BASE_DELAY_MS = 800;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function isCoinGeckoConfigured(): boolean {
   return Boolean(process.env.COINGECKO_API_KEY);
 }
@@ -40,23 +61,41 @@ export async function coinGeckoFetch(
     url.searchParams.set(key, String(value));
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    const response = await fetch(url.toString(), {
-      headers: {
-        accept: "application/json",
-        "x-cg-demo-api-key": process.env.COINGECKO_API_KEY ?? "",
-      },
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      throw new Error(`CoinGecko ${path} returned ${response.status}`);
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(url.toString(), {
+        headers: {
+          accept: "application/json",
+          "x-cg-demo-api-key": process.env.COINGECKO_API_KEY ?? "",
+        },
+        signal: controller.signal,
+      });
+
+      if (response.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
+        const retryAfterHeader = response.headers.get("retry-after");
+        const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : NaN;
+        const delayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : RETRY_BASE_DELAY_MS * (attempt + 1);
+        await sleep(delayMs);
+        continue;
+      }
+
+      if (!response.ok) {
+        throw new Error(`CoinGecko ${path} returned ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      lastError = error;
+      if (attempt >= MAX_RATE_LIMIT_RETRIES) break;
+    } finally {
+      clearTimeout(timeout);
     }
-    return await response.json();
-  } finally {
-    clearTimeout(timeout);
   }
+
+  throw lastError instanceof Error ? lastError : new Error(`CoinGecko ${path} failed after ${MAX_RATE_LIMIT_RETRIES + 1} attempt(s).`);
 }
 
 /** Best-effort Discord-invite scan across a handful of link fields.

@@ -1,6 +1,6 @@
 import type { DiscoveredProject, DiscoveryParams, DiscoverySource, ProjectDeveloperLinks, ProjectSocialLinks } from "../types";
 import { coinGeckoFetch, findDiscordLink, findRedditLink, isCoinGeckoConfigured, coinGeckoNotConfiguredReason } from "./coingecko-client";
-import { CATEGORY_TIERS, allCategorySlugs, MIN_TARGET_MARKET_CAP_USD, MAX_TARGET_MARKET_CAP_USD } from "../constants";
+import { CATEGORY_TIERS, defaultSweepCategorySlugs, MIN_TARGET_MARKET_CAP_USD, MAX_TARGET_MARKET_CAP_USD } from "../constants";
 
 // CoinGecko Project Discovery — the ONLY discovery source in V2 (spec
 // section 20: "source = CoinGecko"). Replaces the retired "AI Client
@@ -45,13 +45,26 @@ import { CATEGORY_TIERS, allCategorySlugs, MIN_TARGET_MARKET_CAP_USD, MAX_TARGET
 // free Demo plan (see coingecko-client.ts) — the caps below exist
 // specifically to stay well inside that plan's rate limit, not just to
 // bound response time.
-const MAX_CATEGORIES_PER_RUN = 8;
+//
+// COVERAGE PUSH (19 Aug 2026, product decision — see constants.ts's
+// defaultSweepCategorySlugs() for the companion sweep-order fix): every
+// budget below was raised a modest amount, funded mostly by the new
+// already-discovered exclusion (see this file's `excludeIds` handling
+// below and orchestrator.ts) rather than a flat increase — re-discovering
+// a project this pipeline has EVER saved before no longer eats detail-call
+// budget, so every run's raw calls go toward genuinely new candidates
+// instead of resurfacing the same projects run after run. MAX_MARKET_
+// PAGES_PER_CATEGORY and IN_BAND_TARGET_PER_CATEGORY specifically went up
+// because smaller/newer in-band projects tend to sit on the LATER pages of
+// a market_cap_desc sweep — reaching further in is a direct lever for
+// "more new/small projects", not just "more projects".
+const MAX_CATEGORIES_PER_RUN = 10; // was 8
 const MARKETS_PAGE_SIZE = 50;
-const MAX_MARKET_PAGES_PER_CATEGORY = 4; // walks past the top (biggest-cap) page(s) to reach the target band
-const IN_BAND_TARGET_PER_CATEGORY = 15; // stop paging a category early once it has yielded this many in-band candidates
-const MAX_DETAIL_CALLS = 40;
+const MAX_MARKET_PAGES_PER_CATEGORY = 5; // was 4 — reaches further into the smaller/newer long tail within the band
+const IN_BAND_TARGET_PER_CATEGORY = 18; // was 15
+const MAX_DETAIL_CALLS = 48; // was 40
 const DETAIL_CONCURRENCY = 8;
-const MAX_NFT_DETAIL_CALLS = 15;
+const MAX_NFT_DETAIL_CALLS = 18; // was 15
 
 function inTargetMarketCapBand(marketCapUsd: number | null): boolean {
   // A null market cap (CoinGecko hasn't ranked/priced it) is let through —
@@ -218,8 +231,13 @@ export class CoinGeckoProjectDiscoveryProvider implements DiscoverySource {
   async discover(params: DiscoveryParams): Promise<DiscoveredProject[]> {
     if (!this.isConfigured()) return [];
 
-    const requestedSlugs = params.categorySlugs.length > 0 ? params.categorySlugs : allCategorySlugs();
+    const requestedSlugs = params.categorySlugs.length > 0 ? params.categorySlugs : defaultSweepCategorySlugs();
     const categorySlugs = requestedSlugs.slice(0, MAX_CATEGORIES_PER_RUN);
+    // See types.ts's DiscoveryParams.excludeCoingeckoIds — every project
+    // already saved to ai_projects (from ANY previous run, not just a
+    // recent one) skips the detail call below entirely, freeing this run's
+    // budget for candidates it has genuinely never seen before.
+    const excludeIds = new Set(params.excludeCoingeckoIds ?? []);
 
     // Track every category slug that surfaced each coin — a coin can
     // legitimately appear under more than one requested category, and
@@ -274,7 +292,9 @@ export class CoinGeckoProjectDiscoveryProvider implements DiscoverySource {
       }
     }
 
-    const toDetail = Array.from(marketRowById.values()).slice(0, MAX_DETAIL_CALLS);
+    const toDetail = Array.from(marketRowById.values())
+      .filter((market) => !excludeIds.has(market.id))
+      .slice(0, MAX_DETAIL_CALLS);
     const results: DiscoveredProject[] = [];
 
     for (let i = 0; i < toDetail.length && results.length < params.limit; i += DETAIL_CONCURRENCY) {
@@ -383,9 +403,18 @@ export class CoinGeckoNftDiscoveryProvider implements DiscoverySource {
       throw new Error(`CoinGecko NFT list failed: ${error instanceof Error ? error.message : String(error)}`);
     }
 
+    // See types.ts's DiscoveryParams.excludeCoingeckoIds — every
+    // collection already saved to ai_projects (from ANY previous run) is
+    // filtered out BEFORE the skip-top-N/take-budget slice below, so an
+    // already-known collection can't itself occupy one of the "top N
+    // skipped" or "detail budget" slots that could otherwise go to a
+    // collection this run has genuinely never seen before.
+    const excludeIds = new Set(params.excludeCoingeckoIds ?? []);
+    const unseenList = list.filter((item) => !excludeIds.has(`nft:${item.id}`));
+
     // Skip the top of the list (blue-chip collections, see this class's
     // header comment) before taking our detail-call budget's worth.
-    const toCheck = list.slice(NFT_SKIP_TOP_N, NFT_SKIP_TOP_N + MAX_NFT_DETAIL_CALLS);
+    const toCheck = unseenList.slice(NFT_SKIP_TOP_N, NFT_SKIP_TOP_N + MAX_NFT_DETAIL_CALLS);
     const results: DiscoveredProject[] = [];
 
     for (let i = 0; i < toCheck.length && results.length < params.limit; i += DETAIL_CONCURRENCY) {

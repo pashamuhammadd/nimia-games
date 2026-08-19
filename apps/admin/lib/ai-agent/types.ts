@@ -65,10 +65,27 @@ export type CategoryTierInfo = {
 /** What the Find Prospects page collects and hands to the orchestrator. */
 export type DiscoveryParams = {
   /** CoinGecko category slugs to search — empty means "every tier's
-   * categories" (the registry's default sweep). */
+   * categories" (the registry's default sweep, constants.ts's
+   * defaultSweepCategorySlugs()). */
   categorySlugs: string[];
   /** How many candidates THIS source should try to return. */
   limit: number;
+  /** Every coingecko_id (or the "nft:{id}" form ai_projects.coingecko_id
+   * uses for NFT-sourced rows) already saved to ai_projects — PERMANENTLY,
+   * not a time-boxed cache. Product decision, 19 Aug 2026: a project
+   * already discovered once is already sitting in the admin's Projects
+   * list, so a later "Find Prospects" run should never re-spend its
+   * limited CoinGecko detail-call budget re-showing it — that budget
+   * should always go toward something genuinely new. This run should skip
+   * spending a detail-call on any of these ids entirely; skipping just
+   * means "leave the existing saved row alone", never invents anything
+   * (spec section 21 is unaffected). Trade-off: an excluded project's
+   * market data is never refreshed by a later run either — see
+   * orchestrator.ts's own comment on this list's construction for the
+   * full reasoning. Populated by the orchestrator from ai_projects before
+   * discovery starts; a discovery source may ignore this if it can't
+   * cheaply honor it. */
+  excludeCoingeckoIds?: string[];
 };
 
 /** One project pulled from CoinGecko, before AI analysis/scoring —
