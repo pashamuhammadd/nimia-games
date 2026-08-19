@@ -249,8 +249,13 @@ export function OrderReceiptDocument({
           ) : null}
         </View>
 
+        {/* Updated 19 Agustus 2026: this receipt IS the invoice document, so
+            its contact line points at billing@nimiastudio.com specifically
+            (per the user's own assignment: "billing@nimiastudio.com untuk
+            invoice") rather than the general contact@ address every other
+            template used to share. */}
         <Text style={styles.footer}>
-          Nimia Games · Indie game development studio · contact@nimiagames.com · nimiagames.com
+          Nimia Games · Indie game development studio · billing@nimiastudio.com · nimiastudio.com
         </Text>
       </Page>
     </Document>

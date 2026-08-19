@@ -122,6 +122,47 @@ function isFormatFolderSegment(segment: string): boolean {
   return FORMAT_FOLDER_TOKENS.has(segment.toLowerCase().trim());
 }
 
+// Added 19 Agustus 2026 — auto-create-category support (brief: "setiap
+// nama kategorinya harus bisa dibuat otomatis sesuai nama folder di
+// cloudinary ... jika saya membuat folder baru harus otomatis ada
+// kategori baru"). Pure/no-DB, like the rest of this file: this only
+// tells a caller (the webhook, the admin bulk sync action) WHICH category
+// name it should ensure exists in `portfolio_categories` before calling
+// mapCloudinaryAssetToPortfolioFields below — it never writes anything
+// itself. Mirrors deriveFolderHints' own matching walk exactly (same
+// slug/name comparison, same format-token skip) so the two never
+// disagree: if some segment further down the path ALREADY matches a
+// known category (e.g. ".../Fren/Motion Graphics/clip.mp4" where "Motion
+// Graphics" already exists), this returns null — deriveFolderHints will
+// resolve that match on its own, so there's nothing new to create. Only
+// when NO segment matches anything yet does this propose the first
+// non-format segment as a brand-new category to create — same segment
+// deriveFolderHints will itself pick up as the category once the caller
+// has actually inserted it.
+export function deriveCategoryFolderName(
+  folder: string | null,
+  rootFolder: string,
+  categories: PortfolioCategoryLookup[],
+): string | null {
+  if (!folder) return null;
+
+  const relative = folder.startsWith(rootFolder) ? folder.slice(rootFolder.length) : folder;
+  const segments = relative
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .filter((segment) => !isFormatFolderSegment(segment));
+
+  if (segments.length === 0) return null;
+
+  const alreadyResolves = segments.some((segment) =>
+    categories.some((c) => c.slug === slugify(segment) || c.name.toLowerCase() === segment.toLowerCase()),
+  );
+  if (alreadyResolves) return null;
+
+  return segments[0];
+}
+
 interface FolderHints {
   categoryId: string | null;
   client: string | null;

@@ -1,7 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import crypto from "node:crypto";
 import { createServiceRoleClient } from "@nimia/db";
-import { mapCloudinaryAssetToPortfolioFields } from "../../../../lib/cloudinary-sync-map";
+import {
+  mapCloudinaryAssetToPortfolioFields,
+  deriveCategoryFolderName,
+  slugify,
+} from "../../../../lib/cloudinary-sync-map";
 
 // Cloudinary Notification URL target (spec §15) — configure this in the
 // Cloudinary console under Settings -> Notifications -> "Notification URL",
@@ -100,7 +104,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, skipped: "outside portfolio root folder" });
   }
 
-  const { data: categories } = await supabase.from("portfolio_categories").select("id, name, slug");
+  let { data: categories } = await supabase.from("portfolio_categories").select("id, name, slug");
+
+  // Auto-create the portfolio category implied by this asset's Cloudinary
+  // folder if it doesn't exist yet (spec: "jika saya membuat folder baru
+  // [di Cloudinary] harus otomatis ada kategori baru di
+  // portfolio.nimiastudio.com dan di hub.nimiastudio.com") — done BEFORE
+  // mapCloudinaryAssetToPortfolioFields below so its existing
+  // folder->category matching picks the freshly-created row up exactly
+  // like any pre-existing category. Best-effort: if the insert somehow
+  // fails, the asset still syncs, it just lands without a category this
+  // run (same as today) rather than failing the whole webhook.
+  const newCategoryName = deriveCategoryFolderName(payload.folder, rootFolder, categories ?? []);
+  if (newCategoryName) {
+    await supabase
+      .from("portfolio_categories")
+      .upsert({ name: newCategoryName, slug: slugify(newCategoryName) }, { onConflict: "slug", ignoreDuplicates: true });
+    const { data: refreshedCategories } = await supabase.from("portfolio_categories").select("id, name, slug");
+    if (refreshedCategories) categories = refreshedCategories;
+  }
 
   const asset = {
     publicId: payload.public_id,

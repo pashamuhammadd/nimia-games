@@ -4,7 +4,11 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createServerClient } from "@nimia/db";
 import { cloudinary } from "../../lib/cloudinary";
-import { mapCloudinaryAssetToPortfolioFields } from "../../lib/portfolio-sync-map";
+import {
+  mapCloudinaryAssetToPortfolioFields,
+  deriveCategoryFolderName,
+  slugify,
+} from "../../lib/portfolio-sync-map";
 
 export type PortfolioActionResult = { success: true } | { success: false; error: string };
 
@@ -214,6 +218,35 @@ export async function syncFromCloudinaryAction(): Promise<SyncResult> {
   }
 
   const { data: categories } = await supabase.from("portfolio_categories").select("id, name, slug");
+  let allCategories = categories ?? [];
+
+  // Auto-create every portfolio category implied by a Cloudinary folder
+  // name that doesn't have a matching row yet — one bulk pre-pass across
+  // every scanned resource (not per-resource, to avoid N concurrent
+  // inserts racing each other for the same brand-new category name),
+  // before the per-resource mapping loop below. Mirrors what
+  // apps/portfolio's real-time webhook does per-asset, so a folder
+  // created in Cloudinary shows up as a category on both
+  // portfolio.nimiastudio.com and this page's own Category dropdown
+  // whichever sync path notices it first — no manual admin step either
+  // way.
+  const newCategoryRows = new Map<string, string>(); // slug -> name
+  for (const resource of resources) {
+    const name = deriveCategoryFolderName(resource.folder ?? null, ROOT_FOLDER, allCategories);
+    if (!name) continue;
+    const slug = slugify(name);
+    if (!newCategoryRows.has(slug)) newCategoryRows.set(slug, name);
+  }
+  if (newCategoryRows.size > 0) {
+    await supabase
+      .from("portfolio_categories")
+      .upsert(
+        Array.from(newCategoryRows, ([slug, name]) => ({ slug, name })),
+        { onConflict: "slug", ignoreDuplicates: true },
+      );
+    const { data: refreshedCategories } = await supabase.from("portfolio_categories").select("id, name, slug");
+    if (refreshedCategories) allCategories = refreshedCategories;
+  }
 
   const outcomes = await mapWithConcurrency(resources, SYNC_CONCURRENCY, async (resource) => {
     const asset = {
@@ -227,7 +260,7 @@ export async function syncFromCloudinaryAction(): Promise<SyncResult> {
       tags: resource.tags ?? [],
       context: resource.context?.custom ?? {},
     };
-    const mapped = mapCloudinaryAssetToPortfolioFields(asset, categories ?? [], ROOT_FOLDER);
+    const mapped = mapCloudinaryAssetToPortfolioFields(asset, allCategories, ROOT_FOLDER);
 
     const { data: existing } = await supabase
       .from("portfolio")

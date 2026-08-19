@@ -34,7 +34,14 @@ export const FONT_STACK =
 // 3x the display size below for a crisp look on retina screens.
 export const STUDIO_LOCKUP_URL = "https://www.nimiagames.com/nimia-studio-lockup-email.png";
 export const SITE_URL = "https://www.nimiagames.com";
-export const CONTACT_EMAIL = "contact@nimiagames.com";
+// Updated 19 Agustus 2026 — Nimia Studio's 5 real inboxes each got an
+// assigned purpose (business@/pasha@/billing@/support@/team@nimiastudio.com,
+// see apps/*/lib/email.tsx for the per-template FROM addresses). This is
+// the "questions? reach us at..." line shown at the bottom of EVERY
+// transactional email regardless of which address it was sent from, so it
+// points at business@ — the main/default inbox, not any single template's
+// specific FROM.
+export const CONTACT_EMAIL = "business@nimiastudio.com";
 
 export const ctaButtonStyle: React.CSSProperties = {
   display: "inline-block",

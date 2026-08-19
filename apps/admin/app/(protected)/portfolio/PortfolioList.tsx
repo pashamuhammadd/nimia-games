@@ -37,6 +37,24 @@ interface PortfolioCategoryOption {
   slug: string;
 }
 
+// Fix for a reported bug (19 Agustus 2026): this app's globals.css already
+// sets `color-scheme: dark` at :root specifically so native <select> popups
+// pick up dark browser chrome instead of the OS default light one (see that
+// file's own comment) — but that alone isn't reliable for every
+// browser/OS combination, and these two <select>s ended up with an open
+// option list rendering white text on a white/system background,
+// effectively invisible. Styling <option> directly (background-color +
+// color are the one native-<select> sub-element browsers do actually let
+// you set) is the robust, cross-browser fix — using the same brand tokens
+// (--nimia-popover for the dark maroon panel background, --foreground for
+// legible text) every other floating panel in this app already uses (see
+// packages/ui/src/components/Listbox.tsx).
+const OPTION_LIST_STYLE: React.CSSProperties = { colorScheme: "dark" };
+const OPTION_STYLE: React.CSSProperties = {
+  backgroundColor: "var(--nimia-popover)",
+  color: "var(--foreground)",
+};
+
 const STATUS_LABELS: Record<PortfolioAdminRow["status"], string> = {
   draft: "Draft",
   published: "Published",
@@ -113,11 +131,20 @@ export function PortfolioList({
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
             className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-medium text-white focus:outline-none"
+            style={OPTION_LIST_STYLE}
           >
-            <option value="all">All statuses</option>
-            <option value="published">Published</option>
-            <option value="draft">Draft</option>
-            <option value="archived">Archived</option>
+            <option value="all" style={OPTION_STYLE}>
+              All statuses
+            </option>
+            <option value="published" style={OPTION_STYLE}>
+              Published
+            </option>
+            <option value="draft" style={OPTION_STYLE}>
+              Draft
+            </option>
+            <option value="archived" style={OPTION_STYLE}>
+              Archived
+            </option>
           </select>
 
           <button
@@ -351,10 +378,13 @@ function PortfolioRowItem({
               value={form.categoryId}
               onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))}
               className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-sm text-white focus:outline-none"
+              style={OPTION_LIST_STYLE}
             >
-              <option value="">No category</option>
+              <option value="" style={OPTION_STYLE}>
+                No category
+              </option>
               {categories.map((category) => (
-                <option key={category.id} value={category.id}>
+                <option key={category.id} value={category.id} style={OPTION_STYLE}>
                   {category.name}
                 </option>
               ))}

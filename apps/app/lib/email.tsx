@@ -9,13 +9,16 @@ import { OrderReceivedEmail, type OrderReceivedEmailProps } from "@nimia/email";
 // called, the actual DB write (e.g. the order itself) has already
 // succeeded, so a Resend hiccup is logged and swallowed, not thrown.
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-// Fallback updated 14 Agustus 2026 (dashboard split) — "studio@nimiagames.com"
-// was never a real inbox; now that nimiastudio.com is the live domain, the
-// fallback matches the new sender identity. Still only a safety net for a
-// missing env var — set RESEND_FROM_EMAIL explicitly in .env.local/Vercel,
-// and make sure nimiastudio.com is verified (SPF/DKIM) in the Resend
-// dashboard before relying on it to actually deliver.
-const FROM = `Nimia Studio <${process.env.RESEND_FROM_EMAIL ?? "contact@nimiastudio.com"}>`;
+// Updated 19 Agustus 2026 — Nimia Studio now has 5 real inboxes
+// (business@/pasha@/billing@/support@/team@nimiastudio.com), each with an
+// assigned purpose per the user's own decision. This file only sends
+// OrderReceivedEmail ("We've received your order"), which is exactly the
+// "tim Nimia sudah menerima orderan klien" notification team@ was set up
+// for — so it goes out from team@, not the old shared contact@ address.
+// RESEND_FROM_EMAIL still overrides this for local/staging testing; make
+// sure nimiastudio.com stays verified (SPF/DKIM) in the Resend dashboard
+// for whichever address is actually used.
+const FROM = `Nimia Studio Team <${process.env.RESEND_FROM_EMAIL ?? "team@nimiastudio.com"}>`;
 
 async function send(to: string, subject: string, react: React.ReactElement): Promise<boolean> {
   if (!resend) {

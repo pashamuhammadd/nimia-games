@@ -110,6 +110,41 @@ function isFormatFolderSegment(segment: string): boolean {
   return FORMAT_FOLDER_TOKENS.has(segment.toLowerCase().trim());
 }
 
+// Added 19 Agustus 2026 — auto-create-category support, kept in sync by
+// hand with apps/portfolio/lib/cloudinary-sync-map.ts's copy of this same
+// function (see that file's header comment for why this whole module is
+// duplicated rather than shared). See that copy's comment for the full
+// rationale — short version: pure/no-DB, tells the caller (this app's
+// "Sync from Cloudinary" bulk action) which category name to ensure
+// exists in `portfolio_categories` before calling
+// mapCloudinaryAssetToPortfolioFields, without ever writing anything
+// itself, and only proposes a NEW category when no segment in the folder
+// path already resolves to an existing one via deriveFolderHints' own
+// matching rule.
+export function deriveCategoryFolderName(
+  folder: string | null,
+  rootFolder: string,
+  categories: PortfolioCategoryLookup[],
+): string | null {
+  if (!folder) return null;
+
+  const relative = folder.startsWith(rootFolder) ? folder.slice(rootFolder.length) : folder;
+  const segments = relative
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .filter((segment) => !isFormatFolderSegment(segment));
+
+  if (segments.length === 0) return null;
+
+  const alreadyResolves = segments.some((segment) =>
+    categories.some((c) => c.slug === slugify(segment) || c.name.toLowerCase() === segment.toLowerCase()),
+  );
+  if (alreadyResolves) return null;
+
+  return segments[0];
+}
+
 interface FolderHints {
   categoryId: string | null;
   client: string | null;
