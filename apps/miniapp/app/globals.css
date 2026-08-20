@@ -532,6 +532,43 @@ a {
 }
 
 /* ------------------------------------------------------------------
+   New order — duration + live estimate (new, 20 Agustus 2026, per
+   Pasha's "harus muncul otomatis juga harga estimasinya, dan tekankan
+   bahwa harga itu bisa di nego" request). Same accent tint as
+   .offer-bubble.mine, deliberately NOT the green ".agreed-price-row"
+   treatment — this number isn't agreed yet, it's a starting estimate.
+   ------------------------------------------------------------------ */
+
+.estimate-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 77, 141, 0.3);
+  background: rgba(255, 77, 141, 0.1);
+  padding: 12px 14px;
+}
+
+.estimate-row .label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.estimate-row .amount {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.estimate-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ------------------------------------------------------------------
    Account — profile edit form (new, 20 Agustus 2026).
    ------------------------------------------------------------------ */
 
