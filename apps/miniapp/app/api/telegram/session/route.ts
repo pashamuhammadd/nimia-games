@@ -8,7 +8,9 @@ import { verifyTelegramInitData } from "@nimia/telegram";
 // real Supabase session for the Telegram user launching the Mini App,
 // WITHOUT ever asking for a password again if this Telegram account is
 // already linked (connect_telegram_account, migration 0054) — see
-// docs/TELEGRAM.md §7 for the full design rationale.
+// docs/TELEGRAM.md §7 for the full design rationale. This route is the
+// entire "log in automatically via Telegram" feature: every open after
+// the one-time link in /api/telegram/link ends up here instead.
 //
 // Two outcomes:
 //   - Not linked yet -> { linked: false }. TelegramLinkGate then shows a
@@ -26,14 +28,15 @@ import { verifyTelegramInitData } from "@nimia/telegram";
 //     user re-typing a password on every Mini App open, which is the
 //     entire point of "Continue with Telegram" being convenient at all.
 //
-// KNOWN GAP (flagged honestly rather than silently assumed correct —
-// this line could not be exercised against a real Supabase project from
-// this sandbox): the exact `verifyOtp` parameter shape
-// (`type: "magiclink"` vs `"email"`) has shifted across @supabase/
-// supabase-js v2 minor versions in their own docs/examples. Verify this
-// against the version actually installed (`npm ls @supabase/supabase-js`)
-// the first time this route is tested end-to-end — see this app's
-// README "Phase 0 testing checklist".
+// verifyOtp's `type` param: confirmed against Supabase's own docs
+// (supabase.com/docs/reference/javascript/auth-verifyotp, "Verify Email
+// Auth [Token Hash]") that redeeming a `hashed_token` — regardless of
+// which `type` it was generated with via generateLink — uses
+// `type: "email"`, not `type: "magiclink"`. This was previously flagged
+// here as an unverified gap; it's resolved now, but still worth a real
+// end-to-end test against this project's actual Supabase instance the
+// first time this route runs for real (client-side @supabase/supabase-js
+// version can still shift documented behavior between minors).
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const initData: string | undefined = body?.initData;
@@ -89,7 +92,7 @@ export async function POST(request: NextRequest) {
   // — no Telegram-specific handling needed anywhere else in this app.
   const supabase = createServerClient(await cookies());
   const { error: verifyError } = await supabase.auth.verifyOtp({
-    type: "magiclink",
+    type: "email",
     token_hash: link.properties.hashed_token,
   });
   if (verifyError) {

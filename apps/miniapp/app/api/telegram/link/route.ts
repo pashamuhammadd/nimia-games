@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
   const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
   if (signInError) {
-    return NextResponse.json({ error: "Email atau password salah." }, { status: 401 });
+    return NextResponse.json({ error: "Incorrect email or password." }, { status: 401 });
   }
 
   // connect_telegram_account (migration 0054) runs SECURITY DEFINER but
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
   if (rpcError) {
     console.error("[telegram/link] connect_telegram_account failed", rpcError);
     return NextResponse.json(
-      { error: "Berhasil login, tapi gagal menautkan akun Telegram. Coba lagi." },
+      { error: "Signed in, but couldn't link your Telegram account. Please try again." },
       { status: 500 },
     );
   }

@@ -53,10 +53,11 @@ Telegram credential.
    - Close and reopen the Mini App (or clear this app's cookies) →
      should skip the login form entirely and land straight on Home —
      this exercises the `/api/telegram/session` magic-link path, the
-     single highest-risk line in this whole pass (see that route's own
-     "KNOWN GAP" comment about `verifyOtp`'s exact parameter shape,
-     which could not be verified against a live Supabase project from
-     the sandbox this was built in).
+     single highest-risk line in this whole pass. `verifyOtp`'s `type`
+     param was fixed from `"magiclink"` to `"email"` (confirmed against
+     Supabase's own docs — see that route's own comment) but was never
+     exercised against a live Supabase project from the sandbox this
+     was built in, so this is still the first thing to test carefully.
    - Account tab → "Disconnect Telegram" → confirm the Telegram row goes
      back to "Not connected", and that reopening the Mini App now asks
      to log in again (proves disconnect actually took effect, not just a

@@ -48,6 +48,7 @@ a {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  animation: fade-in 0.28s ease-out;
 }
 
 .greeting {
@@ -95,7 +96,9 @@ a {
 }
 
 .cta-button {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   background: linear-gradient(135deg, var(--accent-strong), var(--accent));
   color: white;
@@ -107,11 +110,17 @@ a {
   width: 100%;
   font-size: 15px;
   cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.cta-button:active {
+  transform: scale(0.98);
 }
 
 .cta-button:disabled {
-  opacity: 0.6;
+  opacity: 0.75;
   cursor: default;
+  transform: none;
 }
 
 .cta-button.secondary {
@@ -138,6 +147,7 @@ a {
   color: #ff6b6b;
   font-size: 13px;
   margin: 0;
+  animation: fade-in 0.2s ease-out;
 }
 
 .bottom-nav {
@@ -164,10 +174,15 @@ a {
   color: var(--text-muted);
   text-decoration: none;
   font-size: 11px;
+  transition: color 0.15s ease, transform 0.15s ease;
 }
 
 .bottom-nav a[data-active="true"] {
   color: var(--accent);
+}
+
+.bottom-nav a:active {
+  transform: scale(0.92);
 }
 
 .bottom-nav .icon {
@@ -184,4 +199,132 @@ a {
 .coming-soon .hint {
   font-size: 12px;
   margin-top: 12px;
+}
+
+/* ---- Loading states (LoadingScreen.tsx) ----
+   Used by every route's loading.tsx (shown automatically by Next.js
+   while that tab's Server Component awaits Supabase) and by
+   TelegramLinkGate's "checking" phase. Pure CSS — a conic-gradient ring
+   spinning around a pulsing brand mark, on-theme with the pink/maroon
+   gradient used everywhere else (--accent / --accent-strong). */
+.loading-screen {
+  min-height: calc(100dvh - var(--nav-height) - 64px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  animation: fade-in 0.25s ease-out;
+}
+
+.loading-ring {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  padding: 3px;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    var(--accent) 140deg,
+    var(--accent-strong) 220deg,
+    transparent 320deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: spin 0.9s linear infinite;
+}
+
+.loading-mark {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: pulse-scale 1.6s ease-in-out infinite;
+}
+
+.loading-label {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  animation: pulse-opacity 1.6s ease-in-out infinite;
+}
+
+.inline-spinner {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: spin 0.7s linear infinite;
+  margin-right: 8px;
+  vertical-align: -3px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-scale {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.14);
+  }
+}
+
+@keyframes pulse-opacity {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page,
+  .loading-screen,
+  .error-text {
+    animation: none;
+  }
+  .loading-ring::before,
+  .loading-mark,
+  .loading-label,
+  .inline-spinner {
+    animation: none;
+  }
 }
