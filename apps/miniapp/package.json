@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@nimia/db": "*",
+    "@nimia/discord": "*",
     "@nimia/telegram": "*",
     "@nimia/ui": "*",
     "@supabase/ssr": "^0.5.2",

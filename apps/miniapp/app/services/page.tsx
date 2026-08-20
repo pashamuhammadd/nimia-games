@@ -1,108 +1,73 @@
-import { cookies } from "next/headers";
-import { createServerClient } from "@nimia/db";
-import { TelegramLinkGate } from "../components/TelegramLinkGate";
-import { serviceCategoryLabel } from "../lib/statusLabels";
-import { orderWizardUrl, portfolioUrl } from "../lib/links";
+import { orderWizardUrl, studioUrl } from "../lib/links";
 
-interface ServiceRow {
-  id: string;
-  name: string;
-  category: string;
-  description: string | null;
-  base_price: number | null;
-}
+// Rewritten 20 Agustus 2026 per Pasha's feedback: the previous version
+// read the full public.services catalog (3D Animation, Game Trailer, UI
+// Animation, etc - packages/db/migrations/0002_catalog_and_clients.sql's
+// service_category enum has no "meme"/"gif" categories at all) and
+// rendered it grouped by category - broad, and not what this Mini App is
+// for. The Telegram audience is crypto-community-first, so this tab is
+// now a deliberately narrow, curated front door: 2D animation only, the
+// two things that Telegram/crypto communities actually order on
+// impulse (memes, GIF packs), plus one escape hatch to the full site for
+// anything bigger. This is curated marketing copy, not a database read -
+// there is no `services` table query on this page anymore.
+const OFFERINGS = [
+  {
+    icon: "🎭",
+    title: "Meme Animation",
+    tag: "Most requested",
+    description:
+      "Funny, share-ready animated memes made for your community. Built to spread on X and Telegram.",
+    ctaLabel: "Order Now",
+    href: orderWizardUrl(),
+  },
+  {
+    icon: "✨",
+    title: "Crypto GIFs",
+    tag: "Welcome · GM/GN · Buy Alerts",
+    description:
+      "Custom animated GIFs for the moments your server needs: welcome new members, GM/GN greetings, buy alerts, and other niche crypto-community drops.",
+    ctaLabel: "Order Now",
+    href: orderWizardUrl(),
+  },
+  {
+    icon: "🎬",
+    title: "Custom Animation",
+    tag: "Beyond memes & GIFs",
+    description: "Need something bigger or more specific? Let's talk about your project on the full site.",
+    ctaLabel: "Visit Nimia Studio",
+    href: studioUrl(),
+  },
+] as const;
 
-// Phase 2 (docs/TELEGRAM.md's roadmap, 20 Agustus 2026): a real, read-only
-// catalog straight from public.services (same table + RLS policy every
-// other app in this monorepo reads - "services_public_read_active",
-// packages/db/migrations/0006_rls_policies.sql). "Request this service"
-// intentionally opens the real Order Configurator (apps/app/app/order,
-// a multi-step wizard) in the client's own browser instead of a second
-// order form living here - see app/lib/links.ts's own comment for why.
-export default async function ServicesPage() {
-  const supabase = createServerClient(await cookies());
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return <TelegramLinkGate />;
-
-  // Plain call, cast with `as` after the await, rather than `.returns<T>()`
-  // - packages/db's Database type is still the `any` placeholder
-  // (packages/db/src/types.ts), and postgrest-js's `.returns<T>()`
-  // generic does a compile-time shape check against the schema-inferred
-  // type that, under a literal `any` schema, distributes into a
-  // {Error: "..."} | T[] union instead of collapsing to `any` - a real
-  // TS quirk (conditional types distribute over `any`), not a real type
-  // mismatch. A plain `as` cast here sidesteps that entirely.
-  const { data: servicesData } = await supabase
-    .from("services")
-    .select("id, name, category, description, base_price")
-    .eq("is_active", true)
-    .order("category", { ascending: true })
-    .order("name", { ascending: true });
-  const services = servicesData as ServiceRow[] | null;
-
-  const grouped = groupByCategory(services ?? []);
-
+export default function ServicesPage() {
   return (
     <div className="page">
       <h1 className="greeting">🛒 Services</h1>
-      <p className="subtitle">Browse what Nimia Studio offers. Tap a service to configure and price your project.</p>
+      <p className="subtitle">2D animation, built for Web3 communities. Tap an offering to get started.</p>
 
-      <a className="cta-button" href={orderWizardUrl()} target="_blank" rel="noreferrer">
-        🚀 Start a Project
-      </a>
+      {OFFERINGS.map((offering) => (
+        <div key={offering.title} className="card offering-card">
+          <div className="offering-head">
+            <span className="offering-icon">{offering.icon}</span>
+            <div>
+              <p className="list-row-title" style={{ fontSize: 16 }}>
+                {offering.title}
+              </p>
+              <p className="offering-tag">{offering.tag}</p>
+            </div>
+          </div>
+          <p className="offering-description">{offering.description}</p>
+          <a className="cta-button" href={offering.href} target="_blank" rel="noreferrer">
+            {offering.ctaLabel}
+          </a>
+        </div>
+      ))}
 
-      <a className="link-row" href={portfolioUrl()} target="_blank" rel="noreferrer">
+      <a className="link-row" href={studioUrl("portfolio")} target="_blank" rel="noreferrer">
         <span>🎨 See our portfolio first</span>
         <span className="arrow">↗</span>
       </a>
-
-      {grouped.length === 0 && (
-        <div className="card">
-          <p className="empty-state" style={{ padding: 0 }}>
-            No services are published yet. Check back soon, or tap Start a Project to describe what you need
-            directly.
-          </p>
-        </div>
-      )}
-
-      {grouped.map(([category, items]) => (
-        <div key={category} className="card">
-          <p className="section-title" style={{ marginTop: 0 }}>
-            {serviceCategoryLabel(category)}
-          </p>
-          {items.map((service, index) => (
-            <div key={service.id} className="list-row" style={index === 0 ? { borderTop: "none", paddingTop: 4 } : undefined}>
-              <div className="list-row-header">
-                <p className="list-row-title">{service.name}</p>
-                {service.base_price != null && (
-                  <span className="status-badge">From ${formatPrice(service.base_price)}</span>
-                )}
-              </div>
-              {service.description && <p className="list-row-meta">{service.description}</p>}
-            </div>
-          ))}
-        </div>
-      ))}
     </div>
   );
-}
-
-function groupByCategory(services: ServiceRow[]): [string, ServiceRow[]][] {
-  const map = new Map<string, ServiceRow[]>();
-  for (const service of services) {
-    const bucket = map.get(service.category);
-    if (bucket) bucket.push(service);
-    else map.set(service.category, [service]);
-  }
-  return Array.from(map.entries());
-}
-
-// USD is assumed throughout (matches partner_rewards.amount_usd and the
-// rest of this schema's money columns) - there is no per-service currency
-// column as of packages/db/migrations/0002_catalog_and_clients.sql.
-function formatPrice(value: number): string {
-  return value.toLocaleString("en-US", { maximumFractionDigits: 0 });
 }

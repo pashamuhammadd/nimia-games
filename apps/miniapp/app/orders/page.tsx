@@ -17,9 +17,12 @@ interface OrderRow {
 // "orders_select_own_or_admin", packages/db/migrations/0006_rls_policies.sql
 // - is_owner_client(client_id), so this query can only ever return this
 // user's own rows even without an extra .eq filter, same guarantee every
-// other app in this monorepo relies on). Negotiation threads, payment
-// proof, and installment schedules stay on the full dashboard - see
-// app/lib/links.ts's own comment for why those aren't reimplemented here.
+// other app in this monorepo relies on). Each row now links to
+// /orders/[orderId] (added 20 Agustus 2026, per Pasha's "harus ada fitur
+// negosiasi juga" request) - the detail page shows the negotiation
+// thread for orders that have one. Payment proof and installment
+// schedules still stay on the full dashboard - see app/lib/links.ts's
+// own comment for why those aren't reimplemented here.
 export default async function OrdersPage() {
   const supabase = createServerClient(await cookies());
   const {
@@ -46,12 +49,12 @@ export default async function OrdersPage() {
   return (
     <div className="page">
       <h1 className="greeting">📦 My Orders</h1>
-      <p className="subtitle">Your most recent orders. Tap "Full details" for negotiation, payment, and delivery status.</p>
+      <p className="subtitle">Your most recent orders. Tap one to see status and respond to price negotiation.</p>
 
       {!orders?.length ? (
         <div className="card">
           <div className="empty-state" style={{ padding: "24px 0" }}>
-            <p style={{ margin: "0 0 16px" }}>You haven't placed an order yet.</p>
+            <p style={{ margin: "0 0 16px" }}>You haven&apos;t placed an order yet.</p>
             <a className="cta-button" href={orderWizardUrl()} target="_blank" rel="noreferrer">
               🚀 Start a Project
             </a>
@@ -62,11 +65,17 @@ export default async function OrdersPage() {
           {orders.map((order, index) => {
             const meta = orderStatusMeta(order.status);
             const serviceName = Array.isArray(order.services) ? order.services[0]?.name : order.services?.name;
+            const needsAttention = order.status === "negotiating";
             return (
-              <div
+              <a
                 key={order.id}
+                href={`/orders/${order.id}`}
                 className="list-row"
-                style={index === 0 ? { borderTop: "none", paddingTop: 4 } : undefined}
+                style={{
+                  ...(index === 0 ? { borderTop: "none", paddingTop: 4 } : {}),
+                  textDecoration: "none",
+                  color: "inherit",
+                }}
               >
                 <div className="list-row-header">
                   <p className="list-row-title">{serviceName ?? "Custom Project"}</p>
@@ -79,7 +88,12 @@ export default async function OrdersPage() {
                 <p className="list-row-meta" style={{ color: "var(--text)" }}>
                   {truncate(order.description, 110)}
                 </p>
-              </div>
+                {needsAttention && (
+                  <p className="list-row-meta" style={{ color: "var(--accent)", fontWeight: 600 }}>
+                    💬 In price negotiation, tap to view
+                  </p>
+                )}
+              </a>
             );
           })}
         </div>

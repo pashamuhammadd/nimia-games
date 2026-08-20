@@ -338,3 +338,234 @@ a {
   font-weight: 500;
   margin-left: 4px;
 }
+
+/* ------------------------------------------------------------------
+   Home hero + feature strip (redesign, 20 Agustus 2026, per Pasha's
+   "looks like a Partner dashboard" feedback — see app/page.tsx's own
+   comment).
+   ------------------------------------------------------------------ */
+
+.hero-card {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, rgba(193, 18, 77, 0.4), rgba(255, 77, 141, 0.1) 65%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px 20px;
+}
+
+.hero-eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.hero-title {
+  margin: 8px 0 0;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.hero-tagline {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.hero-actions .cta-button {
+  flex: 1;
+  width: auto;
+}
+
+.feature-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+}
+
+.feature-pill {
+  flex: 1 0 auto;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------
+   Services — curated offering cards (rewrite, 20 Agustus 2026).
+   ------------------------------------------------------------------ */
+
+.offering-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.offering-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.offering-icon {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.offering-tag {
+  margin: 2px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.offering-description {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------
+   Order detail + negotiation (new, 20 Agustus 2026).
+   ------------------------------------------------------------------ */
+
+.back-link {
+  display: inline-block;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.negotiation-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.offer-bubble {
+  max-width: 85%;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  padding: 10px 14px;
+}
+
+.offer-bubble.mine {
+  margin-left: auto;
+  border-color: rgba(255, 77, 141, 0.3);
+  background: rgba(255, 77, 141, 0.1);
+}
+
+.offer-bubble.theirs {
+  margin-right: auto;
+  background: var(--surface-elevated);
+}
+
+.offer-bubble-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.offer-amount {
+  margin: 4px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.offer-message {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.agreed-price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  background: rgba(52, 211, 153, 0.1);
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #34d399;
+}
+
+.negotiation-actions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.negotiation-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+/* ------------------------------------------------------------------
+   Account — profile edit form (new, 20 Agustus 2026).
+   ------------------------------------------------------------------ */
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.avatar-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+
+.save-hint {
+  margin: 0;
+  font-size: 12px;
+}
+
+.save-hint.success {
+  color: #34d399;
+}

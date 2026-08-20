@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
 import { TelegramLinkGate } from "./components/TelegramLinkGate";
 import { orderStatusMeta } from "./lib/statusLabels";
-import { orderWizardUrl } from "./lib/links";
+import { orderWizardUrl, portfolioUrl } from "./lib/links";
 
 interface RecentOrder {
   id: string;
@@ -10,6 +10,16 @@ interface RecentOrder {
   services: { name: string } | { name: string }[] | null;
 }
 
+// Redesigned 20 Agustus 2026 per Pasha's feedback: the previous version
+// (order count + partner balance stat-grid) read as a Partner dashboard,
+// not a front door to the studio. This version leads with a brand
+// moment (who Nimia Studio is, in one line) and the two things a client
+// actually opens Home to do (start a project, check their latest order),
+// and drops the partner metric entirely - that number already lives on
+// the Partner tab, showing it twice added nothing but "dashboard" noise
+// here. Deliberately still a Server Component with one real Supabase
+// read (recent order), not a static marketing page - it should feel
+// alive, not like a brochure.
 export default async function HomePage() {
   const supabase = createServerClient(await cookies());
   const {
@@ -26,36 +36,19 @@ export default async function HomePage() {
   ]);
   const firstName = profile?.full_name?.split(" ")[0] ?? "there";
 
-  // Home is a lightweight summary, not a duplicate of the Orders/Partner
-  // tabs' own full queries (docs/TELEGRAM.md's roadmap, 20 Agustus 2026):
-  // one order count, the single most recent order, and the partner's
-  // available balance - enough to be worth opening, without re-fetching
-  // everything those tabs already show in full.
-  // Plain calls, cast with `as` after the await - see
+  // Plain call, cast with `as` after the await - see
   // app/services/page.tsx's own comment on why a generic-typed call
   // (`.returns<T>()`) breaks under this project's still-placeholder
   // Database type.
-  const [{ count: orderCount }, { data: recentOrdersData }, { data: partner }] = await Promise.all([
-    client
-      ? supabase.from("orders").select("id", { count: "exact", head: true }).eq("client_id", client.id)
-      : Promise.resolve({ count: 0 }),
-    client
-      ? supabase
-          .from("orders")
-          .select("id, status, services(name)")
-          .eq("client_id", client.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-      : Promise.resolve({ data: null }),
-    supabase.from("partners").select("id").eq("user_id", user.id).maybeSingle(),
-  ]);
-  const recentOrders = recentOrdersData as RecentOrder[] | null;
-
-  const { data: metricsData } = partner
-    ? await supabase.rpc("get_partner_metrics", { p_partner_id: partner.id })
+  const { data: recentOrdersData } = client
+    ? await supabase
+        .from("orders")
+        .select("id, status, services(name)")
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
     : { data: null };
-  const metricsRows = metricsData as { available_reward_usd: number }[] | null;
-  const availableReward = metricsRows?.[0]?.available_reward_usd ?? 0;
+  const recentOrders = recentOrdersData as RecentOrder[] | null;
   const recentOrder = recentOrders?.[0];
   const recentOrderServiceName = recentOrder
     ? Array.isArray(recentOrder.services)
@@ -65,28 +58,39 @@ export default async function HomePage() {
 
   return (
     <div className="page">
-      <h1 className="greeting">Welcome back, {firstName} 👋</h1>
-      <p className="subtitle">Your Telegram account is connected to Nimia Studio.</p>
+      <div className="hero-card">
+        <p className="hero-eyebrow">Nimia Studio</p>
+        <h1 className="hero-title">Welcome back, {firstName} 👋</h1>
+        <p className="hero-tagline">
+          A creative &amp; development studio for Web3 communities. Meme animation, crypto GIFs, and custom
+          builds, made fast and made to be shared.
+        </p>
+        <div className="hero-actions">
+          <a className="cta-button" href={orderWizardUrl()} target="_blank" rel="noreferrer">
+            🚀 Start a Project
+          </a>
+          <a className="cta-button secondary" href={portfolioUrl()} target="_blank" rel="noreferrer">
+            🎨 Portfolio
+          </a>
+        </div>
+      </div>
 
-      <a className="cta-button" href={orderWizardUrl()} target="_blank" rel="noreferrer">
-        🚀 Start a Project
-      </a>
-
-      <div className="stat-grid">
-        <a href="/orders" className="stat-card" style={{ textDecoration: "none" }}>
-          <p className="value">{orderCount ?? 0}</p>
-          <p className="label">Total orders</p>
+      <div className="feature-strip">
+        <a className="feature-pill" href="/services">
+          🎭 Meme Animation
         </a>
-        <a href="/partner" className="stat-card" style={{ textDecoration: "none" }}>
-          <p className="value">${Number(availableReward).toLocaleString("en-US", { maximumFractionDigits: 0 })}</p>
-          <p className="label">Partner balance</p>
+        <a className="feature-pill" href="/services">
+          ✨ Crypto GIFs
+        </a>
+        <a className="feature-pill" href="/services">
+          🎬 Custom Builds
         </a>
       </div>
 
       {recentOrder && (
         <div className="card">
           <p className="section-title" style={{ marginTop: 0 }}>
-            Latest order
+            Your latest order
           </p>
           <div className="list-row" style={{ borderTop: "none", paddingTop: 4 }}>
             <div className="list-row-header">
@@ -105,8 +109,8 @@ export default async function HomePage() {
       )}
 
       <div className="chip-row">
-        <a className="chip" href="/services">
-          🛒 Browse Services
+        <a className="chip" href="/orders">
+          📦 My Orders
         </a>
         <a className="chip" href="/partner">
           🤝 Partner Program
