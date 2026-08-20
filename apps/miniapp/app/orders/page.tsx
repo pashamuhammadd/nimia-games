@@ -1,15 +1,99 @@
-import { getCurrentUser } from "../lib/currentUser";
+import { cookies } from "next/headers";
+import { createServerClient } from "@nimia/db";
 import { TelegramLinkGate } from "../components/TelegramLinkGate";
-import { ComingSoon } from "../components/ComingSoon";
+import { orderStatusMeta } from "../lib/statusLabels";
+import { dashboardOrdersUrl, orderWizardUrl } from "../lib/links";
 
+interface OrderRow {
+  id: string;
+  status: string;
+  created_at: string;
+  description: string;
+  services: { name: string } | { name: string }[] | null;
+}
+
+// Phase 2 (docs/TELEGRAM.md's roadmap, 20 Agustus 2026): a real, read-only
+// list of the client's own orders (RLS-scoped via
+// "orders_select_own_or_admin", packages/db/migrations/0006_rls_policies.sql
+// - is_owner_client(client_id), so this query can only ever return this
+// user's own rows even without an extra .eq filter, same guarantee every
+// other app in this monorepo relies on). Negotiation threads, payment
+// proof, and installment schedules stay on the full dashboard - see
+// app/lib/links.ts's own comment for why those aren't reimplemented here.
 export default async function OrdersPage() {
-  const user = await getCurrentUser();
+  const supabase = createServerClient(await cookies());
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   if (!user) return <TelegramLinkGate />;
 
+  const { data: client } = await supabase.from("clients").select("id").eq("user_id", user.id).maybeSingle();
+
+  const { data: orders } = client
+    ? await supabase
+        .from("orders")
+        .select("id, status, created_at, description, services(name)")
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: false })
+        .limit(20)
+        .returns<OrderRow[]>()
+    : { data: null };
+
   return (
-    <ComingSoon
-      title="📦 My Orders"
-      description="Track your order status, negotiations, and deliveries right here soon."
-    />
+    <div className="page">
+      <h1 className="greeting">📦 My Orders</h1>
+      <p className="subtitle">Your most recent orders. Tap "Full details" for negotiation, payment, and delivery status.</p>
+
+      {!orders?.length ? (
+        <div className="card">
+          <div className="empty-state" style={{ padding: "24px 0" }}>
+            <p style={{ margin: "0 0 16px" }}>You haven't placed an order yet.</p>
+            <a className="cta-button" href={orderWizardUrl()} target="_blank" rel="noreferrer">
+              🚀 Start a Project
+            </a>
+          </div>
+        </div>
+      ) : (
+        <div className="card">
+          {orders.map((order, index) => {
+            const meta = orderStatusMeta(order.status);
+            const serviceName = Array.isArray(order.services) ? order.services[0]?.name : order.services?.name;
+            return (
+              <div
+                key={order.id}
+                className="list-row"
+                style={index === 0 ? { borderTop: "none", paddingTop: 4 } : undefined}
+              >
+                <div className="list-row-header">
+                  <p className="list-row-title">{serviceName ?? "Custom Project"}</p>
+                  <span className="status-badge">
+                    <span className="dot" style={{ background: meta.color }} />
+                    {meta.label}
+                  </span>
+                </div>
+                <p className="list-row-meta">{formatDate(order.created_at)}</p>
+                <p className="list-row-meta" style={{ color: "var(--text)" }}>
+                  {truncate(order.description, 110)}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <a className="link-row" href={dashboardOrdersUrl()} target="_blank" rel="noreferrer">
+        <span>Full details in Nimia Studio</span>
+        <span className="arrow">↗</span>
+      </a>
+    </div>
   );
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max).trimEnd()}...` : text;
 }

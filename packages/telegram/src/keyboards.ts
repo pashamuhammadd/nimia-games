@@ -87,7 +87,7 @@ export function buildWelcomeCaption(firstName?: string | null): string {
   const greeting = firstName ? `Hey ${escapeHtml(firstName)} 👋` : "Hey there 👋";
   return (
     `${greeting}\n\n` +
-    `We're <b>Nimia Studio</b> — a creative &amp; development partner helping Web3 projects look more professional, credible, and launch-ready.\n\n` +
+    `We're <b>Nimia Studio</b>, a creative &amp; development partner helping Web3 projects look more professional, credible, and launch-ready.\n\n` +
     `We can help with:\n` +
     `🎨 Animation\n` +
     `🌐 Websites &amp; landing pages\n` +
@@ -96,7 +96,7 @@ export function buildWelcomeCaption(firstName?: string | null): string {
     `😂 Memes &amp; creative content\n` +
     `✨ Branding &amp; other creative production\n\n` +
     `Have a project? Let's take it to the next level.\n` +
-    `Know someone who needs this? Introduce them and earn a commission when they become a client — no selling, no project management, we handle the rest.\n\n` +
+    `Know someone who needs this? Introduce them and earn a commission when they become a client. No selling, no project management, we handle the rest.\n\n` +
     `What would you like to do? 👇`
   );
 }

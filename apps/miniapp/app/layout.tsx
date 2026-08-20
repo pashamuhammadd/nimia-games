@@ -11,7 +11,7 @@ import { BottomNav } from "./components/BottomNav";
 // app in this monorepo which sets index: true.
 export const metadata: Metadata = {
   title: "Nimia Studio",
-  description: "Nimia Studio — Professional Game & Digital Production, in Telegram.",
+  description: "Nimia Studio, Professional Game & Digital Production, in Telegram.",
   robots: { index: false, follow: false },
 };
 
