@@ -72,6 +72,33 @@ export async function sendClientBotMessage(
   await assertOk(response, "sendMessage");
 }
 
+/** Sends a photo with an HTML caption + optional keyboard as the
+ * client-facing bot — Telegram's `sendPhoto` (docs/TELEGRAM.md §1's
+ * "welcome message" upgraded to include a banner image, 20 Agustus
+ * 2026). `photoUrl` must be a public URL Telegram's own servers can
+ * fetch (this package never uploads raw file bytes — same "plain fetch"
+ * posture as sendClientBotMessage above); `caption` is capped at 1024
+ * characters by Telegram itself (sendMessage's `text` gets 4096 —
+ * keyboards.ts's buildWelcomeCaption stays well under this on purpose).
+ * Throws on failure, same posture as sendClientBotMessage — the one
+ * caller today (the webhook route's `/start` handler) already swallows
+ * via try/catch. */
+export async function sendClientBotPhoto(
+  chatId: string,
+  photoUrl: string,
+  caption: string,
+  replyMarkup?: TelegramInlineKeyboard,
+): Promise<void> {
+  const response = await clientBotFetch("sendPhoto", {
+    chat_id: chatId,
+    photo: photoUrl,
+    caption,
+    parse_mode: "HTML",
+    ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+  });
+  await assertOk(response, "sendPhoto");
+}
+
 /** Acknowledges a button tap (`callback_query`) — Telegram shows a
  * loading spinner on the tapped button until this is called (or ~30s
  * pass), so every callback_query update this bot receives must call this

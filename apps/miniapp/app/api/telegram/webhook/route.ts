@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   getTelegramWebhookSecret,
+  getTelegramWelcomeImageUrl,
   sendClientBotMessage,
+  sendClientBotPhoto,
   answerCallbackQuery,
   buildWelcomeText,
+  buildWelcomeCaption,
   buildMainMenuKeyboard,
   miniAppUrl,
 } from "@nimia/telegram";
@@ -82,14 +85,38 @@ async function handleMessage(message: TelegramMessage): Promise<void> {
       return;
     }
 
-    await sendClientBotMessage(chatId, buildWelcomeText(message.from?.first_name), buildMainMenuKeyboard());
+    await sendWelcome(chatId, message.from?.first_name);
     return;
   }
 
   // No free-text handling by design (docs/TELEGRAM.md §2 — the bot is a
   // router + notification channel, not a chat AI) — anything else just
   // gets the same main menu back.
-  await sendClientBotMessage(chatId, buildWelcomeText(message.from?.first_name), buildMainMenuKeyboard());
+  await sendWelcome(chatId, message.from?.first_name);
+}
+
+/** Sends the `/start` welcome (docs/TELEGRAM.md §1, updated 20 Agustus
+ * 2026 with a banner image + services/Partner Program pitch — see
+ * keyboards.ts's buildWelcomeCaption). Uses sendClientBotPhoto when
+ * TELEGRAM_WELCOME_IMAGE_URL is configured, falling back to the plain
+ * sendClientBotMessage text version both when it's unset AND when
+ * sendPhoto itself throws (e.g. the configured URL is unreachable or
+ * not actually an image) — a misconfigured image should degrade to a
+ * working text reply, not leave `/start` silently unanswered (this
+ * function's only caller runs inside POST's own try/catch, which just
+ * logs and swallows — without this fallback, a bad image URL would mean
+ * NO reply at all). */
+async function sendWelcome(chatId: string, firstName?: string): Promise<void> {
+  const imageUrl = getTelegramWelcomeImageUrl();
+  if (imageUrl) {
+    try {
+      await sendClientBotPhoto(chatId, imageUrl, buildWelcomeCaption(firstName), buildMainMenuKeyboard());
+      return;
+    } catch (error) {
+      console.error("[telegram/webhook] sendClientBotPhoto failed, falling back to text", error);
+    }
+  }
+  await sendClientBotMessage(chatId, buildWelcomeText(firstName), buildMainMenuKeyboard());
 }
 
 function deepLinkPath(payload: string): string {

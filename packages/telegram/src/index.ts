@@ -23,6 +23,7 @@ export {
   getTelegramMiniAppUrl,
   getTelegramMiniAppShortName,
   getTelegramStudioUrl,
+  getTelegramWelcomeImageUrl,
 } from "./config";
 export {
   sendTelegramMessage,
@@ -35,6 +36,7 @@ export {
 } from "./notify";
 export {
   sendClientBotMessage,
+  sendClientBotPhoto,
   answerCallbackQuery,
   setWebhook,
   setMyCommands,
@@ -48,6 +50,7 @@ export {
   miniAppUrl,
   miniAppStartAppLink,
   buildWelcomeText,
+  buildWelcomeCaption,
   buildMainMenuKeyboard,
   type TelegramInlineButton,
   type TelegramInlineKeyboard,

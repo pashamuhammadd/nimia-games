@@ -108,3 +108,17 @@ export function getTelegramMiniAppShortName(): string {
 export function getTelegramStudioUrl(): string {
   return process.env.TELEGRAM_STUDIO_URL || "https://nimiastudio.com";
 }
+
+/** A public, Telegram-fetchable image URL shown with the `/start` welcome
+ * message (client-bot.ts's sendClientBotPhoto, keyboards.ts's
+ * buildWelcomeCaption) — Telegram's `sendPhoto` requires either a public
+ * URL it can fetch server-side or a multipart file upload; this package
+ * only ever does the former (same "plain fetch, no SDK" posture as the
+ * rest of this file). Deliberately OPTIONAL (unlike every other getter
+ * in this section) and read directly rather than via requireEnv — the
+ * webhook route falls back to a plain text message
+ * (sendClientBotMessage) when this isn't set, so a bot without a hosted
+ * banner image yet still works instead of crashing on every `/start`. */
+export function getTelegramWelcomeImageUrl(): string | null {
+  return process.env.TELEGRAM_WELCOME_IMAGE_URL || null;
+}

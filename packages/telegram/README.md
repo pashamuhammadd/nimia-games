@@ -78,6 +78,35 @@ Taruh di `.env.local` `apps/miniapp` (lihat `apps/miniapp/.env.example`).
 | `TELEGRAM_MINIAPP_URL` | Origin Mini App sendiri, mis. `https://miniapp.nimiastudio.com` |
 | `TELEGRAM_MINIAPP_SHORT_NAME` | Short name Mini App yang didaftarkan lewat `/newapp` di BotFather |
 | `TELEGRAM_STUDIO_URL` | (opsional) URL nimiastudio.com, default sudah production |
+| `TELEGRAM_WELCOME_IMAGE_URL` | (opsional) URL gambar banner untuk pesan `/start` — lihat "Welcome image" di bawah |
+
+### Welcome image (opsional, tambahan 20 Agustus 2026)
+
+`/start` bisa kirim gambar banner + caption yang lebih menjual (jasa apa
+saja + ajakan Partner Program) daripada cuma teks polos — lihat
+`keyboards.ts`'s `buildWelcomeCaption`. Ini OPSIONAL: kalau
+`TELEGRAM_WELCOME_IMAGE_URL` tidak diisi, bot tetap jalan normal pakai
+`buildWelcomeText` (teks polos, tanpa gambar).
+
+Syaratnya: harus URL publik yang bisa diakses server Telegram sendiri
+(bukan path file lokal, bukan localhost) — Telegram yang fetch gambarnya
+dari URL itu, bukan kita yang upload file. Cara paling gampang dapat
+URL ini:
+
+1. Upload gambar banner-nya ke bucket public di Supabase Storage (project
+   Supabase yang sama dengan yang lain), atau ke folder `public/` di app
+   mana pun yang sudah live (mis. `apps/studio/public/telegram-welcome.png`,
+   otomatis bisa diakses lewat `https://nimiastudio.com/telegram-welcome.png`
+   setelah deploy).
+2. Copy URL publiknya, set sebagai `TELEGRAM_WELCOME_IMAGE_URL` di env var
+   `apps/miniapp` (local + Vercel production).
+3. Redeploy `apps/miniapp` — TIDAK perlu jalanin `setWebhook` ulang (URL
+   webhook-nya sendiri tidak berubah, cuma isi balasannya).
+4. Test `/start` lagi di bot, harus muncul gambar + caption baru.
+
+Kalau URL-nya salah/tidak bisa diakses, `sendPhoto` akan gagal dan bot
+otomatis fallback ke `buildWelcomeText` (teks polos) supaya `/start`
+tetap dapat balasan, bukan diam saja.
 
 ### Setup langkah demi langkah (manual, sekali)
 
