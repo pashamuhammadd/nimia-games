@@ -1,4 +1,4 @@
-import { orderWizardUrl, studioUrl } from "../lib/links";
+import { studioUrl } from "../lib/links";
 
 // Rewritten 20 Agustus 2026 per Pasha's feedback: the previous version
 // read the full public.services catalog (3D Animation, Game Trailer, UI
@@ -11,6 +11,14 @@ import { orderWizardUrl, studioUrl } from "../lib/links";
 // impulse (memes, GIF packs), plus one escape hatch to the full site for
 // anything bigger. This is curated marketing copy, not a database read -
 // there is no `services` table query on this page anymore.
+//
+// Follow-up, same day: Meme Animation and Crypto GIFs now open the new
+// in-app order form (app/order/page.tsx) instead of linking out to
+// app.nimiastudio.com/order - "harus bisa membuat order ... di miniapp".
+// Custom Animation deliberately still goes to the full site: it's the
+// escape hatch for anything outside these two curated offerings, and the
+// full multi-step Order Configurator (apps/app/app/order) is genuinely
+// the right tool for an open-ended project, not a duplicate of it here.
 const OFFERINGS = [
   {
     icon: "🎭",
@@ -19,7 +27,8 @@ const OFFERINGS = [
     description:
       "Funny, share-ready animated memes made for your community. Built to spread on X and Telegram.",
     ctaLabel: "Order Now",
-    href: orderWizardUrl(),
+    href: "/order?offering=meme",
+    external: false,
   },
   {
     icon: "✨",
@@ -28,7 +37,8 @@ const OFFERINGS = [
     description:
       "Custom animated GIFs for the moments your server needs: welcome new members, GM/GN greetings, buy alerts, and other niche crypto-community drops.",
     ctaLabel: "Order Now",
-    href: orderWizardUrl(),
+    href: "/order?offering=gif",
+    external: false,
   },
   {
     icon: "🎬",
@@ -37,6 +47,7 @@ const OFFERINGS = [
     description: "Need something bigger or more specific? Let's talk about your project on the full site.",
     ctaLabel: "Visit Nimia Studio",
     href: studioUrl(),
+    external: true,
   },
 ] as const;
 
@@ -58,7 +69,11 @@ export default function ServicesPage() {
             </div>
           </div>
           <p className="offering-description">{offering.description}</p>
-          <a className="cta-button" href={offering.href} target="_blank" rel="noreferrer">
+          <a
+            className="cta-button"
+            href={offering.href}
+            {...(offering.external ? { target: "_blank", rel: "noreferrer" } : {})}
+          >
             {offering.ctaLabel}
           </a>
         </div>

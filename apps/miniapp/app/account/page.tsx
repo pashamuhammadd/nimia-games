@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@nimia/db";
 import { TelegramLinkGate } from "../components/TelegramLinkGate";
+import { Avatar } from "../components/Avatar";
 import { EditProfileForm } from "./EditProfileForm";
 import { disconnectTelegramAction, logoutAction } from "./actions";
 
@@ -13,6 +14,11 @@ import { disconnectTelegramAction, logoutAction } from "./actions";
 // card - Telegram here, Discord there - and this app's own Log Out
 // action, which the full dashboard's Profile page doesn't need since its
 // nav already has a sign-out elsewhere).
+//
+// Follow-up, same day: swapped the letter-initials avatar for the same
+// gradient-silhouette default the full site uses (see
+// ../components/Avatar.tsx) - "foto profil jangan huruf, tapi dibuat
+// seperti gambar default kayak di website app.nimiastudio.com".
 export default async function AccountPage() {
   const supabase = createServerClient(await cookies());
   const {
@@ -31,19 +37,13 @@ export default async function AccountPage() {
   ]);
 
   const fullName = profile?.full_name ?? "";
-  const initials = fullName
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part: string) => part[0]?.toUpperCase())
-    .join("") || "N";
 
   return (
     <div className="page">
       <h1 className="greeting">👤 Account</h1>
 
       <div className="card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <div className="avatar-circle">{initials}</div>
+        <Avatar name={fullName} size="md" />
         <div>
           <p style={{ margin: 0, fontWeight: 600 }}>{fullName || "Nimia Client"}</p>
           <p style={{ margin: "4px 0 0", color: "var(--text-muted)", fontSize: 13 }}>{user.email}</p>
