@@ -27,13 +27,21 @@ export default async function ServicesPage() {
 
   if (!user) return <TelegramLinkGate />;
 
-  const { data: services } = await supabase
+  // Plain call, cast with `as` after the await, rather than `.returns<T>()`
+  // - packages/db's Database type is still the `any` placeholder
+  // (packages/db/src/types.ts), and postgrest-js's `.returns<T>()`
+  // generic does a compile-time shape check against the schema-inferred
+  // type that, under a literal `any` schema, distributes into a
+  // {Error: "..."} | T[] union instead of collapsing to `any` - a real
+  // TS quirk (conditional types distribute over `any`), not a real type
+  // mismatch. A plain `as` cast here sidesteps that entirely.
+  const { data: servicesData } = await supabase
     .from("services")
     .select("id, name, category, description, base_price")
     .eq("is_active", true)
     .order("category", { ascending: true })
-    .order("name", { ascending: true })
-    .returns<ServiceRow[]>();
+    .order("name", { ascending: true });
+  const services = servicesData as ServiceRow[] | null;
 
   const grouped = groupByCategory(services ?? []);
 

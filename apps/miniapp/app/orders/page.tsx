@@ -30,15 +30,18 @@ export default async function OrdersPage() {
 
   const { data: client } = await supabase.from("clients").select("id").eq("user_id", user.id).maybeSingle();
 
-  const { data: orders } = client
+  // Plain call, cast with `as` after the await - see services/page.tsx's
+  // own comment on why `.returns<T>()` breaks under this project's still-
+  // placeholder Database type.
+  const { data: ordersData } = client
     ? await supabase
         .from("orders")
         .select("id, status, created_at, description, services(name)")
         .eq("client_id", client.id)
         .order("created_at", { ascending: false })
         .limit(20)
-        .returns<OrderRow[]>()
     : { data: null };
+  const orders = ordersData as OrderRow[] | null;
 
   return (
     <div className="page">

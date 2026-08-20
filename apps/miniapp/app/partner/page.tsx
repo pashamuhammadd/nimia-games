@@ -51,11 +51,16 @@ export default async function PartnerPage() {
 
   if (!user) return <TelegramLinkGate />;
 
-  const { data: partner } = await supabase
+  // Plain call, cast with `as` after the await - see
+  // app/services/page.tsx's own comment on why a generic-typed call
+  // (`.maybeSingle<T>()`/`.returns<T>()`) breaks under this project's
+  // still-placeholder Database type.
+  const { data: partnerData } = await supabase
     .from("partners")
     .select("id, referral_code, is_founding_partner")
     .eq("user_id", user.id)
-    .maybeSingle<PartnerRow>();
+    .maybeSingle();
+  const partner = partnerData as PartnerRow | null;
 
   if (!partner) {
     return (
@@ -73,10 +78,12 @@ export default async function PartnerPage() {
     );
   }
 
-  const [{ data: metricsRows }, { data: activity }] = await Promise.all([
-    supabase.rpc("get_partner_metrics", { p_partner_id: partner.id }).returns<PartnerMetrics[]>(),
-    supabase.rpc("get_partner_referral_activity", { p_partner_id: partner.id }).returns<ReferralActivityRow[]>(),
+  const [{ data: metricsData }, { data: activityData }] = await Promise.all([
+    supabase.rpc("get_partner_metrics", { p_partner_id: partner.id }),
+    supabase.rpc("get_partner_referral_activity", { p_partner_id: partner.id }),
   ]);
+  const metricsRows = metricsData as PartnerMetrics[] | null;
+  const activity = activityData as ReferralActivityRow[] | null;
 
   const metrics = metricsRows?.[0];
   // partner_commission_rate needs the REAL paid_clients_count, which only
