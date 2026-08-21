@@ -178,8 +178,28 @@ async function handleBusinessMessage(message: BusinessMessage): Promise<void> {
   // silence the bot for every subsequent prospect message too, not just
   // stop it from replying to Pasha (brief §10: "Bot HARUS berhenti...
   // Jangan mengirim follow-up otomatis... Conversation tersebut
-  // sepenuhnya menjadi milik Pasha").
+  // sepenuhnya menjadi milik Pasha"). Even the trigger phrase below stays
+  // silent once Pasha has personally taken over — that guarantee must
+  // never be bypassed.
   if (existingLead.bot_status !== "BOT_ACTIVE") {
+    return;
+  }
+
+  // The trigger phrase ALWAYS re-triggers the welcome menu (added 21
+  // Agustus 2026, per Pasha's own feedback after testing: the very first
+  // version of this gate only ever fired for a brand-new contact — a
+  // RETURNING contact who sent the exact same opening line again got
+  // silently ignored by the narrow-response gate below, since it isn't a
+  // button tap and isn't the brief/budget step). Checked BEFORE the
+  // status gate so it works no matter what step the conversation is
+  // currently on — resets `status` back to 'menu' so the qualification
+  // flow restarts cleanly rather than half-mixing with whatever step the
+  // lead was previously on.
+  if (text && looksLikeBusinessChatLinkTrigger(text)) {
+    if (existingLead.status !== "menu") {
+      await updateLead(existingLead.id, { status: "menu" });
+    }
+    await sendWelcome(existingLead);
     return;
   }
 

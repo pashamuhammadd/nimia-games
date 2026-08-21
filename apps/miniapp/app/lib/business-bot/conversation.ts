@@ -30,15 +30,15 @@ import { notifyNewLead } from "./notify";
 // internal guard that assumes it's always being called from the
 // business_message handler.
 
-/** First contact — sent exactly once, the moment a brand-new lead row is
- * created for a message that matched the Business Chat Link's trigger
- * phrase (trigger.ts + the webhook route's front-door gate). Never
- * resent for a returning 'menu'-status contact who types free text
- * instead of tapping a button — per Pasha's own feedback (21 Agustus
- * 2026), the bot must only ever reply to that one specific trigger
- * message or to an actual button tap, nothing else. The webhook route
- * enforces this by only calling sendWelcome right after creating a
- * fresh lead, never on a later message. */
+/** The welcome menu. Sent (a) the moment a brand-new lead row is created
+ * for a message that matched the Business Chat Link's trigger phrase
+ * (trigger.ts + the webhook route's front-door gate), and (b) every
+ * time that SAME trigger phrase arrives again from a returning contact
+ * — added 21 Agustus 2026, per Pasha's own feedback: the phrase must
+ * always work, not just the very first time. Never sent for any other
+ * free text (typing instead of tapping a button) — the bot must only
+ * ever reply to that one specific trigger message or to an actual
+ * button tap, nothing else. The webhook route enforces both rules. */
 export async function sendWelcome(lead: BusinessLead): Promise<void> {
   await sendBusinessMessage(
     lead.business_connection_id,
