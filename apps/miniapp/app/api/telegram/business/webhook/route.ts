@@ -176,31 +176,35 @@ async function handleBusinessMessage(message: BusinessMessage): Promise<void> {
 
   // The trigger phrase ALWAYS re-triggers the welcome menu and starts a
   // FRESH qualification round for this same contact — added 21 Agustus
-  // 2026, per Pasha's own feedback, extended the same day once he found
-  // a second gap: after a lead finishes one round (bot_status flips to
-  // WAITING_FOR_HUMAN in conversation.ts's completeLead) there was no way
-  // for that same client to start a NEW order later — the bot_status
-  // gate further below used to run first and silence everything,
-  // trigger phrase included, the moment a lead was no longer BOT_ACTIVE.
-  // Checked BEFORE that gate on purpose so a returning client is never
-  // stuck at "one interaction ever" — resets both `status` (back to
-  // 'menu') and `bot_status` (back to BOT_ACTIVE) so the qualification
-  // flow restarts cleanly for a brand-new order, overwriting this same
-  // lead row's service/brief/budget fields once they go through the flow
-  // again (this schema keeps one row per Telegram user id, not a
-  // separate row per order — Pasha still has every prior order's details
-  // in his own already-sent Telegram notifications even after this row
-  // is overwritten).
+  // 2026, per Pasha's own feedback, extended twice the same day:
+  // 1) a lead who finished one round (bot_status WAITING_FOR_HUMAN, set
+  //    by conversation.ts's completeLead) had no way to start a NEW
+  //    order later — the bot_status gate further below used to run
+  //    first and silence everything, trigger phrase included, the
+  //    moment a lead was no longer BOT_ACTIVE.
+  // 2) (this revision) even bot_status === "HUMAN_ACTIVE" — Pasha
+  //    having personally taken over this specific conversation — no
+  //    longer blocks it. This is a DELIBERATE, explicit override of the
+  //    original brief §10 guarantee ("Conversation tersebut sepenuhnya
+  //    menjadi milik Pasha"), per Pasha's own direct instruction: the
+  //    trigger phrase must fire "meskipun Pasha sedang berada dalam
+  //    chat itu." In effect, this one exact phrase is now treated as an
+  //    explicit "start a new automated intake" command from the client
+  //    that always takes the bot back from Pasha, even mid manual
+  //    conversation — every OTHER free-text message still respects
+  //    HUMAN_ACTIVE via the bot_status gate below, this is the only
+  //    exception.
   //
-  // The ONE case this does NOT override: bot_status === "HUMAN_ACTIVE",
-  // meaning Pasha has personally taken over this specific conversation
-  // (webhook route's own from.id-matches-owner check, above). That is a
-  // hard guarantee (brief §10: "Conversation tersebut sepenuhnya menjadi
-  // milik Pasha") — once Pasha is personally in a conversation, the bot
-  // must stay completely silent no matter what arrives, trigger phrase
-  // included, until Pasha manually brings it back (there is currently no
-  // automatic path out of HUMAN_ACTIVE).
-  if (text && looksLikeBusinessChatLinkTrigger(text) && existingLead.bot_status !== "HUMAN_ACTIVE") {
+  // Checked BEFORE the bot_status gate on purpose, for both reasons
+  // above. Resets both `status` (back to 'menu') and `bot_status` (back
+  // to BOT_ACTIVE) so the qualification flow restarts cleanly, whatever
+  // state the lead was previously in — overwriting this same lead row's
+  // service/brief/budget fields once they go through the flow again
+  // (this schema keeps one row per Telegram user id, not a separate row
+  // per order — Pasha still has every prior order's details in his own
+  // already-sent Telegram notifications even after this row is
+  // overwritten).
+  if (text && looksLikeBusinessChatLinkTrigger(text)) {
     if (existingLead.status !== "menu" || existingLead.bot_status !== "BOT_ACTIVE") {
       await updateLead(existingLead.id, { status: "menu", bot_status: "BOT_ACTIVE" });
     }
