@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getTelegramBusinessWebhookSecret,
   answerBusinessCallbackQuery,
+  looksLikeBusinessChatLinkTrigger,
   type BusinessServiceId,
   type AnimationSubtypeId,
 } from "@nimia/telegram";
@@ -138,13 +139,35 @@ async function handleBusinessMessage(message: BusinessMessage): Promise<void> {
     return;
   }
 
-  const lead = await getOrCreateLead({
-    telegramUserId: chatTelegramUserId,
-    telegramUsername: message.from?.username ?? null,
-    firstName: message.from?.first_name ?? null,
-    lastName: message.from?.last_name ?? null,
-    businessConnectionId,
-  });
+  const existingLead = await findLeadByTelegramUserId(chatTelegramUserId);
+
+  // Front-door gate (added 21 Agustus 2026, per Pasha's own feedback):
+  // once this bot is connected to Pasha's PERSONAL Business account,
+  // EVERY message he receives flows through this same webhook — not
+  // just prospects who clicked his Business Chat Link. A brand-new
+  // contact (no lead row yet) is only ever engaged if their message
+  // looks like the Business Chat Link's own pre-filled opening line
+  // (brief §2 — see looksLikeBusinessChatLinkTrigger's own comment for
+  // the exact matching rules). Anything else from a first-time contact
+  // — a personal message, a random DM, literally anything that isn't
+  // that specific opener — is left COMPLETELY alone: no lead row
+  // created, no reply sent. Once a real lead conversation exists,
+  // every later message from that same person is handled normally
+  // regardless of content — this check only ever gates the FIRST
+  // message from someone new.
+  if (!existingLead && (!text || !looksLikeBusinessChatLinkTrigger(text))) {
+    return;
+  }
+
+  const lead =
+    existingLead ??
+    (await getOrCreateLead({
+      telegramUserId: chatTelegramUserId,
+      telegramUsername: message.from?.username ?? null,
+      firstName: message.from?.first_name ?? null,
+      lastName: message.from?.last_name ?? null,
+      businessConnectionId,
+    }));
 
   if (text) {
     await updateLead(lead.id, { last_message: text });

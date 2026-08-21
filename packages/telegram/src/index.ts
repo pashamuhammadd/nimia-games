@@ -97,3 +97,4 @@ export {
 } from "./business/messages";
 export { detectBudgetInText } from "./business/lead-parser";
 export { interpretLeadMessage, type LeadMessageInterpretation } from "./business/ai";
+export { looksLikeBusinessChatLinkTrigger, BUSINESS_CHAT_LINK_TRIGGER } from "./business/trigger";
