@@ -4,9 +4,10 @@ Wrapper tipis di atas Telegram Bot API (`https://api.telegram.org/bot<TOKEN>/...
 Sama seperti `@nimia/discord`, tidak pakai SDK apa pun (`node-telegram-bot-api`,
 `telegraf`, dst) — cuma `fetch` biasa.
 
-Package ini sekarang berisi **DUA bot yang terpisah total** (token, permission,
+Package ini sekarang berisi **TIGA bot yang terpisah total** (token, permission,
 dan tujuan berbeda — lihat `src/config.ts`'s bagian "Client-facing bot + Mini
-App" untuk alasan lengkap kenapa TIDAK digabung jadi satu bot):
+App" dan `src/business/config.ts`'s top comment untuk alasan lengkap kenapa
+TIDAK digabung jadi satu bot):
 
 1. **Bot AI Prospect Hunter** (`src/config.ts`/`src/rest.ts`/`src/notify.ts`,
    dibangun 19-20 Agustus 2026) — satu-arah, `sendMessage`/`sendPhoto` dipicu
@@ -17,6 +18,12 @@ App" untuk alasan lengkap kenapa TIDAK digabung jadi satu bot):
    Telegram Mini App, dipakai `apps/miniapp`. PUNYA webhook (menerima
    `/start`, tombol menu) dan PUNYA Mini App auth bridge. Lihat
    `docs/TELEGRAM.md` di root repo untuk arsitektur lengkapnya.
+3. **Bot Business Sales Assistant** (`src/business/*`, dibangun 21 Agustus
+   2026) — connect ke akun Telegram Business PRIBADI Pasha lewat Telegram
+   Business Connection, auto-qualify lead calon klien yang chat langsung ke
+   Pasha, dengan human-takeover manual. PUNYA webhook sendiri
+   (`apps/miniapp/app/api/telegram/business/webhook`). Lihat
+   `docs/TELEGRAM_BUSINESS_BOT.md` di root repo untuk arsitektur lengkapnya.
 
 ---
 
@@ -145,3 +152,79 @@ publik (DM langsung dengan client, identitas Mini App). Menyatukan keduanya
 berarti satu webhook harus menangani dua persona berbeda dengan model
 kepercayaan berbeda — dipisah sejak awal supaya perubahan di satu sisi tidak
 pernah berisiko meregresi sisi lain yang sudah production.
+
+---
+
+## Bagian 3 — Bot Business Sales Assistant (baru, 21 Agustus 2026)
+
+Lihat `docs/TELEGRAM_BUSINESS_BOT.md` di root repo untuk arsitektur lengkap.
+Bagian ini murni checklist setup kredensial + BotFather.
+
+### Env vars yang dibutuhkan
+
+Taruh di `.env.local` `apps/miniapp` (lihat `apps/miniapp/.env.example`) —
+SAMA app dengan bot client-facing (§4 dokumen arsitektur menjelaskan kenapa),
+tapi kredensial TOTAL TERPISAH.
+
+| Env var | Dipakai untuk |
+|---|---|
+| `TELEGRAM_BUSINESS_BOT_TOKEN` | Bot Business Assistant — **RAHASIA**, terpisah total dari `TELEGRAM_BOT_TOKEN` dan `TELEGRAM_CLIENT_BOT_TOKEN` |
+| `TELEGRAM_BUSINESS_WEBHOOK_SECRET` | String random panjang — dicocokkan dengan header `X-Telegram-Bot-Api-Secret-Token` di webhook `/api/telegram/business/webhook` |
+
+TIDAK ada env var untuk "Telegram user id Pasha" — bot ini belajar siapa
+pemilik Business Connection-nya langsung dari Telegram sendiri (event
+`business_connection`), disimpan di tabel `telegram_business_connections`
+(migration `0055`). Lihat `src/business/config.ts`'s comment untuk alasan
+lengkap.
+
+### Setup langkah demi langkah (manual, sekali)
+
+1. **Buat bot baru** di @BotFather — `/newbot`, nama & username bebas (mis.
+   `NimiaSalesBot`). JANGAN pakai bot client-facing atau bot Prospect
+   Hunter yang sudah ada — ini harus bot baru (lihat alasan di bagian atas
+   file ini & `docs/TELEGRAM_BUSINESS_BOT.md` §3). Simpan token-nya sebagai
+   `TELEGRAM_BUSINESS_BOT_TOKEN`.
+2. **Generate `TELEGRAM_BUSINESS_WEBHOOK_SECRET`** — string random (mis.
+   `openssl rand -hex 32`), set di env `apps/miniapp` (local + Vercel
+   production).
+3. **Deploy `apps/miniapp`** dulu — `setWebhook` di langkah berikutnya butuh
+   URL yang sudah bisa diakses publik.
+4. **Register webhook-nya** — jalankan sekali (skrip kecil / route sementara
+   / Node REPL):
+   ```ts
+   import { setBusinessWebhook } from "@nimia/telegram";
+   await setBusinessWebhook(
+     "https://miniapp.nimiastudio.com/api/telegram/business/webhook",
+     process.env.TELEGRAM_BUSINESS_WEBHOOK_SECRET!,
+   );
+   ```
+5. **Aktifkan mode Business di bot** — chat @BotFather, `/mybots` → pilih bot
+   yang baru dibuat → **Bot Settings** → **Business Mode** → izinkan bot
+   menerima business message ("Allow" pada opsi terkait "connected business
+   accounts" — nama menu bisa sedikit berbeda tergantung versi BotFather,
+   cari opsi yang menyebut "Business" secara eksplisit).
+6. **Pasha sambungkan bot ini ke akun Telegram pribadinya** — di HP/desktop
+   Telegram Pasha sendiri: **Settings → Telegram Business → Chatbots** (fitur
+   ini butuh Telegram Premium/Business aktif di akun Pasha — prasyarat di
+   luar kendali kode) → pilih bot `NimiaSalesBot` yang baru dibuat → aktifkan
+   izin **"Reply to messages"** (wajib, tanpa ini bot tidak bisa membalas
+   sama sekali) → pilih chat mana yang mau di-cover (rekomendasi: "All
+   chats" atau "New chats" saja, sesuai preferensi Pasha) → Connect.
+7. Test: minta seseorang (akun Telegram lain) kirim pesan pertama ke Pasha
+   lewat link Business Chat-nya — bot harus membalas dengan welcome message +
+   6 tombol menu dalam beberapa detik.
+8. Test human takeover: setelah bot membalas, balas manual dari akun
+   Telegram Pasha sendiri di chat yang sama — bot harus berhenti total
+   membalas prospek itu setelahnya.
+
+### Catatan implementasi — satu titik yang perlu diverifikasi di bot nyata
+
+`app/api/telegram/business/webhook/route.ts`'s `handleMenuTap` membaca
+`business_connection_id` dari CallbackQuery lewat dua kemungkinan field
+(`callback_query.business_connection_id` ATAU
+`callback_query.message.business_connection_id`) karena dokumentasi resmi
+Telegram Bot API tidak secara eksplisit mengonfirmasi field mana yang
+terisi saat prospek menekan tombol di pesan yang dikirim lewat Business
+Connection. Kalau tombol menu (Animation/Game Dev/dst.) tidak merespons saat
+ditest di bot nyata, ini titik pertama yang perlu dicek — lihat komentar di
+fungsi tersebut untuk detail.
