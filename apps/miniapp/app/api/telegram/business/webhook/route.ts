@@ -174,32 +174,46 @@ async function handleBusinessMessage(message: BusinessMessage): Promise<void> {
     await updateLead(existingLead.id, { last_message: text });
   }
 
+  // The trigger phrase ALWAYS re-triggers the welcome menu and starts a
+  // FRESH qualification round for this same contact — added 21 Agustus
+  // 2026, per Pasha's own feedback, extended the same day once he found
+  // a second gap: after a lead finishes one round (bot_status flips to
+  // WAITING_FOR_HUMAN in conversation.ts's completeLead) there was no way
+  // for that same client to start a NEW order later — the bot_status
+  // gate further below used to run first and silence everything,
+  // trigger phrase included, the moment a lead was no longer BOT_ACTIVE.
+  // Checked BEFORE that gate on purpose so a returning client is never
+  // stuck at "one interaction ever" — resets both `status` (back to
+  // 'menu') and `bot_status` (back to BOT_ACTIVE) so the qualification
+  // flow restarts cleanly for a brand-new order, overwriting this same
+  // lead row's service/brief/budget fields once they go through the flow
+  // again (this schema keeps one row per Telegram user id, not a
+  // separate row per order — Pasha still has every prior order's details
+  // in his own already-sent Telegram notifications even after this row
+  // is overwritten).
+  //
+  // The ONE case this does NOT override: bot_status === "HUMAN_ACTIVE",
+  // meaning Pasha has personally taken over this specific conversation
+  // (webhook route's own from.id-matches-owner check, above). That is a
+  // hard guarantee (brief §10: "Conversation tersebut sepenuhnya menjadi
+  // milik Pasha") — once Pasha is personally in a conversation, the bot
+  // must stay completely silent no matter what arrives, trigger phrase
+  // included, until Pasha manually brings it back (there is currently no
+  // automatic path out of HUMAN_ACTIVE).
+  if (text && looksLikeBusinessChatLinkTrigger(text) && existingLead.bot_status !== "HUMAN_ACTIVE") {
+    if (existingLead.status !== "menu" || existingLead.bot_status !== "BOT_ACTIVE") {
+      await updateLead(existingLead.id, { status: "menu", bot_status: "BOT_ACTIVE" });
+    }
+    await sendWelcome(existingLead);
+    return;
+  }
+
   // bot_status gate — the ONE check that makes human takeover actually
   // silence the bot for every subsequent prospect message too, not just
   // stop it from replying to Pasha (brief §10: "Bot HARUS berhenti...
   // Jangan mengirim follow-up otomatis... Conversation tersebut
-  // sepenuhnya menjadi milik Pasha"). Even the trigger phrase below stays
-  // silent once Pasha has personally taken over — that guarantee must
-  // never be bypassed.
+  // sepenuhnya menjadi milik Pasha").
   if (existingLead.bot_status !== "BOT_ACTIVE") {
-    return;
-  }
-
-  // The trigger phrase ALWAYS re-triggers the welcome menu (added 21
-  // Agustus 2026, per Pasha's own feedback after testing: the very first
-  // version of this gate only ever fired for a brand-new contact — a
-  // RETURNING contact who sent the exact same opening line again got
-  // silently ignored by the narrow-response gate below, since it isn't a
-  // button tap and isn't the brief/budget step). Checked BEFORE the
-  // status gate so it works no matter what step the conversation is
-  // currently on — resets `status` back to 'menu' so the qualification
-  // flow restarts cleanly rather than half-mixing with whatever step the
-  // lead was previously on.
-  if (text && looksLikeBusinessChatLinkTrigger(text)) {
-    if (existingLead.status !== "menu") {
-      await updateLead(existingLead.id, { status: "menu" });
-    }
-    await sendWelcome(existingLead);
     return;
   }
 
