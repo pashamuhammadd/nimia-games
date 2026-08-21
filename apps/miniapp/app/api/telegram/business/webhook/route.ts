@@ -10,13 +10,12 @@ import {
   upsertBusinessConnection,
   getBusinessConnectionOwner,
   getOrCreateLead,
-  findLeadById,
   findLeadByTelegramUserId,
   updateLead,
   wasUpdateAlreadyProcessed,
 } from "../../../../lib/business-bot/leads";
 import { sendWelcome, handleServiceSelected, handleAnimationSubtypeSelected, handleFreeTextMessage } from "../../../../lib/business-bot/conversation";
-import { pauseBot, resumeBot, takeOverConversation } from "../../../../lib/business-bot/service";
+import { takeOverConversation } from "../../../../lib/business-bot/service";
 
 // Webhook for the Business Sales Assistant bot — see
 // docs/TELEGRAM_BUSINESS_BOT.md for the full architecture. Deliberately
@@ -151,26 +150,28 @@ async function handleBusinessMessage(message: BusinessMessage): Promise<void> {
   // the exact matching rules). Anything else from a first-time contact
   // — a personal message, a random DM, literally anything that isn't
   // that specific opener — is left COMPLETELY alone: no lead row
-  // created, no reply sent. Once a real lead conversation exists,
-  // every later message from that same person is handled normally
-  // regardless of content — this check only ever gates the FIRST
-  // message from someone new.
-  if (!existingLead && (!text || !looksLikeBusinessChatLinkTrigger(text))) {
-    return;
-  }
-
-  const lead =
-    existingLead ??
-    (await getOrCreateLead({
+  // created, no reply sent.
+  if (!existingLead) {
+    if (!text || !looksLikeBusinessChatLinkTrigger(text)) {
+      return;
+    }
+    const lead = await getOrCreateLead({
       telegramUserId: chatTelegramUserId,
       telegramUsername: message.from?.username ?? null,
       firstName: message.from?.first_name ?? null,
       lastName: message.from?.last_name ?? null,
       businessConnectionId,
-    }));
-
-  if (text) {
+    });
     await updateLead(lead.id, { last_message: text });
+    await sendWelcome(lead);
+    return;
+  }
+
+  // A returning contact (a lead row already exists). Record the message
+  // for Pasha's own visibility regardless of what happens next, then
+  // decide whether the bot is allowed to reply to it at all.
+  if (text) {
+    await updateLead(existingLead.id, { last_message: text });
   }
 
   // bot_status gate — the ONE check that makes human takeover actually
@@ -178,16 +179,24 @@ async function handleBusinessMessage(message: BusinessMessage): Promise<void> {
   // stop it from replying to Pasha (brief §10: "Bot HARUS berhenti...
   // Jangan mengirim follow-up otomatis... Conversation tersebut
   // sepenuhnya menjadi milik Pasha").
-  if (lead.bot_status !== "BOT_ACTIVE") {
+  if (existingLead.bot_status !== "BOT_ACTIVE") {
     return;
   }
 
-  if (lead.status === "menu" || !text) {
-    await sendWelcome(lead);
+  // Narrow-trigger gate #2 (added 21 Agustus 2026, per Pasha's own
+  // feedback): brief/budget capture is the ONLY step where the bot is
+  // allowed to react to free-form text — everywhere else (still on the
+  // main menu, or on the animation submenu) it must only ever respond to
+  // an actual button tap, handled separately in handleMenuTap below.
+  // Free text arriving at any other step is intentionally left
+  // unanswered here — see conversation.ts's handleFreeTextMessage for
+  // the full reasoning.
+  if (existingLead.status === "awaiting_brief" || existingLead.status === "awaiting_budget") {
+    if (text) {
+      await handleFreeTextMessage(existingLead, text);
+    }
     return;
   }
-
-  await handleFreeTextMessage(lead, text);
 }
 
 interface CallbackQueryUpdate {
@@ -210,11 +219,11 @@ async function handleCallbackQuery(callbackQuery: CallbackQueryUpdate): Promise<
     return;
   }
 
-  if (data.startsWith("lead:pause:") || data.startsWith("lead:resume:")) {
-    await handleAdminAction(callbackQuery, data);
-    return;
-  }
-
+  // Any other callback_data (e.g. a stale "lead:pause:"/"lead:resume:"
+  // button on an admin notification sent before 21 Agustus 2026, when
+  // that manual toggle existed) — just acknowledge the tap so Telegram
+  // stops showing a loading spinner; there's no admin action left to
+  // perform.
   await answerBusinessCallbackQuery(callbackQuery.id);
 }
 
@@ -250,35 +259,5 @@ async function handleMenuTap(callbackQuery: CallbackQueryUpdate, data: string): 
     await handleServiceSelected(lead, data.slice("svc:".length) as BusinessServiceId);
   } else {
     await handleAnimationSubtypeSelected(lead, data.slice("anim:".length) as AnimationSubtypeId);
-  }
-}
-
-/** Pause/Resume tap on the "New Lead" admin notification — that
- * notification is sent as a REGULAR bot message (sendBusinessBotOwnMessage,
- * no business_connection_id at all), so this callback_query is a
- * perfectly ordinary one; no business-context ambiguity here. Still
- * re-verifies the tapper is the lead's own connection owner (brief §20)
- * rather than trusting that only Pasha could ever see this button —
- * defense in depth, since a callback_data value is not secret. */
-async function handleAdminAction(callbackQuery: CallbackQueryUpdate, data: string): Promise<void> {
-  const [, action, leadId] = data.split(":");
-  const lead = leadId ? await findLeadById(leadId) : null;
-  if (!lead) {
-    await answerBusinessCallbackQuery(callbackQuery.id, "Lead not found", true);
-    return;
-  }
-
-  const owner = await getBusinessConnectionOwner(lead.business_connection_id);
-  if (!owner || String(callbackQuery.from.id) !== owner.telegramUserId) {
-    await answerBusinessCallbackQuery(callbackQuery.id, "Not authorized", true);
-    return;
-  }
-
-  if (action === "pause") {
-    await pauseBot(lead.id);
-    await answerBusinessCallbackQuery(callbackQuery.id, "Bot paused for this lead");
-  } else {
-    await resumeBot(lead.id);
-    await answerBusinessCallbackQuery(callbackQuery.id, "Bot resumed for this lead");
   }
 }

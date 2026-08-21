@@ -31,11 +31,7 @@ export async function notifyNewLead(lead: BusinessLead): Promise<void> {
       expectedBudget: lead.expected_budget,
     });
 
-    await sendBusinessBotOwnMessage(
-      owner.telegramUserId,
-      text,
-      buildLeadActionsKeyboard(lead.id, openLeadChatUrl(lead), lead.bot_status),
-    );
+    await sendBusinessBotOwnMessage(owner.telegramUserId, text, buildLeadActionsKeyboard(openLeadChatUrl(lead)));
   } catch (error) {
     console.error("[business-bot] notifyNewLead failed", error);
   }

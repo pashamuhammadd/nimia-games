@@ -1,32 +1,20 @@
 import { updateLead } from "./leads";
 
-// Conversation Layer's own control surface (brief §11 — the exact
-// function names the brief asks for, `conversationId` being this lead's
-// `id` since each lead IS one conversation in this MVP; a future
-// multi-conversation-per-lead model, if ever needed, would just change
-// what id these take, not their shape). Every automated reply in
-// conversation.ts checks bot_status via these same transitions, and the
-// admin notification's Pause/Resume buttons (webhook route's
-// callback_query handler) call pauseBot/resumeBot directly — this file
-// is the ONE place "what does pausing actually mean" is decided.
-
-/** Manual pause — Pasha tapped "⏸ Pause Bot" on a lead notification, or
- * (future) some other admin action. Distinct from takeOverConversation:
- * this doesn't imply Pasha is actively replying right now, just that
- * automation should stop for this lead until explicitly resumed. */
-export async function pauseBot(conversationId: string): Promise<void> {
-  await updateLead(conversationId, { bot_status: "WAITING_FOR_HUMAN" });
-}
-
-/** Re-enables automation for this lead (brief §11: "Buat sistem agar
- * Pasha nantinya dapat mengaktifkan kembali automation"). Does NOT
- * reset `status` (the conversation-flow step) — resuming a
- * conversation that already reached `completed` just means "the bot
- * COULD reply again if this lead messages," not "restart the
- * qualification flow from scratch." */
-export async function resumeBot(conversationId: string): Promise<void> {
-  await updateLead(conversationId, { bot_status: "BOT_ACTIVE" });
-}
+// Conversation Layer's own control surface (brief §11). `conversationId`
+// is this lead's `id` since each lead IS one conversation in this MVP; a
+// future multi-conversation-per-lead model, if ever needed, would just
+// change what id these take, not their shape.
+//
+// pauseBot/resumeBot (the brief's own manual-toggle names) were removed
+// 21 Agustus 2026 per Pasha's own feedback: the bot already only ever
+// replies to the exact Business Chat Link trigger phrase or an actual
+// button tap (see trigger.ts and conversation.ts), so a manual
+// "stop/start the bot" admin control has nothing left to protect
+// against. takeOverConversation/releaseConversation stay — they're not
+// a manual toggle, they're the AUTOMATIC silencing that fires the
+// instant Pasha replies to a lead himself (webhook route's own
+// from.id-matches-owner check), which is still necessary regardless of
+// how narrow the bot's own triggers are.
 
 /** Called the instant a business_message arrives whose `from.id` matches
  * this lead's connection owner (Pasha typed it himself from his own

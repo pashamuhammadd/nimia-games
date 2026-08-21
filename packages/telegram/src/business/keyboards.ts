@@ -75,27 +75,21 @@ export function buildAnimationSubmenuKeyboard(): TelegramInlineKeyboard {
   ]);
 }
 
-/** The "New Lead" admin notification's own buttons (brief §13) — sent
- * with sendBusinessBotOwnMessage (rest.ts), so these taps arrive as a
- * REGULAR callback_query, never a business one; the webhook route
- * verifies the tapper is the connection owner before acting on
- * lead:pause/lead:resume regardless (brief §20: "hanya Pasha/admin yang
- * dapat melakukan human takeover"). `openChatUrl` is built by the
- * caller (leads.ts's openLeadChatUrl) since it depends on whether the
- * lead has a public @username or only a numeric id. Shows Pause OR
- * Resume, never both, based on the lead's CURRENT bot_status at the
- * moment the notification is sent — if it changes later the button
- * label can go stale until the next notification, which is an
- * acceptable trade-off for not having to edit a already-sent message on
- * every status change. */
-export function buildLeadActionsKeyboard(
-  leadId: string,
-  openChatUrl: string,
-  botStatus: "BOT_ACTIVE" | "HUMAN_ACTIVE" | "WAITING_FOR_HUMAN" | "COMPLETED",
-): TelegramInlineKeyboard {
-  const toggleButton: TelegramInlineButton =
-    botStatus === "BOT_ACTIVE"
-      ? { text: "⏸ Pause Bot", callback_data: `lead:pause:${leadId}` }
-      : { text: "🤖 Resume Bot", callback_data: `lead:resume:${leadId}` };
-  return inlineKeyboard([[{ text: "👤 Open Chat", url: openChatUrl }], [toggleButton]]);
+/** The "New Lead" admin notification's own button (brief §13) — sent
+ * with sendBusinessBotOwnMessage (rest.ts). `openChatUrl` is built by
+ * the caller (leads.ts's openLeadChatUrl) since it depends on whether
+ * the lead has a public @username or only a numeric id.
+ *
+ * Deliberately just the one URL button, no callback-driven Pause/Resume
+ * toggle (removed 21 Agustus 2026 per Pasha's own feedback: the bot
+ * already only ever replies to the exact Business Chat Link trigger
+ * phrase or an actual button tap — see trigger.ts and
+ * conversation.ts's sendWelcome/handleFreeTextMessage — so a manual
+ * "stop the bot" control has nothing left to protect against and just
+ * adds a UI element Pasha never needs). Automatic silencing when Pasha
+ * personally replies (human takeover) still works — that's handled by
+ * service.ts's takeOverConversation, triggered by the webhook route
+ * itself, not by any button here. */
+export function buildLeadActionsKeyboard(openChatUrl: string): TelegramInlineKeyboard {
+  return inlineKeyboard([[{ text: "👤 Open Chat", url: openChatUrl }]]);
 }

@@ -30,11 +30,15 @@ import { notifyNewLead } from "./notify";
 // internal guard that assumes it's always being called from the
 // business_message handler.
 
-/** First contact — lead.status is still the fresh-row default 'menu'.
- * Sent for the prospect's very first message REGARDLESS of its content
- * (brief §2 doesn't ask the bot to interpret the opening line, just to
- * greet and show the menu) and also resent (harmless, idempotent) if a
- * prospect types free text again before tapping a menu button. */
+/** First contact — sent exactly once, the moment a brand-new lead row is
+ * created for a message that matched the Business Chat Link's trigger
+ * phrase (trigger.ts + the webhook route's front-door gate). Never
+ * resent for a returning 'menu'-status contact who types free text
+ * instead of tapping a button — per Pasha's own feedback (21 Agustus
+ * 2026), the bot must only ever reply to that one specific trigger
+ * message or to an actual button tap, nothing else. The webhook route
+ * enforces this by only calling sendWelcome right after creating a
+ * fresh lead, never on a later message. */
 export async function sendWelcome(lead: BusinessLead): Promise<void> {
   await sendBusinessMessage(
     lead.business_connection_id,
@@ -42,9 +46,6 @@ export async function sendWelcome(lead: BusinessLead): Promise<void> {
     buildWelcomeMessage(),
     buildBusinessMainMenuKeyboard(),
   );
-  if (lead.status !== "menu") {
-    await updateLead(lead.id, { status: "menu" });
-  }
 }
 
 /** Main-menu button tap (brief §2's 6 options). `animation` opens a
@@ -77,11 +78,16 @@ export async function handleAnimationSubtypeSelected(lead: BusinessLead, subtype
 }
 
 /** A free-text reply while `status` is `awaiting_brief` or
- * `awaiting_budget` — the only two steps where the prospect is expected
- * to type a real sentence rather than tap a button. Anything else
- * (e.g. free text while `status` is still `menu`/`animation_menu`, a
- * prospect typing instead of tapping) falls through to re-showing the
- * relevant menu, never silently ignored. */
+ * `awaiting_budget` — the ONLY two steps where a prospect is expected to
+ * type a real sentence rather than tap a button (Pasha's own feedback,
+ * 21 Agustus 2026: every other automated reply must come from either the
+ * front-door trigger phrase or a specific button tap, never from
+ * free-form text — brief/budget capture is the sole, necessary
+ * exception). The webhook route only ever calls this function when
+ * `status` is one of these two values — a prospect who types free text
+ * at any other step (e.g. `menu`/`animation_menu`, waiting on a button
+ * tap) is left unanswered by the route itself, so there is no fallback
+ * branch here for that case anymore. */
 export async function handleFreeTextMessage(lead: BusinessLead, text: string): Promise<void> {
   if (lead.status === "awaiting_brief") {
     const { detectedBudget } = interpretLeadMessage(text);
@@ -96,29 +102,12 @@ export async function handleFreeTextMessage(lead: BusinessLead, text: string): P
     return;
   }
 
-  if (lead.status === "awaiting_budget") {
-    // Whatever they wrote IS the budget answer, verbatim — this is the
-    // one and only follow-up question this bot ever asks, so there's no
-    // third attempt/re-prompt loop here even if this reply also doesn't
-    // look like a number (brief: keep it to one extra message, never a
-    // bertele-tele back-and-forth).
-    await completeLead(lead, { projectDescription: lead.project_description, expectedBudget: text });
-    return;
-  }
-
-  // status is 'menu' or 'animation_menu' — the prospect typed instead of
-  // tapping a button. Re-show the relevant menu rather than staying
-  // silent (silence would look broken, not premium).
-  if (lead.status === "animation_menu") {
-    await sendBusinessMessage(
-      lead.business_connection_id,
-      lead.telegram_user_id,
-      buildAnimationMenuMessage(),
-      buildAnimationSubmenuKeyboard(),
-    );
-    return;
-  }
-  await sendWelcome(lead);
+  // lead.status === "awaiting_budget" — whatever they wrote IS the
+  // budget answer, verbatim. This is the one and only follow-up
+  // question this bot ever asks, so there's no third attempt/re-prompt
+  // loop here even if this reply also doesn't look like a number (brief:
+  // keep it to one extra message, never a bertele-tele back-and-forth).
+  await completeLead(lead, { projectDescription: lead.project_description, expectedBudget: text });
 }
 
 /** brief §9 — both intake paths (budget detected in the brief itself,
