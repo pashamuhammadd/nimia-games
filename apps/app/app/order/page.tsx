@@ -1,32 +1,45 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { createServerClient } from "@nimia/db";
-import { OrderWizard } from "@/modules/order";
+import { OrderHeader } from "@/modules/order";
+import { BriefIntakeForm } from "@/modules/brief-intake";
 
+// /order — Nimia Studio redesign Tahap 2 (3 November 2026,
+// docs/nimia-studio-redesign/). Decisions applied here:
+//   - Login BEFORE filling in the brief (signed-out visitors are sent to
+//     /login and come straight back via redirectedFrom).
+//   - The old configurator (Project Builder / Packages / Custom Builder,
+//     modules/order's OrderWizard) is no longer linked or rendered. Its
+//     code stays in modules/order because existing orders, pricing tests
+//     and shared helpers (upload, header) still use it.
+//   - Only Animation and Development are offered; digital assets are not.
 export const metadata: Metadata = {
-  title: "Start Your Project",
+  title: "Start a project",
   description:
-    "Configure your Animation, Digital Assets, Website Development, or Game Development project step by step and get an instant estimate.",
-  // SEO fix, 10 Agustus 2026 — canonical URL, part of the sitewide SEO
-  // pass (see app/layout.tsx). Resolves against root's metadataBase.
+    "Tell Nimia Studio what you need — animation or development — with your budget range. We agree on scope and price together before anything is billed.",
   alternates: {
     canonical: "/order",
   },
+  robots: { index: false, follow: true },
 };
 
-// /order — the Project Configurator (multi-step wizard), reached from the
-// Services page's "Start Your Project" CTA (see app/services/data.ts'
-// ORDER_HREF). Deliberately NOT behind middleware.ts's /dashboard auth gate
-// — a visitor can configure and price out a full project while signed out;
-// only Submit (Step 7) requires an account. See
-// modules/order/state/use-order-wizard.ts#submit for that redirect, and
-// app/actions.ts#signInAction for the `redirectedFrom` handling that brings
-// them back here afterward.
 export default async function OrderPage() {
   const supabase = createServerClient(await cookies());
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return <OrderWizard isAuthenticated={!!user} />;
+  if (!user) {
+    redirect(`/login?redirectedFrom=${encodeURIComponent("/order")}`);
+  }
+
+  return (
+    <div className="nimia-dark min-h-screen">
+      <OrderHeader isAuthenticated />
+      <main id="main" className="mx-auto max-w-2xl px-4 pb-24 pt-10 sm:px-6 sm:pt-14">
+        <BriefIntakeForm />
+      </main>
+    </div>
+  );
 }

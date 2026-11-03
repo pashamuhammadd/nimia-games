@@ -33,6 +33,17 @@ Tiga kategori di bawah tidak boleh dicampur. Hanya bagian A yang mengikat. Bagia
 - Tidak memisahkan repo atau mengganti database otomatis.
 - Uji dengan data dummy terisolasi; tidak mengonfirmasi pembayaran/order nyata.
 
+### Keputusan Tahap 2 (dijawab Pasha, 3 Nov 2026)
+- **Login sebelum mengisi brief.** Pengunjung yang belum login di `/order` diarahkan ke `/login?redirectedFrom=/order`.
+- **Wizard lama disembunyikan sepenuhnya.** Project Builder, Packages, dan Custom Builder tidak lagi dirender atau ditautkan dari `/order`. Kodenya tetap ada di `modules/order` karena dipakai order lama, tes harga, upload, dan header.
+- **Digital assets tidak ditawarkan** di intake baru. Data order lama tetap apa adanya.
+- **Penanda database `order_flow_type = 'brief'`** lewat migration additive `0056`.
+
+### Interpretasi teknis Tahap 2 (perlu dikonfirmasi saat review)
+- Order brief disimpan dengan status **`negotiating`**, bukan `pending_review`. Di sistem sekarang hanya order `negotiating` yang bisa diberi penawaran staff lalu **disetujui klien** (accept/counter). Order `pending_review` diberi harga langsung oleh admin tanpa persetujuan klien, dan itu bertentangan dengan alur yang disetujui.
+- Budget disimpan sebagai rentang teks di `orders.budget`. `proposed_price_usd` dan `final_price_usd` dibiarkan kosong, dan tidak ada baris `order_negotiations` yang dibuat dari budget.
+- `payment_method` dibiarkan kosong, jadi order brief hanya bisa dibayar penuh lewat jalur existing sampai syarat pembayaran masuk ke penawaran (Tahap 3).
+
 ---
 
 ## B. Usulan teknis (perlu review, belum disetujui)
@@ -63,14 +74,13 @@ B1–B8 sudah diterapkan di Tahap 1 sebagai implementasi yang bisa direview (lih
 ### C2. Tidak menghalangi Tahap 1 (default dipakai bila belum dijawab)
 | Pertanyaan | Default Tahap 1 |
 |---|---|
-| Username/URL Telegram layanan studio | Link Telegram disembunyikan (B5) |
+| Username/URL Telegram layanan studio | Link Telegram disembunyikan (B5) di homepage dan halaman konfirmasi order. Aktif otomatis setelah `NEXT_PUBLIC_STUDIO_TELEGRAM_URL` diisi di Vercel (studio **dan** app). |
 | Identitas legal penerbit, isi Terms/Privacy/Refund | Footer mempertahankan link legal existing ke nimiagames.com dan teks copyright existing; tidak menulis klaim legal baru |
 | Portfolio final, termasuk Lifetopia World / LemmiRun (IP Nimia Games) | Hanya item dari tabel `portfolio` yang `published`; IP Nimia Games tidak ditampilkan di homepage baru |
 | Karya Development nyata untuk ditampilkan | Kartu Development di Services tanpa klaim karya; tidak ada thumbnail karangan |
 | Nasib halaman /why-nimia, /how-to-start, /partners, /services lama | Tetap hidup dengan tema lama sampai Tahap 5; Partner Program tetap di footer |
 
 ### C3. Untuk tahap berikutnya (dari paket + temuan audit)
-- Timing login pada order (saat ini: /order bisa dibuka tanpa login, login diminta saat submit).
 - Aturan biaya & jadwal cicilan untuk order baru. Nilai existing: default +20% (2x, 60/40) dan +30% (3x, 40/30/30), dapat diubah admin di `installment_settings` — nilai aktual production belum diperiksa. Tidak ada kolom jatuh tempo per termin di database.
 - Revisi harga setelah persetujuan/pembayaran; kapan produksi boleh mulai.
 - Scope notifikasi email/Telegram.

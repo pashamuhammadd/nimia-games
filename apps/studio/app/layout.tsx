@@ -55,7 +55,7 @@ export const metadata: Metadata = {
   },
 
   description:
-    "Nimia Studio turns your ideas into professional, polished animation, games, and digital assets. Get an instant estimate, track production, and pay securely — all from your own project dashboard.",
+    "Nimia Studio is an independent creative studio for animation and development. Share your brief and budget, agree on scope and price, then track production and pay securely from your own dashboard.",
 
   keywords: [
     "Nimia Studio",

@@ -9,7 +9,7 @@ import { FULL_PORTFOLIO_URL } from "../../portfolio/data";
 // legal claims are written in this stage.
 const EXPLORE_LINKS = [
   { href: FULL_PORTFOLIO_URL, label: "Full portfolio", external: true },
-  { href: "/services", label: "Services and packages", external: false },
+  { href: "/services", label: "Services", external: false },
   { href: "/how-to-start", label: "How to start", external: false },
   { href: "/why-nimia", label: "Why Nimia", external: false },
 ];

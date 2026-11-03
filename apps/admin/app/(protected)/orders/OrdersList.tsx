@@ -78,7 +78,11 @@ export type OrderListItem = {
   // differs in practice ("Creative Agent Brief: X" vs "Custom Order: X"),
   // so nothing else needed to change here for existing orders to keep
   // rendering correctly.
-  order_flow_type: "project_builder" | "package" | "custom" | "creative_agent";
+  // "brief" (0056, 3 November 2026): orders from the short Animation /
+  // Development intake on app.nimiastudio.com/order (Nimia Studio redesign
+  // Tahap 2). Like creative_agent, they carry their display label in
+  // package_name and have no service_id / payment_method yet.
+  order_flow_type: "project_builder" | "package" | "custom" | "creative_agent" | "brief";
   payment_method: "full_payment" | "installments" | null;
   payment_plan: "none" | "two_milestones" | "three_milestones" | "custom";
   normal_price_usd: number | null;

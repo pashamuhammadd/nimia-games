@@ -245,7 +245,14 @@ from (
         ) then 'APPLIED'
         else 'MISSING — still the buggy 0044 version ("on conflict (installment_id)" ambiguous against the function''s own installment_id OUT column), clicking Receipt on any paid installment will fail with "column reference \"installment_id\" is ambiguous"'
       end,
-      'Fixes get_or_create_order_receipt(): two ON CONFLICT clauses referenced the bare column installment_id, which is ambiguous against the function''s own returns-table OUT variable of the same name. Fixed by targeting the named constraint (installment branch) and qualifying the predicate with a table alias (legacy branch). No schema/signature change.')
+      'Fixes get_or_create_order_receipt(): two ON CONFLICT clauses referenced the bare column installment_id, which is ambiguous against the function''s own returns-table OUT variable of the same name. Fixed by targeting the named constraint (installment branch) and qualifying the predicate with a table alias (legacy branch). No schema/signature change.'),
+
+    (56, '0056_brief_intake_order_flow_type',
+      case when exists (
+        select 1 from pg_type t join pg_enum e on e.enumtypid = t.oid
+        where t.typname = 'order_flow_type' and e.enumlabel = 'brief'
+      ) then 'APPLIED' else 'MISSING — the redesigned /order intake (Nimia Studio Tahap 2) will fail to submit until this runs' end,
+      'Adds ''brief'' to the order_flow_type enum for orders created by the short Animation/Development intake on app.nimiastudio.com/order (docs/nimia-studio-redesign/). Run BEFORE deploying the Tahap 2 app code.')
 
 ) as report(migration_no, migration, status, note)
 order by migration_no;

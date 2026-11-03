@@ -15,7 +15,8 @@ Folder ini mencatat perombakan Nimia Studio (nimiastudio.com dan app terkait) be
 
 - **Tahap 0 (audit + rencana): selesai.**
 - **Tahap 1 (Orchid Pulse, Motion Frame, homepage): selesai di working tree, menunggu review** — detail di `04-PROGRES.md`. Hanya `apps/studio` yang berubah.
-- Belum ada migration, perubahan pembayaran, konfigurasi production, atau deploy. Commit dan push dilakukan manual oleh Pasha.
+- **Tahap 2 (intake order Animation/Development + budget): selesai di working tree, menunggu review.** Butuh migration `0056` dijalankan di Supabase **sebelum** deploy.
+- Belum ada perubahan pembayaran, konfigurasi production, atau deploy. Commit, push, dan menjalankan migration dilakukan manual oleh Pasha.
 
 ## Sumber kebenaran
 

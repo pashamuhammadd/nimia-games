@@ -51,7 +51,7 @@ export function ServicesSection({ isAuthenticated }: { isAuthenticated: boolean 
             href="/services"
             className="inline-flex min-h-[44px] items-center font-semibold text-[var(--orchid-text)] underline underline-offset-4 hover:text-[var(--orchid-pink)]"
           >
-            See services and packages
+            See all services
           </a>
         </div>
       </div>

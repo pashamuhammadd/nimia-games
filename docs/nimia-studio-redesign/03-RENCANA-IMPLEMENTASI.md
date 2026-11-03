@@ -17,7 +17,7 @@ Dokumen di folder ini. Tidak ada perubahan kode.
 ## Tahap 1 — Visual marketing: Orchid Pulse, Motion Frame, homepage (selesai, menunggu review)
 Detail konkret di bagian akhir dokumen ini. Hanya `apps/studio` (+ dokumen). Tanpa DB, pembayaran, atau perubahan alur order.
 
-## Tahap 2 — Intake order
+## Tahap 2 — Intake order (selesai, menunggu review — lihat 04-PROGRES)
 - **Reuse:** wizard `apps/app/modules/order`, kolom `budget`/`proposed_price_usd`, upload Cloudinary, validasi animasi (script, referensi karakter, deadline), notifikasi order baru.
 - **Bangun:** langkah awal "Animation / Development" yang memetakan ke kategori existing (Animation → `animation`; Development → `website_development`/`game_development`; `digital_assets` diputuskan), form kebutuhan + anggaran ringkas, halaman sukses dengan nomor order dan tombol Telegram (deep link berisi nomor order + brief ringkas, tanpa memberi akses privat).
 - **Butuh keputusan:** timing login, username Telegram layanan, nasib `digital_assets`, apakah Package/Custom Builder tetap tampil.

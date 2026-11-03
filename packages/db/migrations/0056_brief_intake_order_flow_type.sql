@@ -1,0 +1,29 @@
+-- ============================================================
+-- 0056: Nimia Studio redesign Tahap 2 — order_flow_type 'brief'
+--
+-- The redesigned /order page on app.nimiastudio.com (3 November 2026,
+-- docs/nimia-studio-redesign/) replaces the old configurator with a short
+-- intake: Animation or Development, project type, needs, a budget RANGE,
+-- optional deadline/references. These orders have no catalog line items
+-- and no estimated price (the budget is the client's starting point, never
+-- the final price), so they must not be confused with Project Builder /
+-- Package / Custom Builder / Creative Agent orders. Same reasoning and
+-- same additive pattern as 0047 (which added 'creative_agent').
+--
+-- Consumers audited before adding the value: no SQL function or app code
+-- branches exhaustively on order_flow_type (apps/admin's
+-- setOrderPaymentPlanAction selects it but never branches on it; the admin
+-- OrdersList TS union is widened in the same change set). Brief orders
+-- leave payment_method null, so materialize_order_installments (0038/0051)
+-- stays a no-op for them and they use the existing single-payment path
+-- until payment terms move into the offer (Tahap 3). They are inserted
+-- with status 'negotiating' so staff reply with an offer the client must
+-- accept (existing 0013/0019 negotiation flow), never a direct price.
+--
+-- MUST be run in Supabase BEFORE the Tahap 2 app code is deployed: the
+-- new submitBriefOrderAction inserts order_flow_type = 'brief'.
+--
+-- Standalone, idempotent, touches no existing rows.
+-- ============================================================
+
+alter type public.order_flow_type add value if not exists 'brief';
