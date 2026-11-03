@@ -416,3 +416,211 @@ body {
     color: var(--nimia-crimson);
   }
 }
+
+/* ==========================================================================
+   Orchid Pulse (Nimia Studio redesign, Tahap 1 — 3 November 2026)
+   See docs/nimia-studio-redesign/. Approved tokens: #100B1B background,
+   #FF39C8 pink, #A26BFF violet, #FFF5FC text, gradient 115deg pink->violet.
+   Derived tokens (surface, muted, border, success, error) are
+   implementation choices; their contrast is asserted in
+   app/components/home/contrast.test.ts.
+
+   Scoped to `.studio-orchid` on purpose: only the new homepage opts in for
+   now. Every other studio page keeps `.nimia-dark` (crimson) untouched
+   until it is redesigned (Tahap 5). The scope also remaps the legacy
+   --background/--foreground/--nimia-* variables, so @nimia/ui components
+   and the shared Footer re-theme automatically inside it.
+   ========================================================================== */
+.studio-orchid {
+  --orchid-bg: #100b1b;
+  --orchid-surface: #1b1430;
+  --orchid-surface-raised: #241a3d;
+  --orchid-pink: #ff39c8;
+  --orchid-violet: #a26bff;
+  --orchid-violet-soft: #c3a3ff;
+  --orchid-text: #fff5fc;
+  --orchid-muted: #c4b5d4;
+  --orchid-border: rgba(255, 245, 252, 0.12);
+  --orchid-success: #5ee6a8;
+  /* Error is coral, NOT pink: pink is the brand color, so it can never be
+     the only signal that something went wrong (always pair with icon/text). */
+  --orchid-error: #ff9a7a;
+  --orchid-gradient: linear-gradient(115deg, #ff39c8, #a26bff);
+  --orchid-focus: #fff5fc;
+
+  /* Legacy variable bridge for shared components inside this scope. */
+  --background: var(--orchid-bg);
+  --foreground: var(--orchid-text);
+  --nimia-crimson: var(--orchid-pink);
+  --nimia-crimson-hover: #ff5fd3;
+  --nimia-pink: var(--orchid-pink);
+  --nimia-border: var(--orchid-border);
+  --nimia-surface: rgba(255, 245, 252, 0.04);
+  --nimia-surface-hover: rgba(255, 245, 252, 0.08);
+  --nimia-muted: var(--orchid-muted);
+  --nimia-popover: rgba(27, 20, 48, 0.98);
+
+  background: var(--orchid-bg);
+  color: var(--orchid-text);
+  font-family: var(--font-sora), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  color-scheme: dark;
+  overflow-x: clip;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.studio-orchid) {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  .orchid-display {
+    font-family: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 0.98;
+  }
+
+  .orchid-gradient-text {
+    background: var(--orchid-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Visible on every interactive element in the scope, keyboard only. */
+  .studio-orchid :where(a, button, [tabindex]):focus-visible {
+    outline: 3px solid var(--orchid-focus);
+    outline-offset: 3px;
+    border-radius: 999px;
+  }
+
+  .orchid-btn {
+    display: inline-flex;
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 999px;
+    padding: 0 1.5rem;
+    font-weight: 700;
+    font-size: 0.975rem;
+    transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+  }
+  .orchid-btn-primary {
+    background: var(--orchid-pink);
+    color: var(--orchid-bg);
+    box-shadow: 0 0 0 0 rgba(255, 57, 200, 0);
+  }
+  .orchid-btn-primary:hover {
+    box-shadow: 0 0 28px 2px rgba(255, 57, 200, 0.45);
+    transform: translateY(-1px);
+  }
+  .orchid-btn-ghost {
+    border: 2px solid var(--orchid-text);
+    color: var(--orchid-text);
+  }
+  .orchid-btn-ghost:hover {
+    background: rgba(255, 245, 252, 0.08);
+  }
+
+  /* Motion Frame hero: two rounded L-pieces (pink = top/left,
+     violet = bottom/right, drawn as SVG strokes in HomeHero.tsx) that
+     meet around a window holding real work. */
+  .motion-frame {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    width: 100%;
+  }
+  .motion-frame__svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .motion-frame__pink {
+    filter: drop-shadow(0 0 18px rgba(255, 57, 200, 0.4));
+  }
+  .motion-frame__violet {
+    filter: drop-shadow(0 0 18px rgba(162, 107, 255, 0.4));
+  }
+  .motion-frame__window {
+    position: absolute;
+    inset: 21%;
+    overflow: hidden;
+    border-radius: 18%;
+    background:
+      radial-gradient(120% 90% at 20% 15%, rgba(255, 57, 200, 0.55), transparent 60%),
+      radial-gradient(100% 90% at 85% 90%, rgba(162, 107, 255, 0.6), transparent 60%),
+      var(--orchid-surface);
+  }
+
+  /* Corner marks reused from the logo halves on the two service cards. */
+  .orchid-corner {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    border-style: solid;
+    border-width: 10px;
+  }
+  .orchid-corner--tl {
+    top: -2px;
+    left: -2px;
+    border-color: currentColor transparent transparent currentColor;
+    border-radius: 18px 0 0 0;
+  }
+  .orchid-corner--br {
+    right: -2px;
+    bottom: -2px;
+    border-color: transparent currentColor currentColor transparent;
+    border-radius: 0 0 18px 0;
+  }
+}
+
+/* One orchestrated load moment: the two frame halves slide in from
+   opposite corners and meet (Motion Frame direction from the visual guide). */
+@media (prefers-reduced-motion: no-preference) {
+  .motion-frame__pink {
+    animation: orchid-meet-pink 900ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+  }
+  .motion-frame__violet {
+    animation: orchid-meet-violet 900ms cubic-bezier(0.2, 0.9, 0.2, 1) 80ms both;
+  }
+  .motion-frame__window {
+    animation: orchid-window-in 700ms ease-out 420ms both;
+  }
+}
+
+@keyframes orchid-meet-pink {
+  from {
+    transform: translate(-6px, -6px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes orchid-meet-violet {
+  from {
+    transform: translate(6px, 6px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes orchid-window-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
